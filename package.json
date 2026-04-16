@@ -1,0 +1,48 @@
+{
+  "name": "claude",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --hostname 0.0.0.0",
+    "dev:full": "node scripts/ws-server.mjs & next dev -p 3003 --hostname 0.0.0.0",
+    "prod": "next build && node scripts/ws-server.mjs & PORT=3003 next start --hostname 0.0.0.0",
+    "dev:ws": "node scripts/ws-server.mjs",
+    "build": "next build",
+    "start": "next start",
+    "start:lan": "next build && node scripts/ws-server.mjs & PORT=3003 next start --hostname 0.0.0.0",
+    "test": "vitest run",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "@heroicons/react": "^2.2.0",
+    "@types/qrcode": "^1.5.6",
+    "clsx": "^2.1.1",
+    "framer-motion": "^12.38.0",
+    "lucide-react": "^1.7.0",
+    "marked": "^17.0.5",
+    "next": "^16.1.6",
+    "prismjs": "^1.30.0",
+    "qrcode": "^1.5.4",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3"
+  },
+  "optionalDependencies": {
+    "better-sqlite3": "^12.8.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.59.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^20.19.37",
+    "@types/prismjs": "^1.26.6",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19",
+    "autoprefixer": "^10.4.27",
+    "jsdom": "^24.1.3",
+    "postcss": "^8.5.8",
+    "tailwindcss": "^3.4.19",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.2"
+  }
+}
