@@ -3,7 +3,7 @@ import * as path from "path";
 import * as os from "os";
 import { cache } from "react";
 import { notFound } from "next/navigation";
-import SessionPageWrapper from "./SessionPageWrapper";
+import SessionProgressClient from "./SessionProgressClient";
 
 export const dynamic = "force-dynamic";
 
@@ -143,5 +143,5 @@ export default async function SessionProgressPage({
     const meta = loadSessionMeta(sessionId);
     if (!meta) notFound();
 
-    return <SessionPageWrapper meta={meta} />;
+    return <SessionProgressClient meta={meta} />;
 }
