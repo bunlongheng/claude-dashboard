@@ -32,6 +32,7 @@ function ensureTables(db: any) {
             title TEXT NOT NULL,
             instruction TEXT NOT NULL,
             source TEXT DEFAULT 'manual',
+            project TEXT DEFAULT 'global',
             confidence REAL DEFAULT 1.0,
             last_used_at TEXT,
             violations_count INTEGER DEFAULT 0,
