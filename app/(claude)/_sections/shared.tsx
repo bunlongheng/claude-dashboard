@@ -22,7 +22,7 @@ export const ACCENT = SECTION_COLORS.claude;
 export type HistoryEntry = { display: string; timestamp: number; project?: string; sessionId?: string };
 export type Note = { id: string; title: string; content: string; folder_color: string; created_at: string };
 export type Token = { session_id: string; project?: string; model?: string; machine?: string; input_tokens: number; output_tokens: number; cache_read_tokens: number; cache_creation_tokens: number; prompt_count: number };
-export type GlobalInstruction = { id: string; category: string; title: string; instruction: string; source: string; confidence: number; last_used_at: string | null; violations_count: number; created_at: string; updated_at: string };
+export type GlobalInstruction = { id: string; category: string; title: string; instruction: string; source: string; project?: string; confidence: number; last_used_at: string | null; violations_count: number; created_at: string; updated_at: string };
 export type Interval = "today" | "7d" | "1m" | "all";
 export type DrillTarget = "prompts" | "sessions" | "projects" | "tokens" | null;
 
