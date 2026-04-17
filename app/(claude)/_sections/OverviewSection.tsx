@@ -171,7 +171,7 @@ export default function OverviewSection() {
 
     return (
         <div className="space-y-6">
-            {/* Top row — key metrics */}
+            {/* Top row - key metrics */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                 <StatCard label="Sessions" value={stats.sessions} icon={FolderOpen} color="#22c55e"
                     sub={`${stats.activeSessions} active now`}
@@ -191,7 +191,7 @@ export default function OverviewSection() {
                 <StatCard label="Rules" value={stats.rules} icon={ShieldCheck} color="#ef4444" />
             </div>
 
-            {/* Bottom row — charts */}
+            {/* Bottom row - charts */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {/* Config donut */}
                 <div style={{

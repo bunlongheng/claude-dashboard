@@ -18,7 +18,7 @@ function formatSize(bytes: number) {
     return `${(bytes / 1024).toFixed(1)} KB`;
 }
 
-/** Simple line diff — returns segments of added/removed/unchanged lines */
+/** Simple line diff - returns segments of added/removed/unchanged lines */
 function diffLines(oldText: string, newText: string) {
     const oldLines = oldText.split("\n");
     const newLines = newText.split("\n");

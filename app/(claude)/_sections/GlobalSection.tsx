@@ -92,7 +92,7 @@ function ClaudeMdEditor({ item }: { item: ClaudeMdInfo }) {
             </div>
             <div className="px-6 py-5">
                 {!editing && !content && (
-                    <p className="text-[10px] text-white/20 text-center py-6">No content — click edit to add</p>
+                    <p className="text-[10px] text-white/20 text-center py-6">No content - click edit to add</p>
                 )}
                 {!editing && content && viewMode === "preview" && (
                     <div
@@ -180,7 +180,7 @@ export default function GlobalSection() {
         <div>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
                 <span style={{ fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.4)" }}>
-                    {claudeMdFiles.length} CLAUDE.md file{claudeMdFiles.length !== 1 ? "s" : ""} — identity, rules, and instructions
+                    {claudeMdFiles.length} CLAUDE.md file{claudeMdFiles.length !== 1 ? "s" : ""} - identity, rules, and instructions
                 </span>
                 <ClaudeMdHistory />
             </div>

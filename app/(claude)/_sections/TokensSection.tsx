@@ -232,8 +232,8 @@ export default function TokensSection({ initialTokens }: { initialTokens: Token[
                             <div key={t.session_id} className="grid grid-cols-[1fr_90px_70px_80px_100px_70px] gap-1 px-3 py-1.5 border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors items-center">
                                 <span className="text-[10px] text-white/70 truncate">{proj}</span>
                                 <span className="text-[9px] text-white/25 font-mono truncate">{t.session_id.slice(0, 8)}</span>
-                                <span className="text-[9px] font-bold px-1 py-0.5 rounded w-fit" style={{ background: hexToRgba(mColor, 0.15), color: mColor }}>{t.machine ?? "—"}</span>
-                                <span className="text-[9px] text-white/40 truncate">{t.model ?? "—"}</span>
+                                <span className="text-[9px] font-bold px-1 py-0.5 rounded w-fit" style={{ background: hexToRgba(mColor, 0.15), color: mColor }}>{t.machine ?? "-"}</span>
+                                <span className="text-[9px] text-white/40 truncate">{t.model ?? "-"}</span>
                                 <span className="text-[9px] text-white/40 font-mono text-right">{fmtNum(t.input_tokens)}/{fmtNum(t.output_tokens)}/{fmtNum(t.cache_read_tokens)}</span>
                                 <span className="text-[10px] font-mono text-amber-400 text-right">{fmtCost(calcCost(t))}</span>
                             </div>

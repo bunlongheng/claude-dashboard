@@ -91,7 +91,7 @@ function parseSessionFile(filePath: string, project: string): SessionAccum {
         try {
             const d = JSON.parse(line);
 
-            // type: "summary" — contains aggregated usage
+            // type: "summary" - contains aggregated usage
             if (d.type === "summary" && d.summary?.usage) {
                 const u = d.summary.usage;
                 accum.input_tokens += u.input_tokens ?? 0;
@@ -103,7 +103,7 @@ function parseSessionFile(filePath: string, project: string): SessionAccum {
                 continue;
             }
 
-            // type: "assistant" with message.usage — per-turn usage
+            // type: "assistant" with message.usage - per-turn usage
             if (d.type === "assistant" && d.message?.usage) {
                 const u = d.message.usage;
                 accum.input_tokens += u.input_tokens ?? 0;

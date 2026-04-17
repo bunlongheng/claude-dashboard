@@ -365,7 +365,7 @@ export default function SessionProgressClient({ meta }: { meta: SessionMeta }) {
         setActivity(prev => [{ ...item, id }, ...prev].slice(0, 200));
         setLastUpdate(item.timestamp);
         setActive(true);
-        // Reset inactivity timer — hide ants after 5s of no events
+        // Reset inactivity timer - hide ants after 5s of no events
         if (inactivityRef.current) clearTimeout(inactivityRef.current);
         inactivityRef.current = setTimeout(() => setActive(false), 5000);
         if (item.type === "user_msg" && item.content) setLastUserMsg(item.content);
@@ -373,7 +373,7 @@ export default function SessionProgressClient({ meta }: { meta: SessionMeta }) {
             setThinkingState({ text: item.content, startedAt: Date.now() });
             setThinkingElapsed(0);
         } else if (item.type === "user_msg") {
-            // User sent a new message — clear thinking immediately
+            // User sent a new message - clear thinking immediately
             setThinkingState(null);
         }
     }, []);
@@ -388,7 +388,7 @@ export default function SessionProgressClient({ meta }: { meta: SessionMeta }) {
     const [sending, setSending] = useState(false);
     const inputRef = useRef<HTMLTextAreaElement>(null);
 
-    // Ant counter — 1 per second while active
+    // Ant counter - 1 per second while active
     // Track ant row position while visible
     useEffect(() => {
         if (active && antRowRef.current) {
@@ -435,7 +435,7 @@ export default function SessionProgressClient({ meta }: { meta: SessionMeta }) {
             });
             const data = await res.json();
             if (!data.ok) {
-                addActivity({ type: "text", content: "⚠️ Injection failed — is Claude Code running in this session?", timestamp: new Date().toISOString() });
+                addActivity({ type: "text", content: "⚠️ Injection failed - is Claude Code running in this session?", timestamp: new Date().toISOString() });
             }
         } catch {
             addActivity({ type: "text", content: "⚠️ Could not send input", timestamp: new Date().toISOString() });
@@ -455,7 +455,7 @@ export default function SessionProgressClient({ meta }: { meta: SessionMeta }) {
         if (el) el.scrollTop = el.scrollHeight;
     }, [activity]);
 
-    // SSE stream — replaces WebSocket connection
+    // SSE stream - replaces WebSocket connection
     useEffect(() => {
         let destroyed = false;
         let es: EventSource | null = null;
@@ -584,7 +584,7 @@ export default function SessionProgressClient({ meta }: { meta: SessionMeta }) {
                 </div>
             </div>
 
-            {/* ── Ant march — loading indicator ── */}
+            {/* ── Ant march - loading indicator ── */}
             {active && connected && antCount > 0 && (
                 <div className="shrink-0 px-3 pt-2 pb-1" style={{ background: "#09090b" }}>
                     <div ref={antRowRef} className="flex items-center gap-2">
@@ -610,7 +610,7 @@ export default function SessionProgressClient({ meta }: { meta: SessionMeta }) {
                 </div>
             )}
 
-            {/* ── Input box — fixed bottom ── */}
+            {/* ── Input box - fixed bottom ── */}
             <div className="shrink-0 px-3 pt-2 pb-3 border-t border-white/5" style={{ background: "#09090b" }}>
                 <div className="flex items-end gap-2"
                     style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.18)", borderRadius: 16, padding: "8px 8px 8px 14px" }}

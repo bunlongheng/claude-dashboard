@@ -27,7 +27,7 @@ export default function DrillPanel({ target, history, tokens, onClose, interval 
         prompts:  `Prompts (${filtered.length})`,
         sessions: `Sessions (${sessions.size})`,
         projects: `Projects (${projects.size})`,
-        tokens:   `Token Usage — ${fmtCost(totalCost)} total`,
+        tokens:   `Token Usage - ${fmtCost(totalCost)} total`,
     };
 
     return (

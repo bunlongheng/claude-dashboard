@@ -29,7 +29,7 @@ const TEMPLATES: Record<string, Template> = {
         style: "Type hints everywhere. Use dataclasses or Pydantic models. Follow PEP 8. Max line length 100.",
         testing: "pytest with pytest-asyncio. Use fixtures for DB setup. Coverage target 80%+.",
         rules: "Never use bare except. Never commit .env files. Never use global state. Never ignore type errors.",
-        instructions: "Use async/await for I/O operations. Keep endpoint handlers thin — business logic in services.",
+        instructions: "Use async/await for I/O operations. Keep endpoint handlers thin - business logic in services.",
     },
     "Go Project": {
         name: "my-go-project",
@@ -343,7 +343,7 @@ export default function GeneratorPage() {
                                 letterSpacing: "0.05em",
                             }}
                         >
-                            Preview — CLAUDE.md
+                            Preview - CLAUDE.md
                         </span>
                         <button
                             onClick={copyToClipboard}

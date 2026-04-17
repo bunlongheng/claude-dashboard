@@ -8,7 +8,7 @@ export async function POST() {
     try {
         const health = await fetch(`http://localhost:${PORT}/api/health`, { signal: AbortSignal.timeout(800) });
         if (health.ok) return NextResponse.json({ started: false, reason: "already running" });
-    } catch { /* not running — proceed */ }
+    } catch { /* not running - proceed */ }
 
     try {
         // Build path at runtime to avoid Turbopack static resolution

@@ -40,7 +40,7 @@ export async function GET() {
     // 1. Global CLAUDE.md
     const globalClaude = safeRead(path.join(CLAUDE_DIR, "CLAUDE.md"));
 
-    // 2. All projects — combine claude projects + Sites dirs
+    // 2. All projects - combine claude projects + Sites dirs
     const projectFolders = dirExists(PROJECTS_DIR) ? fs.readdirSync(PROJECTS_DIR) : [];
     const projectNames = projectFolders.map(f => f.replace(/-/g, "/").split("/").pop() ?? f);
 
@@ -170,7 +170,7 @@ export async function GET() {
         if (f.category === "memory") typeCounts[f.type] = (typeCounts[f.type] || 0) + 1;
     }
 
-    // 6. Global rules from database (optional — empty if not configured)
+    // 6. Global rules from database (optional - empty if not configured)
     type Rule = { id: string; category: string; title: string; instruction: string; confidence: number; source: string };
     let globalRules: Rule[] = [];
     try {

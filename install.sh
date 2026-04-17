@@ -1,5 +1,5 @@
 #!/bin/bash
-# Claude Dashboard — One-line installer
+# Claude Dashboard - One-line installer
 # Usage: curl -fsSL https://raw.githubusercontent.com/bunlongheng/claude-dashboard/main/install.sh | bash
 
 set -e
@@ -42,7 +42,7 @@ if [ ! -d "$HOME/.claude" ]; then
     exit 1
 fi
 
-# Download — git if available, otherwise zip
+# Download - git if available, otherwise zip
 if [ -d "$DIR" ]; then
     echo "  Directory '$DIR' already exists. Updating..."
     cd "$DIR"

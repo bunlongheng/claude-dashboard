@@ -1,7 +1,7 @@
 import type { DbAdapter, AuthAdapter } from "./types";
 
 /**
- * No-op database adapter — returns empty results for everything.
+ * No-op database adapter - returns empty results for everything.
  * Used when no database is configured. Dashboard still works with local files.
  */
 export const noopDb: DbAdapter = {

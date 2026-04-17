@@ -110,7 +110,7 @@ function SidebarContent({ pathname, onClose, badges, onSearchClick }: {
                 </div>
             </div>
 
-            {/* Nav — all items at same level */}
+            {/* Nav - all items at same level */}
             <nav style={{ padding: "8px 8px", flex: 1, overflowY: "auto" }}>
                 {NAV_ITEMS.map(item => (
                     <NavItem key={item.href} {...item} pathname={pathname} onClose={onClose} badge={badges[item.href]} />
@@ -141,7 +141,7 @@ export default function ClaudeSidebarNav() {
     const { machine, setMachine } = useMachine();
     const [badges, setBadges] = useState<Record<string, number>>({});
 
-    // Fetch badge counts — re-fetch when machine changes
+    // Fetch badge counts - re-fetch when machine changes
     useEffect(() => {
         const q = machine ? `?machine=${machine}` : "";
         Promise.all([

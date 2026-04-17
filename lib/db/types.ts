@@ -23,7 +23,7 @@ export interface QueryOptions {
 }
 
 /**
- * Auth adapter interface (optional — only needed for remote access).
+ * Auth adapter interface (optional - only needed for remote access).
  */
 export interface AuthAdapter {
     getUser(): Promise<{ email: string } | null>;

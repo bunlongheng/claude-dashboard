@@ -68,7 +68,7 @@ export default function HealthPage() {
                 Health Score
             </h1>
             <p style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginBottom: 24 }}>
-                Project readiness scored 0–100 based on CLAUDE.md, memory, sessions, instructions, and settings.
+                Project readiness scored 0-100 based on CLAUDE.md, memory, sessions, instructions, and settings.
             </p>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
