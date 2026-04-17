@@ -1,18 +1,22 @@
 import type { Metadata } from "next";
-import { withTimeout, fetchGlobalInstructions } from "../_sections/data";
+import { db } from "@/lib/db";
 import RulesSection from "../_sections/RulesSection";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
     title: "Claude | Rules",
-    icons: {
-        icon: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>",
-    },
+    icons: { icon: "/claude-logo.png" },
 };
 
 export default async function RulesPage() {
-    const instructions = await withTimeout(fetchGlobalInstructions(), []);
+    let instructions: any[] = [];
+    try {
+        instructions = await db.query("claude_global_instructions", {
+            select: "id,category,title,instruction,source,project,confidence,created_at,updated_at",
+            orderBy: "category",
+        });
+    } catch {}
 
     return <RulesSection initialInstructions={instructions} />;
 }

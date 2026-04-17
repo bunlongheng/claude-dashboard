@@ -190,13 +190,13 @@ export default function RulesSection({ initialInstructions }: { initialInstructi
     const [projectFilter, setProjectFilter] = useState<string>("all");
 
     const allProjects = useMemo(() => {
-        const projects = new Set(instructions.map(i => (i as any).project || "global"));
+        const projects = new Set(instructions.map(i => i.project || "global"));
         return Array.from(projects).sort();
     }, [instructions]);
 
     const filteredInstructions = useMemo(() => {
         let base = instructions;
-        if (projectFilter !== "all") base = base.filter(i => ((i as any).project || "global") === projectFilter);
+        if (projectFilter !== "all") base = base.filter(i => (i.project || "global") === projectFilter);
         if (catFilter !== "all") base = base.filter(i => i.category === catFilter);
         return [...base].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     }, [instructions, catFilter, projectFilter]);
@@ -257,7 +257,7 @@ export default function RulesSection({ initialInstructions }: { initialInstructi
                         All Apps - {instructions.length}
                     </button>
                     {allProjects.map(p => {
-                        const cnt = instructions.filter(i => ((i as any).project || "global") === p).length;
+                        const cnt = instructions.filter(i => (i.project || "global") === p).length;
                         return (
                             <button key={p} type="button" onClick={() => { setProjectFilter(p); setGlobalPage(0); }}
                                 className="px-2.5 py-1 rounded-full text-[10px] font-bold transition-colors"
