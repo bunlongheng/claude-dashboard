@@ -97,7 +97,11 @@ function ClaudeMdEditor({ item }: { item: ClaudeMdInfo }) {
                 {!editing && content && viewMode === "preview" && (
                     <div
                         className="claude-md-prose"
-                        style={{ fontSize: 12, lineHeight: 1.7, color: "rgba(255,255,255,0.85)" }}
+                        style={{
+                            fontSize: 12, lineHeight: 1.7, color: "rgba(255,255,255,0.85)",
+                            background: "rgba(255,255,255,0.03)", padding: 20, borderRadius: 10,
+                            border: "1px solid rgba(255,255,255,0.06)",
+                        }}
                         dangerouslySetInnerHTML={{ __html: marked.parse(content) as string }}
                     />
                 )}
