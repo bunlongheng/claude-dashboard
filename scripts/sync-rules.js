@@ -93,8 +93,16 @@ function pullProject(projectName) {
         return;
     }
 
-    const projectDir = path.join(SITES_DIR, projectName);
-    const claudeMdPath = path.join(projectDir, "CLAUDE.md");
+    // Global rules go to ~/.claude/CLAUDE.md, project rules go to ~/Sites/<project>/CLAUDE.md
+    const claudeMdPath = projectName === "global"
+        ? path.join(os.homedir(), ".claude", "CLAUDE.md")
+        : path.join(SITES_DIR, projectName, "CLAUDE.md");
+
+    const projectDir = path.dirname(claudeMdPath);
+    if (!fs.existsSync(projectDir)) {
+        console.log(`  Directory not found: ${projectDir}`);
+        return;
+    }
 
     // Read existing CLAUDE.md or start fresh
     let existing = "";
