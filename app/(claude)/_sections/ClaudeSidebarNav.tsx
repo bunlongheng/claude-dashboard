@@ -21,7 +21,6 @@ export const NAV_ITEMS = [
     { href: "/dashboard", label: "Overview",  Icon: LayoutDashboard, exact: true,  color: "#f97316" },
     // ── Load order: what Claude reads at startup ──
     { href: "/global",   label: "CLAUDE.md", Icon: BookOpen,        exact: false, color: "#8b5cf6" },
-    { href: "/generator", label: "Generator", Icon: Wand2,          exact: false, color: "#f472b6" },
     { href: "/brain",    label: "Memory",    Icon: Brain,           exact: false, color: "#eab308" },
     { href: "/rules",    label: "Rules",     Icon: ShieldCheck,     exact: false, color: "#14b8a6" },
     { href: "/mcp",      label: "MCP",       Icon: Server,          exact: false, color: "#10b981" },

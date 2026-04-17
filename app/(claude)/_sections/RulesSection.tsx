@@ -187,10 +187,19 @@ export default function RulesSection({ initialInstructions }: { initialInstructi
         if (res.ok) setInstructions(prev => prev.filter(i => i.id !== id));
     };
 
+    const [projectFilter, setProjectFilter] = useState<string>("all");
+
+    const allProjects = useMemo(() => {
+        const projects = new Set(instructions.map(i => (i as any).project || "global"));
+        return Array.from(projects).sort();
+    }, [instructions]);
+
     const filteredInstructions = useMemo(() => {
-        const base = catFilter === "all" ? instructions : instructions.filter(i => i.category === catFilter);
+        let base = instructions;
+        if (projectFilter !== "all") base = base.filter(i => ((i as any).project || "global") === projectFilter);
+        if (catFilter !== "all") base = base.filter(i => i.category === catFilter);
         return [...base].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    }, [instructions, catFilter]);
+    }, [instructions, catFilter, projectFilter]);
     const visibleInstructions = useMemo(() =>
         filteredInstructions.slice(globalPage * PAGE_SIZE, (globalPage + 1) * PAGE_SIZE),
         [filteredInstructions, globalPage]
@@ -238,6 +247,31 @@ export default function RulesSection({ initialInstructions }: { initialInstructi
                 </button>
                 <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginLeft: "auto" }}>{instructions.length} rules</span>
             </div>
+
+            {/* Project filter pills */}
+            {allProjects.length > 1 && (
+                <div className="flex flex-wrap gap-1.5 mb-3">
+                    <button type="button" onClick={() => { setProjectFilter("all"); setGlobalPage(0); }}
+                        className="px-2.5 py-1 rounded-full text-[10px] font-bold transition-colors"
+                        style={{ background: projectFilter === "all" ? "rgba(249,115,22,0.15)" : "rgba(255,255,255,0.04)", border: projectFilter === "all" ? "1px solid rgba(249,115,22,0.4)" : "1px solid rgba(255,255,255,0.08)", color: projectFilter === "all" ? "#f97316" : "rgba(255,255,255,0.35)" }}>
+                        All Apps - {instructions.length}
+                    </button>
+                    {allProjects.map(p => {
+                        const cnt = instructions.filter(i => ((i as any).project || "global") === p).length;
+                        return (
+                            <button key={p} type="button" onClick={() => { setProjectFilter(p); setGlobalPage(0); }}
+                                className="px-2.5 py-1 rounded-full text-[10px] font-bold transition-colors"
+                                style={{
+                                    background: projectFilter === p ? "rgba(34,197,94,0.15)" : "rgba(255,255,255,0.04)",
+                                    border: projectFilter === p ? "1px solid rgba(34,197,94,0.4)" : "1px solid rgba(255,255,255,0.08)",
+                                    color: projectFilter === p ? "#22c55e" : "rgba(255,255,255,0.35)",
+                                }}>
+                                {p} - {cnt}
+                            </button>
+                        );
+                    })}
+                </div>
+            )}
 
             {/* Category filter pills */}
             <div className="flex flex-wrap gap-1.5 mb-4">
