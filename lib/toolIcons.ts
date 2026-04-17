@@ -239,7 +239,7 @@ export const TOOL_ICONS: Record<string, ToolIconConfig> = {
     },
 };
 
-/** Deterministic hue 0–359 from a slug so every tool always has the same vibrant color. */
+/** Deterministic hue 0-359 from a slug so every tool always has the same vibrant color. */
 export function slugToHue(slug: string): number {
     let h = 5381;
     for (let i = 0; i < slug.length; i++) h = ((h * 33) ^ slug.charCodeAt(i)) >>> 0;

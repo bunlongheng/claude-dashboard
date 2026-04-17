@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 const CLAUDE_DIR = path.join(os.homedir(), ".claude", "projects");
 
 function findSession(sessionId: string): string | null {
-    // Validate session ID — alphanumeric + hyphens only (prevent path traversal)
+    // Validate session ID - alphanumeric + hyphens only (prevent path traversal)
     if (!/^[a-zA-Z0-9_-]+$/.test(sessionId)) return null;
     try {
         const folders = fs.readdirSync(CLAUDE_DIR);
@@ -121,7 +121,7 @@ function eventsToMarkdown(events: StructuredEvent[], projectName: string, sessio
     const title = firstUser?.text?.slice(0, 80) ?? "Session";
     const lines: string[] = [];
 
-    lines.push(`# ${projectName} — ${title}`);
+    lines.push(`# ${projectName} - ${title}`);
     lines.push("");
     lines.push(`> Session: \`${sessionId}\``);
     if (events.length > 0 && events[0].timestamp) {
@@ -147,7 +147,7 @@ function eventsToMarkdown(events: StructuredEvent[], projectName: string, sessio
             lines.push(ev.text ?? "");
             lines.push("");
         } else if (ev.role === "tool" && ev.toolName === "Result") {
-            // Tool result — render as collapsed output
+            // Tool result - render as collapsed output
             const content = ev.text ?? "";
             if (content.length > 500) {
                 lines.push(`<details><summary>Tool Result${ev.toolError ? " (error)" : ""}</summary>`);

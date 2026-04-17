@@ -1,7 +1,7 @@
 import type { AuthAdapter } from "./types";
 
 /**
- * Simple password-based auth — works without any database.
+ * Simple password-based auth - works without any database.
  * Set ADMIN_PASSWORD in .env.local to enable.
  * Uses a cookie to persist the session.
  */

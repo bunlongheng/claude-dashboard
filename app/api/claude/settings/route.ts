@@ -32,7 +32,7 @@ export async function GET() {
     const globalSettings = safeJson(path.join(CLAUDE_DIR, "settings.json"));
     const globalLocalSettings = safeJson(path.join(CLAUDE_DIR, "settings.local.json"));
 
-    // Per-project settings — scan ~/Sites/*/.claude/
+    // Per-project settings - scan ~/Sites/*/.claude/
     const projectSettings: ProjectSettings[] = [];
 
     if (dirExists(SITES_DIR)) {

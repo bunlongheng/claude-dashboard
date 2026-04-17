@@ -17,7 +17,7 @@ function formatBytes(bytes: number): string {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-// Read only the first N bytes of a file — avoids loading multi-MB files into RAM
+// Read only the first N bytes of a file - avoids loading multi-MB files into RAM
 function readFirstBytes(filePath: string, maxBytes = 12_288): string {
     let fd = -1;
     try {
@@ -84,7 +84,7 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ ok: true });
 }
 
-// Remote machines (optional — only if MACHINES_DB_PATH is set)
+// Remote machines (optional - only if MACHINES_DB_PATH is set)
 const DB_PATH = process.env.MACHINES_DB_PATH || "";
 
 interface RemoteMachine { id: string; hostname: string; ip: string; port: number }

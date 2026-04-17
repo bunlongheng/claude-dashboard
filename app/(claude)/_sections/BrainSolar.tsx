@@ -37,7 +37,7 @@ function buildOrbitNodes(rules: Rule[], categories: string[], w: number, angle: 
         nodes.push({ id: catId, text: cat, ruleCount: catRules.length, x: isFocused ? cx : x, y: isFocused ? cy + ry + 90 : y, color, connections: ["brain-root"], depth: anyExpanded && !isFocused ? 0.2 : isFocused ? 1 : depth, scale: anyExpanded && !isFocused ? 0.45 : isFocused ? 1.15 : 1 });
         if (isFocused) {
             const spacing = Math.min(80, (w - 120) / Math.max(catRules.length, 1)), totalW = spacing * (catRules.length - 1), startX = (w - totalW) / 2;
-            catRules.forEach((rule, ri) => { nodes.push({ id: rule.id, text: rule.title.replace(/\[project:[^\]]*\]\s*[-—]\s*/i, "").slice(0, 18), x: startX + ri * spacing, y: cy + ry + 260, color, connections: [catId], depth: 1 }); });
+            catRules.forEach((rule, ri) => { nodes.push({ id: rule.id, text: rule.title.replace(/\[project:[^\]]*\]\s*[--]\s*/i, "").slice(0, 18), x: startX + ri * spacing, y: cy + ry + 260, color, connections: [catId], depth: 1 }); });
         }
     });
     return nodes;

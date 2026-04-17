@@ -51,7 +51,7 @@ export function SetupBanner({ status }: { status: SetupStatus }) {
                     Welcome to Claude Dashboard
                 </h2>
                 <p style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", lineHeight: 1.6, maxWidth: 420, margin: "0 auto 16px" }}>
-                    Claude Code is not installed yet. This dashboard needs Claude Code to work — it reads your data from <code style={{ background: "rgba(255,255,255,0.08)", padding: "2px 6px", borderRadius: 4, fontSize: 12 }}>~/.claude/</code>
+                    Claude Code is not installed yet. This dashboard needs Claude Code to work - it reads your data from <code style={{ background: "rgba(255,255,255,0.08)", padding: "2px 6px", borderRadius: 4, fontSize: 12 }}>~/.claude/</code>
                 </p>
                 <div style={{
                     display: "inline-block", padding: "10px 20px", borderRadius: 10, marginBottom: 12,

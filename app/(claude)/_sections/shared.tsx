@@ -67,7 +67,7 @@ export const AGENT_DETAILS: Record<string, AgentDetail> = {
             "Synthesize outputs from all agents into coherent results",
             "Final review before any deployment or delivery",
         ],
-        iconPrompt: `Create a minimal AI agent avatar icon for "Snow" — Orchestrator.\n• Color: Pure white #ffffff glow on jet-black\n• Symbol: Geometric snowflake with 12 radiating spokes, each tip a node representing a sub-agent\n• Style: Flat vector, clean hub-and-spoke pattern, ultra-futuristic\n• Mood: Calm authority, all-seeing command center\n• Size: 512×512 PNG, black bg, no text`,
+        iconPrompt: `Create a minimal AI agent avatar icon for "Snow" - Orchestrator.\n• Color: Pure white #ffffff glow on jet-black\n• Symbol: Geometric snowflake with 12 radiating spokes, each tip a node representing a sub-agent\n• Style: Flat vector, clean hub-and-spoke pattern, ultra-futuristic\n• Mood: Calm authority, all-seeing command center\n• Size: 512×512 PNG, black bg, no text`,
     },
     "Blaze": {
         description: "Blaze owns the technical architecture of every system. It designs data models, defines API contracts, enforces service boundaries, and ensures the codebase scales long-term.",
@@ -78,7 +78,7 @@ export const AGENT_DETAILS: Record<string, AgentDetail> = {
             "Enforce separation of concerns and SOLID principles",
             "Document architectural decisions (ADRs)",
         ],
-        iconPrompt: `Create a minimal AI agent avatar icon for "Blaze" — Architecture.\n• Color: Fire red #ff3333, ember glow on dark background\n• Symbol: A flame morphing into a structured hexagonal architecture diagram\n• Style: Sharp geometric edges, red-to-orange gradient, clean vector\n• Mood: Intense, structured, foundational power\n• Size: 512×512 PNG, black bg, no text`,
+        iconPrompt: `Create a minimal AI agent avatar icon for "Blaze" - Architecture.\n• Color: Fire red #ff3333, ember glow on dark background\n• Symbol: A flame morphing into a structured hexagonal architecture diagram\n• Style: Sharp geometric edges, red-to-orange gradient, clean vector\n• Mood: Intense, structured, foundational power\n• Size: 512×512 PNG, black bg, no text`,
     },
     "Arrow": {
         description: "Arrow is the user's advocate. It runs accessibility audits, writes E2E and unit tests, validates user flows, and ensures every interaction is intuitive and bug-free before it ships.",
@@ -89,10 +89,10 @@ export const AGENT_DETAILS: Record<string, AgentDetail> = {
             "Validate responsive layouts on all breakpoints",
             "File detailed bug reports with reproduction steps",
         ],
-        iconPrompt: `Create a minimal AI agent avatar icon for "Arrow" — UX / QA.\n• Color: Hot pink #ff66cc on dark background\n• Symbol: A sleek cursor arrow intersecting a target crosshair\n• Style: Minimal, sharp, motion-forward — arrow should feel precise and fast\n• Mood: Focused, user-centered, meticulous\n• Size: 512×512 PNG, dark bg, no text`,
+        iconPrompt: `Create a minimal AI agent avatar icon for "Arrow" - UX / QA.\n• Color: Hot pink #ff66cc on dark background\n• Symbol: A sleek cursor arrow intersecting a target crosshair\n• Style: Minimal, sharp, motion-forward - arrow should feel precise and fast\n• Mood: Focused, user-centered, meticulous\n• Size: 512×512 PNG, dark bg, no text`,
     },
     "Venus": {
-        description: "Venus defines how everything looks and feels. It owns the design system, color tokens, typography, component styling, and brand voice — ensuring every pixel is intentional.",
+        description: "Venus defines how everything looks and feels. It owns the design system, color tokens, typography, component styling, and brand voice - ensuring every pixel is intentional.",
         responsibilities: [
             "Maintain the design system (colors, typography, spacing)",
             "Craft component UI with Tailwind and CSS",
@@ -100,7 +100,7 @@ export const AGENT_DETAILS: Record<string, AgentDetail> = {
             "Review UI for consistency across all pages",
             "Generate mockups and design explorations",
         ],
-        iconPrompt: `Create a minimal AI agent avatar icon for "Venus" — UI / Branding.\n• Color: Warm orange #ff8800, rich sunset tones\n• Symbol: Artist's palette transforming into a color-wheel constellation\n• Style: Soft gradients, flowing curves, vibrant but refined\n• Mood: Creative, aesthetic-forward, sensual beauty\n• Size: 512×512 PNG, dark bg, no text`,
+        iconPrompt: `Create a minimal AI agent avatar icon for "Venus" - UI / Branding.\n• Color: Warm orange #ff8800, rich sunset tones\n• Symbol: Artist's palette transforming into a color-wheel constellation\n• Style: Soft gradients, flowing curves, vibrant but refined\n• Mood: Creative, aesthetic-forward, sensual beauty\n• Size: 512×512 PNG, dark bg, no text`,
     },
     "Zap": {
         description: "Zap obsesses over speed. It measures Core Web Vitals, optimizes bundle sizes, eliminates render-blocking resources, and ensures the site scores 100 on every Lighthouse metric.",
@@ -111,7 +111,7 @@ export const AGENT_DETAILS: Record<string, AgentDetail> = {
             "Enforce Core Web Vitals: LCP, FID, CLS",
             "Configure caching strategies and CDN rules",
         ],
-        iconPrompt: `Create a minimal AI agent avatar icon for "Zap" — Performance.\n• Color: Electric yellow #ffdd00, lightning energy\n• Symbol: Lightning bolt composed of speed lines and circuit traces\n• Style: Sharp, kinetic, high-contrast yellow on black\n• Mood: Fast, electric, unstoppable kinetic force\n• Size: 512×512 PNG, black bg, no text`,
+        iconPrompt: `Create a minimal AI agent avatar icon for "Zap" - Performance.\n• Color: Electric yellow #ffdd00, lightning energy\n• Symbol: Lightning bolt composed of speed lines and circuit traces\n• Style: Sharp, kinetic, high-contrast yellow on black\n• Mood: Fast, electric, unstoppable kinetic force\n• Size: 512×512 PNG, black bg, no text`,
     },
     "Frost": {
         description: "Frost tracks everything that matters. It instruments analytics, builds dashboards, monitors uptime, and surfaces the insights that drive all product decisions.",
@@ -122,7 +122,7 @@ export const AGENT_DETAILS: Record<string, AgentDetail> = {
             "Alert on anomalies and threshold breaches",
             "Produce weekly / monthly insight reports",
         ],
-        iconPrompt: `Create a minimal AI agent avatar icon for "Frost" — Metrics.\n• Color: Cyan #00ffff, icy data streams\n• Symbol: Bar chart composed of crystalline ice shards, data rising upward\n• Style: Cold, precise, glassy — crystalline geometric patterns\n• Mood: Analytical, cool intelligence, data-driven clarity\n• Size: 512×512 PNG, deep dark bg, no text`,
+        iconPrompt: `Create a minimal AI agent avatar icon for "Frost" - Metrics.\n• Color: Cyan #00ffff, icy data streams\n• Symbol: Bar chart composed of crystalline ice shards, data rising upward\n• Style: Cold, precise, glassy - crystalline geometric patterns\n• Mood: Analytical, cool intelligence, data-driven clarity\n• Size: 512×512 PNG, deep dark bg, no text`,
     },
     "Blitz": {
         description: "Blitz is the code quality guardian. It enforces linting rules, runs static analysis, reviews logic for edge cases, and ensures every PR meets the quality bar before merge.",
@@ -133,7 +133,7 @@ export const AGENT_DETAILS: Record<string, AgentDetail> = {
             "Flag security issues like XSS, injection, exposed secrets",
             "Provide actionable PR review comments",
         ],
-        iconPrompt: `Create a minimal AI agent avatar icon for "Blitz" — Code Quality.\n• Color: Electric blue #0099ff on dark background\n• Symbol: Shield with a checkmark inside, overlaid with code brackets\n• Style: Solid, protective, technical — angular shield with circuit details\n• Mood: Vigilant, trustworthy, zero-tolerance for bugs\n• Size: 512×512 PNG, dark bg, no text`,
+        iconPrompt: `Create a minimal AI agent avatar icon for "Blitz" - Code Quality.\n• Color: Electric blue #0099ff on dark background\n• Symbol: Shield with a checkmark inside, overlaid with code brackets\n• Style: Solid, protective, technical - angular shield with circuit details\n• Mood: Vigilant, trustworthy, zero-tolerance for bugs\n• Size: 512×512 PNG, dark bg, no text`,
     },
     "Earth": {
         description: "Earth keeps the codebase clean and healthy. It removes dead code, refactors legacy patterns, updates dependencies, and eliminates technical debt before it compounds.",
@@ -144,7 +144,7 @@ export const AGENT_DETAILS: Record<string, AgentDetail> = {
             "Simplify over-engineered abstractions",
             "Maintain consistent code formatting across the repo",
         ],
-        iconPrompt: `Create a minimal AI agent avatar icon for "Earth" — Cleanup.\n• Color: Fresh green #00ff00 on dark background\n• Symbol: A leaf sprouting from a circuit board, clean and growing\n• Style: Organic meets technical, rounded shapes, nature-inspired\n• Mood: Renewal, growth, sustainable maintenance\n• Size: 512×512 PNG, dark bg, no text`,
+        iconPrompt: `Create a minimal AI agent avatar icon for "Earth" - Cleanup.\n• Color: Fresh green #00ff00 on dark background\n• Symbol: A leaf sprouting from a circuit board, clean and growing\n• Style: Organic meets technical, rounded shapes, nature-inspired\n• Mood: Renewal, growth, sustainable maintenance\n• Size: 512×512 PNG, dark bg, no text`,
     },
     "Pulse": {
         description: "Pulse automates the tedious. It writes GitHub Actions workflows, creates scripts, manages CI/CD pipelines, and ensures the development loop is fast, repeatable, and hands-free.",
@@ -155,7 +155,7 @@ export const AGENT_DETAILS: Record<string, AgentDetail> = {
             "Schedule automated tasks (cron jobs, syncs)",
             "Generate changelogs and release notes automatically",
         ],
-        iconPrompt: `Create a minimal AI agent avatar icon for "Pulse" — Automation.\n• Color: Purple #9933ff, electric rhythm\n• Symbol: Pulsing heartbeat/waveform line transforming into a gear or cog\n• Style: Dynamic curves transitioning into mechanical precision, purple glow\n• Mood: Rhythmic, relentless, always running in the background\n• Size: 512×512 PNG, dark bg, no text`,
+        iconPrompt: `Create a minimal AI agent avatar icon for "Pulse" - Automation.\n• Color: Purple #9933ff, electric rhythm\n• Symbol: Pulsing heartbeat/waveform line transforming into a gear or cog\n• Style: Dynamic curves transitioning into mechanical precision, purple glow\n• Mood: Rhythmic, relentless, always running in the background\n• Size: 512×512 PNG, dark bg, no text`,
     },
     "Sand": {
         description: "Sand manages all data persistence. It designs database schemas, writes migration files, optimizes queries, configures caching layers, and ensures data integrity across the stack.",
@@ -166,7 +166,7 @@ export const AGENT_DETAILS: Record<string, AgentDetail> = {
             "Manage file storage (Supabase Storage, S3)",
             "Ensure data backups and disaster recovery plans",
         ],
-        iconPrompt: `Create a minimal AI agent avatar icon for "Sand" — Storage.\n• Color: Warm terracotta #cc6633 on dark background\n• Symbol: Database cylinder built from layered sand strata, like geological cross-section\n• Style: Earthy, structured, stacked circles suggesting depth and data layers\n• Mood: Solid, ancient reliability, foundational strength\n• Size: 512×512 PNG, dark bg, no text`,
+        iconPrompt: `Create a minimal AI agent avatar icon for "Sand" - Storage.\n• Color: Warm terracotta #cc6633 on dark background\n• Symbol: Database cylinder built from layered sand strata, like geological cross-section\n• Style: Earthy, structured, stacked circles suggesting depth and data layers\n• Mood: Solid, ancient reliability, foundational strength\n• Size: 512×512 PNG, dark bg, no text`,
     },
     "Shadow": {
         description: "Shadow is always watching. It audits authentication flows, scans for vulnerabilities, enforces CSP headers, reviews permissions, and ensures nothing sensitive leaks to the client.",
@@ -177,7 +177,7 @@ export const AGENT_DETAILS: Record<string, AgentDetail> = {
             "Review env vars for accidental exposure",
             "Monitor for suspicious activity patterns",
         ],
-        iconPrompt: `Create a minimal AI agent avatar icon for "Shadow" — Security.\n• Color: Stealth gray #999999, shadow and light contrast\n• Symbol: A lock with a ghost/shadow silhouette — half visible, half hidden in darkness\n• Style: Dark, enigmatic, high contrast — suggests invisibility and silent protection\n• Mood: Silent guardian, always present but unseen\n• Size: 512×512 PNG, near-black bg, no text`,
+        iconPrompt: `Create a minimal AI agent avatar icon for "Shadow" - Security.\n• Color: Stealth gray #999999, shadow and light contrast\n• Symbol: A lock with a ghost/shadow silhouette - half visible, half hidden in darkness\n• Style: Dark, enigmatic, high contrast - suggests invisibility and silent protection\n• Mood: Silent guardian, always present but unseen\n• Size: 512×512 PNG, near-black bg, no text`,
     },
     "Rock": {
         description: "Rock builds the internal command center. It creates admin dashboards, internal tools, reporting interfaces, and the monitoring infrastructure that keeps the whole system observable.",
@@ -188,7 +188,7 @@ export const AGENT_DETAILS: Record<string, AgentDetail> = {
             "Manage user roles and permission interfaces",
             "Build developer tools and debug panels",
         ],
-        iconPrompt: `Create a minimal AI agent avatar icon for "Rock" — Dashboard.\n• Color: Neutral stone gray #7a7a7a, solid and unmoving\n• Symbol: Grid of dashboard tiles arranged to form a monolith/rock shape\n• Style: Solid, geometric, structural — squares as a stable foundation\n• Mood: Dependable, permanent, the bedrock of the entire system\n• Size: 512×512 PNG, dark bg, no text`,
+        iconPrompt: `Create a minimal AI agent avatar icon for "Rock" - Dashboard.\n• Color: Neutral stone gray #7a7a7a, solid and unmoving\n• Symbol: Grid of dashboard tiles arranged to form a monolith/rock shape\n• Style: Solid, geometric, structural - squares as a stable foundation\n• Mood: Dependable, permanent, the bedrock of the entire system\n• Size: 512×512 PNG, dark bg, no text`,
     },
 };
 
@@ -205,7 +205,7 @@ export const CATEGORY_COLORS: Record<string, string> = {
 };
 
 // ─── Machines ────────────────────────────────────────────────────────────────
-// Static fallback — overridden by dynamic machine list from /api/claude/machines
+// Static fallback - overridden by dynamic machine list from /api/claude/machines
 export const MACHINES: string[] = [];
 export const MACHINE_COLORS: Record<string, string> = {};
 // Color palette for dynamic machines

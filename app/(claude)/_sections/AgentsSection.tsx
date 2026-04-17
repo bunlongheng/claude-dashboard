@@ -104,7 +104,7 @@ export default function AgentsSection() {
         <section className="flex flex-col items-center select-none">
             {selectedAgent && <AgentModal agent={selectedAgent} onClose={() => setSelectedAgent(null)} />}
 
-            {/* SNOW — Supreme Commander */}
+            {/* SNOW - Supreme Commander */}
             {(() => {
                 const snow = AGENTS[0];
                 return (

@@ -211,7 +211,7 @@ function scanClaudeMd(): ClaudeMdInfo[] {
         files.push({ name: "Global CLAUDE.md", path: globalMd, content: safeRead(globalMd), scope: "global" });
     }
 
-    // Project CLAUDE.md files — scan common project dirs
+    // Project CLAUDE.md files - scan common project dirs
     const projectDirs = path.join(CLAUDE_DIR, "projects");
     if (dirExists(projectDirs)) {
         for (const folder of fs.readdirSync(projectDirs)) {
@@ -254,10 +254,10 @@ export async function PUT(req: Request) {
     const isCommandMd = resolved.endsWith(".md") && resolved.includes("/commands/");
     const isHooksJson = resolved.endsWith("hooks.json") && resolved.includes("/hooks/");
     if (!isClaude && !isClaudeMd) {
-        return NextResponse.json({ error: "forbidden — outside ~/.claude/" }, { status: 403 });
+        return NextResponse.json({ error: "forbidden - outside ~/.claude/" }, { status: 403 });
     }
     if (!isClaudeMd && !isCommandMd && !isHooksJson) {
-        return NextResponse.json({ error: "forbidden — only CLAUDE.md, command .md, or hooks.json" }, { status: 403 });
+        return NextResponse.json({ error: "forbidden - only CLAUDE.md, command .md, or hooks.json" }, { status: 403 });
     }
     try {
         fs.writeFileSync(resolved, content, "utf-8");
@@ -267,7 +267,7 @@ export async function PUT(req: Request) {
     }
 }
 
-// Remote machine lookup (optional — only works if MACHINES_DB_PATH is set)
+// Remote machine lookup (optional - only works if MACHINES_DB_PATH is set)
 const DB_PATH = process.env.MACHINES_DB_PATH || "";
 
 function getRemoteMachine(machineId: string): { ip: string; port: number } | null {

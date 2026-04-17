@@ -10,7 +10,7 @@
 
 <p align="center">
   Browse sessions, memory, skills, hooks, MCP servers, commands, and settings<br/>
-  — all from one beautiful, local-first dashboard.
+  - all from one beautiful, local-first dashboard.
 </p>
 
 <p align="center">
@@ -37,7 +37,7 @@ curl -fsSL https://raw.githubusercontent.com/bunlongheng/claude-dashboard/main/i
 cd claude-dashboard && npm run dev
 ```
 
-Open **http://localhost:3000** — done. No config, no database, no account.
+Open **http://localhost:3000** - done. No config, no database, no account.
 
 > **Requires:** [Node.js 18+](https://nodejs.org/) and [Claude Code](https://docs.anthropic.com/en/docs/claude-code)
 
@@ -53,7 +53,7 @@ Open **http://localhost:3000** — done. No config, no database, no account.
 See all your projects, session counts, memory stats, and system health at a glance.
 
 ### Memory
-Browse every memory file across all projects — user preferences, feedback, project decisions.
+Browse every memory file across all projects - user preferences, feedback, project decisions.
 
 ### Sessions
 Full session history. See what Claude worked on, when, and in which project.
@@ -121,11 +121,11 @@ The dashboard works fully without a database. But if you connect one, you unlock
 | **Global rules** | Create and manage custom instruction rules |
 | **Real-time sync** | Live updates when new sessions or token data arrives |
 
-**SQLite** is included by default — auto-created at `~/.claude/dashboard.db`. No setup needed. All features work with any supported database.
+**SQLite** is included by default - auto-created at `~/.claude/dashboard.db`. No setup needed. All features work with any supported database.
 
 | Backend | Setup | Status |
 |---------|-------|--------|
-| **SQLite** (default) | Automatic — zero config | Built-in |
+| **SQLite** (default) | Automatic - zero config | Built-in |
 | **PostgreSQL** | Planned | Coming soon |
 | **Custom** | Implement `DbAdapter` in `lib/db/` | DIY |
 
@@ -157,7 +157,7 @@ npm run dev
 
 ## License
 
-[MIT](LICENSE) — use it however you want.
+[MIT](LICENSE) - use it however you want.
 
 ---
 

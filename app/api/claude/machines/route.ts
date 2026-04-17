@@ -107,7 +107,7 @@ export async function GET(req: Request) {
             if (localIPs.length > 0) {
                 discoveredMachines = await scanSubnet(localIPs[0], localPort);
             }
-        } catch { /* network scan failed — not critical */ }
+        } catch { /* network scan failed - not critical */ }
     }
 
     const allRemotes = [

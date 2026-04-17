@@ -62,7 +62,7 @@ function buildNodes(projects: ProjectBrain[], w: number, h: number, expandedProj
     const cy = panelRight ? h * 0.45 : h * 0.4;
     const nodes: Node[] = [];
 
-    // Root node — center
+    // Root node - center
     nodes.push({ id: "root", label: "Memory", x: cx, y: cy, color: "#eab308", r: 34, type: "root" });
 
     const filtered = projects.filter(p => p.files.length > 0);
@@ -137,7 +137,7 @@ function playBoop() {
         const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
         const t = ctx.currentTime;
 
-        // PSP-style soft chime — two layered sine tones with gentle attack
+        // PSP-style soft chime - two layered sine tones with gentle attack
         const osc1 = ctx.createOscillator();
         const osc2 = ctx.createOscillator();
         const gain1 = ctx.createGain();

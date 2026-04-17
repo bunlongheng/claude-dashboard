@@ -7,7 +7,7 @@ const DEFAULT_PATH = path.join(os.homedir(), ".claude", "dashboard.db");
 const DB_PATH = process.env.SQLITE_PATH || DEFAULT_PATH;
 
 /**
- * SQLite database adapter — local, zero config.
+ * SQLite database adapter - local, zero config.
  * Stores data in ~/.claude/dashboard.db alongside your Claude Code data.
  * Requires better-sqlite3 (optional dependency).
  */
@@ -92,7 +92,7 @@ function ready(): any {
     return db;
 }
 
-// SQL identifier validation — prevents injection via table/column names
+// SQL identifier validation - prevents injection via table/column names
 function isSafeIdent(name: string): boolean {
     return typeof name === "string" && /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name);
 }
