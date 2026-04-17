@@ -20,12 +20,15 @@ async function saveFile(filePath: string, content: string): Promise<boolean> {
     } catch { return false; }
 }
 
+type ViewMode = "preview" | "code" | "split";
+
 function ClaudeMdEditor({ item }: { item: ClaudeMdInfo }) {
     const [editing, setEditing] = useState(false);
     const [content, setContent] = useState(item.content);
     const [draft, setDraft] = useState(item.content);
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
+    const [viewMode, setViewMode] = useState<ViewMode>("preview");
 
     const handleSave = useCallback(async () => {
         setSaving(true);
@@ -52,7 +55,20 @@ function ClaudeMdEditor({ item }: { item: ClaudeMdInfo }) {
                 }}>{item.scope}</span>
                 <span className="text-[9px] text-white/15 ml-1">{item.path}</span>
 
-                <div className="ml-auto flex items-center gap-1">
+                <div className="ml-auto flex items-center gap-1.5">
+                    {/* View mode toggle */}
+                    {!editing && (
+                        <div style={{ display: "flex", gap: 2, background: "rgba(255,255,255,0.04)", borderRadius: 6, padding: 2 }}>
+                            {(["preview", "code", "split"] as ViewMode[]).map(m => (
+                                <button key={m} onClick={() => setViewMode(m)} style={{
+                                    fontSize: 9, fontWeight: 700, padding: "3px 8px", borderRadius: 4, border: "none", cursor: "pointer",
+                                    background: viewMode === m ? `${ACCENT}20` : "transparent",
+                                    color: viewMode === m ? ACCENT : "rgba(255,255,255,0.3)",
+                                    textTransform: "capitalize",
+                                }}>{m}</button>
+                            ))}
+                        </div>
+                    )}
                     {saved && <Check size={12} style={{ color: "#22c55e" }} />}
                     {!editing && (
                         <button onClick={() => { setEditing(true); setDraft(content); }} title="Edit"
@@ -75,25 +91,65 @@ function ClaudeMdEditor({ item }: { item: ClaudeMdInfo }) {
                 </div>
             </div>
             <div className="px-6 py-5">
-                {!editing && content && (
-                    <div
-                        className="claude-md-prose"
-                        style={{ fontSize: 11, lineHeight: 1.6, color: "rgba(255,255,255,0.55)" }}
-                        dangerouslySetInnerHTML={{ __html: marked.parse(content) as string }}
-                    />
-                )}
                 {!editing && !content && (
                     <p className="text-[10px] text-white/20 text-center py-6">No content — click edit to add</p>
                 )}
+                {!editing && content && viewMode === "preview" && (
+                    <div
+                        className="claude-md-prose"
+                        style={{ fontSize: 12, lineHeight: 1.7, color: "rgba(255,255,255,0.85)" }}
+                        dangerouslySetInnerHTML={{ __html: marked.parse(content) as string }}
+                    />
+                )}
+                {!editing && content && viewMode === "code" && (
+                    <pre style={{
+                        fontSize: 11, lineHeight: 1.6, color: "rgba(255,255,255,0.85)",
+                        fontFamily: "'SF Mono', 'Fira Code', monospace",
+                        whiteSpace: "pre-wrap", wordBreak: "break-word",
+                        background: "rgba(0,0,0,0.3)", padding: 16, borderRadius: 8,
+                        maxHeight: 600, overflowY: "auto",
+                    }}>{content}</pre>
+                )}
+                {!editing && content && viewMode === "split" && (
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                        <pre style={{
+                            fontSize: 10, lineHeight: 1.5, color: "rgba(255,255,255,0.85)",
+                            fontFamily: "'SF Mono', 'Fira Code', monospace",
+                            whiteSpace: "pre-wrap", wordBreak: "break-word",
+                            background: "rgba(0,0,0,0.3)", padding: 12, borderRadius: 8,
+                            maxHeight: 600, overflowY: "auto",
+                        }}>{content}</pre>
+                        <div
+                            className="claude-md-prose"
+                            style={{
+                                fontSize: 11, lineHeight: 1.6, color: "rgba(255,255,255,0.85)",
+                                background: "rgba(0,0,0,0.15)", padding: 12, borderRadius: 8,
+                                maxHeight: 600, overflowY: "auto",
+                            }}
+                            dangerouslySetInnerHTML={{ __html: marked.parse(content) as string }}
+                        />
+                    </div>
+                )}
                 {editing && (
-                    <textarea value={draft} onChange={e => setDraft(e.target.value)}
-                        style={{
-                            width: "100%", padding: 12, borderRadius: 8,
-                            background: "rgba(0,0,0,0.4)", border: `1px solid ${ACCENT}30`,
-                            fontSize: 11, lineHeight: 1.6, color: "rgba(255,255,255,0.7)",
-                            minHeight: 300, maxHeight: 600, resize: "vertical",
-                            fontFamily: "monospace", outline: "none",
-                        }} />
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                        <textarea value={draft} onChange={e => setDraft(e.target.value)}
+                            style={{
+                                width: "100%", padding: 12, borderRadius: 8,
+                                background: "rgba(0,0,0,0.4)", border: `1px solid ${ACCENT}30`,
+                                fontSize: 11, lineHeight: 1.6, color: "rgba(255,255,255,0.85)",
+                                minHeight: 400, maxHeight: 600, resize: "vertical",
+                                fontFamily: "'SF Mono', 'Fira Code', monospace", outline: "none",
+                            }} />
+                        <div
+                            className="claude-md-prose"
+                            style={{
+                                fontSize: 11, lineHeight: 1.6, color: "rgba(255,255,255,0.85)",
+                                background: "rgba(0,0,0,0.15)", padding: 12, borderRadius: 8,
+                                maxHeight: 600, overflowY: "auto",
+                            }}
+                            dangerouslySetInnerHTML={{ __html: marked.parse(draft) as string }}
+                        />
+                    </div>
                 )}
             </div>
         </div>
