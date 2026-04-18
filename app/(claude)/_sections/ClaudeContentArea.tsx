@@ -151,10 +151,7 @@ export default function ClaudeContentArea({ children }: { children: React.ReactN
                                     }}
                                     title={`${s.id} · ${s.project}`}>
                                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                                    <img src="/claude-logo.png" alt="" width={12} height={12} style={{ imageRendering: "pixelated", opacity: 0.6 }} />
-                                    <span className={`text-[10px] font-bold ${isSelected ? "text-white" : "text-white/70"}`}>{label}</span>
-                                    <span className="text-[8px] font-mono text-white/30">{shortId}</span>
-                                    <span className="text-[8px] text-white/25 hidden xl:inline">{ago}</span>
+                                    <span className={`text-[10px] font-bold uppercase ${isSelected ? "text-white" : "text-white/70"}`}>{label}</span>
                                 </a>
                             );
                         })}
