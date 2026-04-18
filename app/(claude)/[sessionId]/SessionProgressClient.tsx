@@ -541,7 +541,7 @@ export default function SessionProgressClient({ meta }: { meta: SessionMeta }) {
     const hasTodos = todos.length > 0;
 
     return (
-        <div className="flex flex-col bg-[#09090b] text-white overflow-hidden" style={{ overflowX: "hidden", height: "calc(100dvh - 120px)" }}>
+        <div className="flex flex-col bg-[#09090b] text-white overflow-hidden" style={{ overflowX: "hidden", height: "100dvh", maxHeight: "-webkit-fill-available" }}>
 
             {/* ── Header ── */}
             <div className="shrink-0 px-6 pt-5 pb-4 border-b border-white/5 space-y-4">
@@ -617,7 +617,7 @@ export default function SessionProgressClient({ meta }: { meta: SessionMeta }) {
             )}
 
             {/* ── Input box - fixed bottom ── */}
-            <div className="shrink-0 px-3 pt-2 border-t border-white/5" style={{ background: "#09090b", paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}>
+            <div className="shrink-0 px-3 pt-2 pb-2 border-t border-white/5" style={{ background: "#09090b" }}>
                 <div className="flex items-end gap-2"
                     style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.18)", borderRadius: 16, padding: "8px 8px 8px 14px" }}
                 >
