@@ -145,9 +145,11 @@ export async function GET(req: Request) {
     const localProjects: ProjectData[] = [];
     if (!machineFilter || machineFilter === localMachineId) {
         if (fs.existsSync(CLAUDE_DIR)) {
+            const { isRealRepo } = require("@/lib/project-utils");
             for (const folder of fs.readdirSync(CLAUDE_DIR)) {
                 const folderPath = path.join(CLAUDE_DIR, folder);
                 try { if (!fs.statSync(folderPath).isDirectory()) continue; } catch { continue; }
+                if (!isRealRepo(folder)) continue;
 
                 const sessions: SessionData[] = [];
                 for (const file of fs.readdirSync(folderPath).filter(f => f.endsWith(".jsonl"))) {
