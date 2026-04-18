@@ -40,21 +40,9 @@ function AnimatedNumber({ value, duration = 800 }: { value: number; duration?: n
     return <>{display.toLocaleString()}</>;
 }
 
-function MiniBar({ value, max, color }: { value: number; max: number; color: string }) {
-    const pct = max > 0 ? Math.min((value / max) * 100, 100) : 0;
-    return (
-        <div style={{ width: "100%", height: 4, borderRadius: 2, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
-            <div style={{
-                width: `${pct}%`, height: "100%", borderRadius: 2, background: color,
-                transition: "width 0.8s cubic-bezier(0.4,0,0.2,1)",
-            }} />
-        </div>
-    );
-}
-
-function StatCard({ label, value, icon: Icon, color, sub, bar }: {
+function StatCard({ label, value, icon: Icon, color, sub }: {
     label: string; value: number; icon: React.ElementType; color: string;
-    sub?: string; bar?: { value: number; max: number };
+    sub?: string;
 }) {
     return (
         <div style={{
@@ -73,11 +61,10 @@ function StatCard({ label, value, icon: Icon, color, sub, bar }: {
                 </div>
                 <span style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.35)" }}>{label}</span>
             </div>
-            <div style={{ fontSize: 28, fontWeight: 800, color, lineHeight: 1, marginBottom: sub || bar ? 6 : 0 }}>
+            <div style={{ fontSize: 28, fontWeight: 800, color, lineHeight: 1, marginBottom: sub ? 6 : 0 }}>
                 <AnimatedNumber value={value} />
             </div>
             {sub && <p style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", margin: 0 }}>{sub}</p>}
-            {bar && <MiniBar value={bar.value} max={bar.max} color={color} />}
         </div>
     );
 }

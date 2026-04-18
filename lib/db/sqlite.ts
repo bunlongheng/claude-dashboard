@@ -40,36 +40,6 @@ function ensureTables(db: any) {
             updated_at TEXT DEFAULT (datetime('now')),
             UNIQUE(category, title)
         );
-        CREATE TABLE IF NOT EXISTS claude_tokens (
-            session_id TEXT PRIMARY KEY,
-            project TEXT,
-            model TEXT,
-            machine TEXT,
-            input_tokens INTEGER DEFAULT 0,
-            output_tokens INTEGER DEFAULT 0,
-            cache_read_tokens INTEGER DEFAULT 0,
-            cache_creation_tokens INTEGER DEFAULT 0,
-            prompt_count INTEGER DEFAULT 0,
-            created_at TEXT DEFAULT (datetime('now')),
-            updated_at TEXT DEFAULT (datetime('now'))
-        );
-        CREATE TABLE IF NOT EXISTS claude_history (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            session_id TEXT,
-            display TEXT,
-            timestamp TEXT,
-            project TEXT
-        );
-        CREATE TABLE IF NOT EXISTS notes (
-            id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
-            title TEXT,
-            content TEXT,
-            folder_name TEXT DEFAULT 'CLAUDE',
-            folder_color TEXT,
-            is_folder INTEGER DEFAULT 0,
-            created_at TEXT DEFAULT (datetime('now')),
-            updated_at TEXT DEFAULT (datetime('now'))
-        );
         CREATE TABLE IF NOT EXISTS claude_md_versions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             content TEXT NOT NULL,

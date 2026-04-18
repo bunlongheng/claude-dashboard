@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
 
   // Optimize package imports — only bundles what's used
   experimental: {
-    optimizePackageImports: ["lucide-react", "@heroicons/react", "framer-motion"],
+    optimizePackageImports: ["lucide-react", "@heroicons/react"],
   },
 };
 
