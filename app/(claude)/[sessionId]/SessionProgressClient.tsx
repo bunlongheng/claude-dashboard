@@ -627,8 +627,8 @@ export default function SessionProgressClient({ meta }: { meta: SessionMeta }) {
                         }}
                         placeholder="Message Claude…"
                         rows={1}
-                        className="flex-1 bg-transparent text-[12px] text-white/80 placeholder-white/25 resize-none leading-relaxed self-center"
-                        style={{ outline: "none", border: "none", boxShadow: "none", maxHeight: 120, scrollbarWidth: "none" }}
+                        className="flex-1 bg-transparent text-[16px] text-white/80 placeholder-white/25 resize-none leading-relaxed self-center"
+                        style={{ outline: "none", border: "none", boxShadow: "none", maxHeight: 120, scrollbarWidth: "none", fontSize: 16 }}
                     />
                     <button
                         onClick={sendInput}
