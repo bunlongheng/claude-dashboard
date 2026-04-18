@@ -379,6 +379,7 @@ export default function SessionProgressClient({ meta }: { meta: SessionMeta }) {
     }, []);
 
     const [pageUrl, setPageUrl] = useState("");
+    const [showQr, setShowQr] = useState(false);
     useEffect(() => {
         fetch("/api/claude/lan")
             .then(r => r.json())
@@ -543,6 +544,30 @@ export default function SessionProgressClient({ meta }: { meta: SessionMeta }) {
     return (
         <div className="flex flex-col bg-[#09090b] text-white overflow-hidden" style={{ overflowX: "hidden", height: "100dvh", maxHeight: "-webkit-fill-available" }}>
 
+            {/* ── QR Modal ── */}
+            {showQr && pageUrl && (
+                <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowQr(false)}>
+                    <div className="w-full max-w-xs rounded-2xl p-6" style={{ background: "#1c1c1e", border: "1px solid rgba(255,255,255,0.1)" }} onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-between mb-4">
+                            <span className="text-sm font-bold text-white">LAN Access</span>
+                            <button onClick={() => setShowQr(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.4)", display: "flex" }}>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                            </button>
+                        </div>
+                        <div className="rounded-xl p-4 mb-3" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                            <img src={`/api/qr?url=${encodeURIComponent(pageUrl)}`} alt="QR" className="w-full rounded-lg" />
+                        </div>
+                        <div className="flex items-center gap-2 px-3 py-2 rounded-lg mb-2" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                            <span className="text-xs font-mono text-white/60 flex-1 truncate">{pageUrl}</span>
+                            <button onClick={() => { navigator.clipboard.writeText(pageUrl); }} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.4)", display: "flex", padding: 2 }}>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                            </button>
+                        </div>
+                        <p className="text-[10px] text-white/30 text-center">Scan with your phone on the same network</p>
+                    </div>
+                </div>
+            )}
+
             {/* ── Header ── */}
             <div className="shrink-0 px-6 pt-5 pb-4 border-b border-white/5 space-y-4">
                 {/* Top row */}
@@ -557,8 +582,8 @@ export default function SessionProgressClient({ meta }: { meta: SessionMeta }) {
 
                     {pageUrl && (
                         <div className="shrink-0 opacity-60 hover:opacity-100 transition-opacity duration-300 cursor-pointer"
-                            onClick={() => window.open(pageUrl, "_blank")}
-                            title="Open on LAN">
+                            onClick={() => setShowQr(true)}
+                            title="Scan QR to open on phone">
                             <img src={`/api/qr?url=${encodeURIComponent(pageUrl)}`} alt="QR" width={28} height={28} className="rounded" />
                         </div>
                     )}
