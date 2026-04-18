@@ -68,63 +68,67 @@ export default function ClaudeContentArea({ children }: { children: React.ReactN
         <div className="flex-1 overflow-y-auto overflow-x-hidden" style={{ background: "#08090d" }}>
             {/* Desktop top bar - machine dropdown + sessions */}
             <div className="hidden md:flex items-center gap-3 px-6 py-2.5 border-b" style={{ borderColor: "rgba(255,255,255,0.05)" }}>
-                {/* Machine dropdown */}
-                <div ref={ddRef} style={{ position: "relative" }}>
-                    <button
-                        onClick={() => setDdOpen(!ddOpen)}
-                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-colors cursor-pointer"
-                        style={{
-                            background: "rgba(255,255,255,0.05)",
-                            border: "1px solid rgba(255,255,255,0.1)",
-                            color: "rgba(255,255,255,0.7)",
-                        }}
-                    >
+                {/* Machine - dropdown only if multiple, label if single */}
+                {machines.length > 1 ? (
+                    <div ref={ddRef} style={{ position: "relative" }}>
+                        <button
+                            onClick={() => setDdOpen(!ddOpen)}
+                            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-colors cursor-pointer"
+                            style={{
+                                background: "rgba(255,255,255,0.05)",
+                                border: "1px solid rgba(255,255,255,0.1)",
+                                color: "rgba(255,255,255,0.7)",
+                            }}
+                        >
+                            <Monitor size={13} />
+                            <span>{mLabel}</span>
+                            <ChevronDown size={12} style={{ opacity: 0.6, transform: ddOpen ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
+                        </button>
+                        {ddOpen && (
+                            <div style={{
+                                position: "absolute", top: "calc(100% + 4px)", left: 0, zIndex: 50,
+                                background: "#14151a", border: "1px solid rgba(255,255,255,0.1)",
+                                borderRadius: 8, padding: 3, minWidth: 160, boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+                            }}>
+                                <button
+                                    onClick={() => { setMachine(null); setDdOpen(false); }}
+                                    className="flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-left text-[10px] font-semibold transition-colors cursor-pointer"
+                                    style={{
+                                        background: machine === null ? `${ACCENT}15` : "transparent",
+                                        color: machine === null ? ACCENT : "rgba(255,255,255,0.5)",
+                                    }}
+                                >
+                                    <span style={{ width: 6, height: 6, borderRadius: "50%", background: ACCENT, flexShrink: 0 }} />
+                                    <span style={{ flex: 1 }}>All</span>
+                                    {machine === null && <span style={{ fontSize: 9 }}>✓</span>}
+                                </button>
+                                {machines.map(m => {
+                                    const active = machine === m.id;
+                                    const color = machineColors[m.id] ?? ACCENT;
+                                    return (
+                                        <button key={m.id}
+                                            onClick={() => { setMachine(m.id); setDdOpen(false); }}
+                                            className="flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-left text-[10px] font-semibold transition-colors cursor-pointer"
+                                            style={{
+                                                background: active ? `${color}15` : "transparent",
+                                                color: active ? color : "rgba(255,255,255,0.5)",
+                                            }}
+                                        >
+                                            <span style={{ width: 6, height: 6, borderRadius: "50%", background: color, flexShrink: 0 }} />
+                                            <span style={{ flex: 1 }}>{m.hostname}</span>
+                                            {active && <span style={{ fontSize: 9 }}>✓</span>}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                ) : machines.length === 1 ? (
+                    <div className="flex items-center gap-2 px-3 py-1.5 text-[11px] font-bold" style={{ color: "rgba(255,255,255,0.5)" }}>
                         <Monitor size={13} />
-                        <span>{mLabel}</span>
-                        <ChevronDown size={12} style={{ opacity: 0.6, transform: ddOpen ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
-                    </button>
-                    {ddOpen && (
-                        <div style={{
-                            position: "absolute", top: "calc(100% + 4px)", left: 0, zIndex: 50,
-                            background: "#14151a", border: "1px solid rgba(255,255,255,0.1)",
-                            borderRadius: 8, padding: 3, minWidth: 160, boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
-                        }}>
-                            {/* All machines option */}
-                            <button
-                                onClick={() => { setMachine(null); setDdOpen(false); }}
-                                className="flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-left text-[10px] font-semibold transition-colors cursor-pointer"
-                                style={{
-                                    background: machine === null ? `${ACCENT}15` : "transparent",
-                                    color: machine === null ? ACCENT : "rgba(255,255,255,0.5)",
-                                }}
-                            >
-                                <span style={{ width: 6, height: 6, borderRadius: "50%", background: ACCENT, flexShrink: 0 }} />
-                                <span style={{ flex: 1 }}>All</span>
-                                {machine === null && <span style={{ fontSize: 9 }}>✓</span>}
-                            </button>
-                            {/* Dynamic machine list - only online machines */}
-                            {machines.map(m => {
-                                const active = machine === m.id;
-                                const color = machineColors[m.id] ?? ACCENT;
-                                return (
-                                    <button key={m.id}
-                                        onClick={() => { setMachine(m.id); setDdOpen(false); }}
-                                        className="flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-left text-[10px] font-semibold transition-colors cursor-pointer"
-                                        style={{
-                                            background: active ? `${color}15` : "transparent",
-                                            color: active ? color : "rgba(255,255,255,0.5)",
-                                        }}
-                                    >
-                                        <span style={{ width: 6, height: 6, borderRadius: "50%", background: color, flexShrink: 0 }} />
-                                        <span style={{ flex: 1 }}>{m.hostname}</span>
-                                        {m.model && <span style={{ fontSize: 8, color: "rgba(255,255,255,0.2)" }}>{m.model}</span>}
-                                        {active && <span style={{ fontSize: 9 }}>✓</span>}
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    )}
-                </div>
+                        <span>{machines[0].hostname}</span>
+                    </div>
+                ) : null}
 
                 {/* Divider */}
                 <div style={{ width: 1, height: 20, background: "rgba(255,255,255,0.06)" }} />
