@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { marked } from "marked";
+import VoiceModal from "../_sections/VoiceModal";
 import Prism from "prismjs";
 import "prismjs/components/prism-typescript";
 import "prismjs/components/prism-javascript";
@@ -380,6 +381,7 @@ export default function SessionProgressClient({ meta }: { meta: SessionMeta }) {
 
     const [pageUrl, setPageUrl] = useState("");
     const [showQr, setShowQr] = useState(false);
+    const [showVoice, setShowVoice] = useState(false);
     useEffect(() => {
         fetch("/api/claude/lan")
             .then(r => r.json())
@@ -544,6 +546,27 @@ export default function SessionProgressClient({ meta }: { meta: SessionMeta }) {
     return (
         <div className="flex flex-col bg-[#09090b] text-white overflow-hidden" style={{ overflowX: "hidden", height: "100dvh", maxHeight: "-webkit-fill-available" }}>
 
+            {/* ── Voice Modal ── */}
+            {showVoice && connected && (
+                <VoiceModal
+                    onSubmit={(text) => {
+                        setInputText(text);
+                        // Directly inject
+                        injectedMsgs.current.add(text);
+                        addActivity({ type: "user_msg", content: text, timestamp: new Date().toISOString() });
+                        fetch(`/api/claude/claude-sessions/${meta.sessionId}/input`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ text }),
+                        }).then(r => r.json()).then(data => {
+                            if (!data.ok) addActivity({ type: "text", content: "Voice injection failed - is Claude Code running?", timestamp: new Date().toISOString() });
+                        }).catch(() => {});
+                        setInputText("");
+                    }}
+                    onClose={() => setShowVoice(false)}
+                />
+            )}
+
             {/* ── QR Modal ── */}
             {showQr && pageUrl && (
                 <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowQr(false)}>
@@ -580,13 +603,30 @@ export default function SessionProgressClient({ meta }: { meta: SessionMeta }) {
                         </div>
                     </div>
 
-                    {pageUrl && (
-                        <div className="shrink-0 opacity-60 hover:opacity-100 transition-opacity duration-300 cursor-pointer"
-                            onClick={() => setShowQr(true)}
-                            title="Scan QR to open on phone">
-                            <img src={`/api/qr?url=${encodeURIComponent(pageUrl)}`} alt="QR" width={28} height={28} className="rounded" />
-                        </div>
-                    )}
+                    <div className="flex items-center gap-2 shrink-0">
+                        {/* Voice input - only when session is active */}
+                        {connected && (
+                            <button
+                                onClick={() => setShowVoice(true)}
+                                className="opacity-60 hover:opacity-100 transition-opacity duration-300"
+                                style={{ background: "none", border: "none", cursor: "pointer", color: "#f97316", display: "flex", padding: 4 }}
+                                title="Voice input">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+                                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                                    <line x1="12" x2="12" y1="19" y2="22"/>
+                                </svg>
+                            </button>
+                        )}
+                        {/* QR code */}
+                        {pageUrl && (
+                            <div className="opacity-60 hover:opacity-100 transition-opacity duration-300 cursor-pointer"
+                                onClick={() => setShowQr(true)}
+                                title="Scan QR to open on phone">
+                                <img src={`/api/qr?url=${encodeURIComponent(pageUrl)}`} alt="QR" width={28} height={28} className="rounded" />
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
 
