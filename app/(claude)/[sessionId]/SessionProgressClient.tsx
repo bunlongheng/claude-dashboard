@@ -380,8 +380,13 @@ export default function SessionProgressClient({ meta }: { meta: SessionMeta }) {
 
     const [pageUrl, setPageUrl] = useState("");
     useEffect(() => {
-        const base = `${window.location.protocol}//${window.location.host}`;
-        setPageUrl(`${base}/${meta.sessionId}`);
+        fetch("/api/claude/lan")
+            .then(r => r.json())
+            .then(d => setPageUrl(`http://${d.ip}:${d.port}/${meta.sessionId}`))
+            .catch(() => {
+                const base = `${window.location.protocol}//${window.location.host}`;
+                setPageUrl(`${base}/${meta.sessionId}`);
+            });
     }, [meta.sessionId]);
 
     const [inputText, setInputText] = useState("");
