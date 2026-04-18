@@ -205,7 +205,8 @@ export default function ClaudeSidebarNav() {
                     <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.12em", color: "#ffffff", textTransform: "uppercase" }}>CLAUDE</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    {/* Machine dropdown (mobile) */}
+                    {/* Machine dropdown (mobile) - only if multiple machines */}
+                    {machines.length > 1 ? (
                     <div ref={mobileDDRef} style={{ position: "relative" }}>
                         <button onClick={() => setMobileDD(!mobileDD)}
                             style={{
@@ -240,6 +241,7 @@ export default function ClaudeSidebarNav() {
                             </div>
                         )}
                     </div>
+                    ) : null}
                     <button onClick={() => setOpen(true)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: "rgba(255,255,255,0.7)", display: "flex" }}>
                         <Menu size={20} />
                     </button>
