@@ -95,7 +95,7 @@ export default function VoiceModal({ onSubmit, onClose }: VoiceModalProps) {
             return;
         }
 
-        // Start microphone for waveform
+        // Start microphone for waveform (optional - works without it)
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             streamRef.current = stream;
@@ -108,8 +108,7 @@ export default function VoiceModal({ onSubmit, onClose }: VoiceModalProps) {
             analyserRef.current = analyser;
             drawWave();
         } catch {
-            setError("Microphone access denied");
-            return;
+            // Waveform won't show but speech recognition can still work
         }
 
         // Start speech recognition
@@ -194,7 +193,7 @@ export default function VoiceModal({ onSubmit, onClose }: VoiceModalProps) {
     const fullText = (transcript + interim).trim();
 
     return (
-        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-4" onClick={onClose}>
+        <div className="fixed inset-0 z-[999] flex flex-col items-center justify-center p-4" style={{ background: "#08090d" }} onClick={onClose}>
             <div className="w-full max-w-lg" onClick={e => e.stopPropagation()}>
 
                 {/* Close button */}
