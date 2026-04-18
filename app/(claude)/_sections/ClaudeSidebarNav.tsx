@@ -146,12 +146,15 @@ export default function ClaudeSidebarNav() {
         Promise.all([
             fetch(`/api/claude/sessions${q}`).then(r => r.json()).catch(() => ({ projects: [] })),
             fetch(`/api/claude/skills${q}`).then(r => r.json()).catch(() => ({ summary: {} })),
-            fetch("/api/claude/brain").then(r => r.json()).catch(() => ({ memoryFiles: [], globalRules: [] })),
-        ]).then(([sessions, skills, brain]) => {
+            fetch("/api/claude/brain").then(r => r.json()).catch(() => ({ categoryCounts: {}, globalRules: [], totalFiles: 0 })),
+            fetch("/api/claude/token-stats").then(r => r.json()).catch(() => ({ totals: { sessions: 0 } })),
+            fetch("/api/claude/health").then(r => r.json()).catch(() => ({ projects: [] })),
+            fetch("/api/claude/memory-timeline").then(r => r.json()).catch(() => ({ timeline: [] })),
+        ]).then(([sessions, skills, brain, tokens, health, timeline]) => {
             const totalSessions = (sessions.projects ?? []).reduce((sum: number, p: any) => sum + (p.sessions?.length ?? 0), 0);
             setBadges({
                 "/global": skills.summary?.claudeMd ?? 0,
-                "/brain": (brain.memoryFiles ?? []).length,
+                "/brain": brain.categoryCounts?.memory ?? brain.totalFiles ?? 0,
                 "/rules": (brain.globalRules ?? []).length,
                 "/settings": (skills.settings ? Object.keys(skills.settings).length : 0) + (skills.localSettings ? Object.keys(skills.localSettings).length : 0),
                 "/mcp": skills.summary?.mcp ?? 0,
@@ -160,6 +163,9 @@ export default function ClaudeSidebarNav() {
                 "/commands": skills.summary?.commands ?? 0,
                 "/hooks": skills.summary?.hooks ?? 0,
                 "/sessions": totalSessions,
+                "/tokens": tokens.totals?.sessions ?? 0,
+                "/health": (health.projects ?? []).length,
+                "/timeline": (timeline.timeline ?? []).length,
             });
         });
     }, [machine]);
