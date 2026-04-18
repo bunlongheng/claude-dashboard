@@ -541,7 +541,7 @@ export default function SessionProgressClient({ meta }: { meta: SessionMeta }) {
     const hasTodos = todos.length > 0;
 
     return (
-        <div className="flex flex-col h-[calc(100vh-160px)] bg-[#09090b] text-white overflow-hidden" style={{ overflowX: "hidden" }}>
+        <div className="flex flex-col bg-[#09090b] text-white overflow-hidden" style={{ overflowX: "hidden", height: "calc(100dvh - 120px)" }}>
 
             {/* ── Header ── */}
             <div className="shrink-0 px-6 pt-5 pb-4 border-b border-white/5 space-y-4">
@@ -556,9 +556,10 @@ export default function SessionProgressClient({ meta }: { meta: SessionMeta }) {
                     </div>
 
                     {pageUrl && (
-                        <div className="shrink-0 opacity-80 hover:opacity-100 transition-opacity duration-300 text-center">
-                            <img src={`/api/qr?url=${encodeURIComponent(pageUrl)}`} alt="QR" width={64} height={64} className="rounded-lg" />
-                            <span className="text-[9px] font-mono text-white/30 mt-1 block">{meta.sessionId.slice(-6).toUpperCase()}</span>
+                        <div className="shrink-0 opacity-60 hover:opacity-100 transition-opacity duration-300 cursor-pointer"
+                            onClick={() => window.open(pageUrl, "_blank")}
+                            title="Open on LAN">
+                            <img src={`/api/qr?url=${encodeURIComponent(pageUrl)}`} alt="QR" width={28} height={28} className="rounded" />
                         </div>
                     )}
                 </div>
@@ -616,7 +617,7 @@ export default function SessionProgressClient({ meta }: { meta: SessionMeta }) {
             )}
 
             {/* ── Input box - fixed bottom ── */}
-            <div className="shrink-0 px-3 pt-2 pb-3 border-t border-white/5" style={{ background: "#09090b" }}>
+            <div className="shrink-0 px-3 pt-2 border-t border-white/5" style={{ background: "#09090b", paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}>
                 <div className="flex items-end gap-2"
                     style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.18)", borderRadius: 16, padding: "8px 8px 8px 14px" }}
                 >
@@ -632,6 +633,7 @@ export default function SessionProgressClient({ meta }: { meta: SessionMeta }) {
                         }}
                         placeholder="Message Claude…"
                         rows={1}
+                        onFocus={() => setTimeout(() => inputRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }), 300)}
                         className="flex-1 bg-transparent text-[16px] text-white/80 placeholder-white/25 resize-none leading-relaxed self-center"
                         style={{ outline: "none", border: "none", boxShadow: "none", maxHeight: 120, scrollbarWidth: "none", fontSize: 16 }}
                     />
