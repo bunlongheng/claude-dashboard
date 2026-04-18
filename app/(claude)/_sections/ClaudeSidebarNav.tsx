@@ -137,7 +137,7 @@ export default function ClaudeSidebarNav() {
     const [open, setOpen] = useState(false);
     const [mobileDD, setMobileDD] = useState(false);
     const mobileDDRef = useRef<HTMLDivElement>(null);
-    const { machine, setMachine } = useMachine();
+    const { machine, setMachine, machines } = useMachine();
     const [badges, setBadges] = useState<Record<string, number>>({});
 
     // Fetch badge counts - re-fetch when machine changes
