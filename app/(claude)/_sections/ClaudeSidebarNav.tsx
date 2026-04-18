@@ -163,7 +163,7 @@ export default function ClaudeSidebarNav() {
                 "/commands": skills.summary?.commands ?? 0,
                 "/hooks": skills.summary?.hooks ?? 0,
                 "/sessions": totalSessions,
-                "/tokens": tokens.totals?.sessions ?? 0,
+                "/tokens": tokens.totals?.session_count ?? tokens.tokens?.length ?? 0,
                 "/settings": (skills.settings ? Object.keys(skills.settings).length : 0) + (skills.localSettings ? Object.keys(skills.localSettings).length : 0),
                 "/health": (health.projects ?? []).length,
                 "/timeline": (timeline.timeline ?? []).length,
