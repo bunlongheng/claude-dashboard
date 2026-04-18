@@ -40,8 +40,12 @@ function getSessionCwd(sessionId: string): string | null {
 
 function findTtyForCwd(cwd: string): string | null {
     try {
+        // Match exact cwd - use claude-code process specifically, not any "claude" match
         const script = `
 for pid in $(/usr/bin/pgrep -f "claude" 2>/dev/null); do
+    # Skip this dashboard's own processes
+    cmd=$(/bin/ps -o command= -p "$pid" 2>/dev/null)
+    case "$cmd" in *next*|*node*scripts/ws*) continue ;; esac
     proc_cwd=$(/usr/sbin/lsof -a -p "$pid" -d cwd -Fn 2>/dev/null | /usr/bin/grep '^n' | /usr/bin/sed 's/^n//')
     if [ "$proc_cwd" = "$INJECT_CWD" ]; then
         tty=$(/bin/ps -o tty= -p "$pid" 2>/dev/null | /usr/bin/tr -d ' ')
