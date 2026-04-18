@@ -167,25 +167,18 @@ export default function OverviewSection() {
         { value: stats.plugins, color: "#8b5cf6", label: "Plugins" },
     ];
 
-    const maxStat = Math.max(stats.sessions, stats.skills, stats.commands, stats.plugins, stats.mcp, stats.hooks, stats.memory, stats.rules, stats.claudeMd, 1);
 
     return (
         <div className="space-y-6">
             {/* Top row - key metrics */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                 <StatCard label="Sessions" value={stats.sessions} icon={FolderOpen} color="#22c55e"
-                    sub={`${stats.activeSessions} active now`}
-                    bar={{ value: stats.activeSessions, max: Math.max(stats.sessions, 1) }} />
-                <StatCard label="Skills" value={stats.skills} icon={Sparkles} color="#06b6d4"
-                    bar={{ value: stats.skills, max: maxStat }} />
-                <StatCard label="Commands" value={stats.commands} icon={Terminal} color="#f472b6"
-                    bar={{ value: stats.commands, max: maxStat }} />
-                <StatCard label="Plugins" value={stats.plugins} icon={Puzzle} color="#8b5cf6"
-                    bar={{ value: stats.plugins, max: maxStat }} />
-                <StatCard label="MCP Servers" value={stats.mcp} icon={Server} color="#10b981"
-                    bar={{ value: stats.mcp, max: maxStat }} />
-                <StatCard label="Hooks" value={stats.hooks} icon={Webhook} color="#a3e635"
-                    bar={{ value: stats.hooks, max: maxStat }} />
+                    sub={`${stats.activeSessions} active now`} />
+                <StatCard label="Skills" value={stats.skills} icon={Sparkles} color="#06b6d4" />
+                <StatCard label="Commands" value={stats.commands} icon={Terminal} color="#f472b6" />
+                <StatCard label="Plugins" value={stats.plugins} icon={Puzzle} color="#8b5cf6" />
+                <StatCard label="MCP Servers" value={stats.mcp} icon={Server} color="#10b981" />
+                <StatCard label="Hooks" value={stats.hooks} icon={Webhook} color="#a3e635" />
                 <StatCard label="Memory" value={stats.memory} icon={Brain} color="#eab308"
                     sub="across all projects" />
                 <StatCard label="Rules" value={stats.rules} icon={ShieldCheck} color="#ef4444" />
@@ -225,7 +218,6 @@ export default function OverviewSection() {
                                 <span style={{ fontSize: 14, fontWeight: 800, color: row.color }}>
                                     <AnimatedNumber value={row.value} />
                                 </span>
-                                <MiniBar value={row.value} max={Math.max(maxStat, 1)} color={row.color} />
                             </div>
                         ))}
                     </div>
