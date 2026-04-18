@@ -153,10 +153,10 @@ export default function ClaudeSidebarNav() {
         ]).then(([sessions, skills, brain, tokens, health, timeline]) => {
             const totalSessions = (sessions.projects ?? []).reduce((sum: number, p: any) => sum + (p.sessions?.length ?? 0), 0);
             setBadges({
+                "/dashboard": brain.totalProjects ?? 0,
                 "/global": skills.summary?.claudeMd ?? 0,
                 "/brain": brain.categoryCounts?.memory ?? brain.totalFiles ?? 0,
                 "/rules": (brain.globalRules ?? []).length,
-                "/settings": (skills.settings ? Object.keys(skills.settings).length : 0) + (skills.localSettings ? Object.keys(skills.localSettings).length : 0),
                 "/mcp": skills.summary?.mcp ?? 0,
                 "/plugins": skills.summary?.plugins ?? 0,
                 "/skills": skills.summary?.skills ?? 0,
@@ -164,6 +164,7 @@ export default function ClaudeSidebarNav() {
                 "/hooks": skills.summary?.hooks ?? 0,
                 "/sessions": totalSessions,
                 "/tokens": tokens.totals?.sessions ?? 0,
+                "/settings": (skills.settings ? Object.keys(skills.settings).length : 0) + (skills.localSettings ? Object.keys(skills.localSettings).length : 0),
                 "/health": (health.projects ?? []).length,
                 "/timeline": (timeline.timeline ?? []).length,
             });
