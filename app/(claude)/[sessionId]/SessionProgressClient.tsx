@@ -621,24 +621,29 @@ export default function SessionProgressClient({ meta }: { meta: SessionMeta }) {
                 <div className="flex items-end gap-2"
                     style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.18)", borderRadius: 16, padding: "8px 8px 8px 14px" }}
                 >
-                    <textarea
-                        ref={inputRef}
-                        value={inputText}
-                        onChange={e => setInputText(e.target.value)}
+                    <div
+                        ref={inputRef as any}
+                        contentEditable
+                        suppressContentEditableWarning
+                        role="textbox"
+                        onInput={e => setInputText((e.target as HTMLDivElement).textContent || "")}
                         onKeyDown={e => {
                             if (e.key === "Enter" && !e.shiftKey) {
                                 e.preventDefault();
                                 sendInput();
+                                (e.target as HTMLDivElement).textContent = "";
                             }
                         }}
-                        placeholder="Message Claude…"
-                        rows={1}
-                        onFocus={() => setTimeout(() => inputRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }), 300)}
-                        className="flex-1 bg-transparent text-[16px] text-white/80 placeholder-white/25 resize-none leading-relaxed self-center"
-                        style={{ outline: "none", border: "none", boxShadow: "none", maxHeight: 120, scrollbarWidth: "none", fontSize: 16 }}
+                        onFocus={() => setTimeout(() => (inputRef.current as any)?.scrollIntoView({ behavior: "smooth", block: "end" }), 300)}
+                        data-placeholder="Message Claude..."
+                        className="flex-1 bg-transparent text-[16px] text-white/80 leading-relaxed self-center empty:before:content-[attr(data-placeholder)] empty:before:text-white/25"
+                        style={{ outline: "none", border: "none", boxShadow: "none", maxHeight: 120, overflowY: "auto", scrollbarWidth: "none", fontSize: 16, minHeight: 24, wordBreak: "break-word" }}
                     />
                     <button
-                        onClick={sendInput}
+                        onClick={() => {
+                            sendInput();
+                            if (inputRef.current) (inputRef.current as any).textContent = "";
+                        }}
                         disabled={!inputText.trim() || sending || !connected}
                         className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition disabled:opacity-70"
                         style={{ background: "#3b82f6", boxShadow: "0 0 16px rgba(59,130,246,0.5)", zIndex: 9999, position: "relative" }}
