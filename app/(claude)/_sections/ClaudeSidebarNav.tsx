@@ -9,7 +9,7 @@ import {
     Brain, Sparkles, Terminal, Webhook, Server, Puzzle,
     Menu, X, ChevronDown, Monitor, LogOut,
     Activity, Clock,
-    Wand2, Search,
+    Search,
 } from "lucide-react";
 import { MACHINES, MACHINE_COLORS, ACCENT } from "./shared";
 import { useMachine } from "./MachineContext";

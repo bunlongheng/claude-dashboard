@@ -1,9 +1,7 @@
-import { db } from "@/lib/db";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
 
-const HISTORY_LIMIT = 500;
 const TIMEOUT_MS = 4000;
 
 export function withTimeout<T>(promise: Promise<T>, fallback: T): Promise<T> {
@@ -13,60 +11,9 @@ export function withTimeout<T>(promise: Promise<T>, fallback: T): Promise<T> {
     ]);
 }
 
-export function readHistory(): { entries: any[]; total: number } {
-    try {
-        const p = path.join(os.homedir(), ".claude", "history.jsonl");
-        const raw = fs.readFileSync(p, "utf-8");
-        const lines = raw.trim().split("\n").filter(Boolean);
-        const entries = lines
-            .slice(-HISTORY_LIMIT)
-            .reverse()
-            .map((l) => { try { return JSON.parse(l); } catch { return null; } })
-            .filter(Boolean);
-        return { entries, total: lines.length };
-    } catch {
-        return { entries: [], total: 0 };
-    }
-}
-
-export async function fetchHistory(): Promise<{ entries: any[]; total: number }> {
-    const local = readHistory();
-    if (local.total > 0) return local;
-    try {
-        const data = await db.query("claude_history", {
-            select: "session_id,display,timestamp,project",
-            orderBy: "timestamp",
-            ascending: false,
-            limit: 2000,
-        });
-        const entries = data.map((r: any) => ({
-            display: r.display,
-            timestamp: r.timestamp,
-            project: r.project,
-            sessionId: r.session_id,
-        }));
-        return { entries, total: entries.length };
-    } catch {
-        return { entries: [], total: 0 };
-    }
-}
-
-export async function fetchNotes(): Promise<any[]> {
-    try {
-        return await db.query("notes", {
-            select: "id, title, content, folder_name, folder_color, created_at, updated_at",
-            orderBy: "created_at",
-            ascending: false,
-            limit: 50,
-        });
-    } catch {
-        return [];
-    }
-}
-
-// ─── Local .jsonl token scanning (mirrors /api/claude/token-stats) ──────────
+// ---- Local .jsonl token scanning ----
 const CLAUDE_PROJECTS_DIR = path.join(os.homedir(), ".claude", "projects");
-const MAX_BYTES = 50 * 1024; // 50 KB tail per file
+const MAX_BYTES = 50 * 1024;
 
 function readLastBytes(filePath: string, maxBytes: number): string {
     let fd = -1;
@@ -80,7 +27,7 @@ function readLastBytes(filePath: string, maxBytes: number): string {
         fs.readSync(fd, buf, 0, readSize, offset);
         return buf.toString("utf-8");
     } catch { return ""; }
-    finally { if (fd >= 0) try { fs.closeSync(fd); } catch { /* ignore */ } }
+    finally { if (fd >= 0) try { fs.closeSync(fd); } catch {} }
 }
 
 interface SessionAccum {
@@ -125,12 +72,12 @@ function parseSessionFile(filePath: string, project: string): SessionAccum {
                 accum.cache_creation_tokens += u.cache_creation_input_tokens ?? 0;
                 if (d.message.model) accum.model = d.message.model;
             }
-        } catch { /* skip malformed */ }
+        } catch {}
     }
     return accum;
 }
 
-function readLocalTokens(): any[] {
+export async function fetchTokens(): Promise<any[]> {
     if (!fs.existsSync(CLAUDE_PROJECTS_DIR)) return [];
     const hostname = os.hostname().split(".")[0];
     const results: any[] = [];
@@ -146,20 +93,4 @@ function readLocalTokens(): any[] {
         }
     }
     return results;
-}
-
-export async function fetchTokens(): Promise<any[]> {
-    // Read local .jsonl files directly
-    return readLocalTokens();
-}
-
-export async function fetchGlobalInstructions(): Promise<any[]> {
-    try {
-        return await db.query("claude_global_instructions", {
-            select: "id, category, title, instruction, source, confidence, last_used_at, violations_count, created_at, updated_at",
-            orderBy: "category",
-        });
-    } catch {
-        return [];
-    }
 }

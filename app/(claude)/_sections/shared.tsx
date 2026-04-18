@@ -160,10 +160,10 @@ export const AGENT_DETAILS: Record<string, AgentDetail> = {
     "Sand": {
         description: "Sand manages all data persistence. It designs database schemas, writes migration files, optimizes queries, configures caching layers, and ensures data integrity across the stack.",
         responsibilities: [
-            "Design and migrate Supabase / PostgreSQL schemas",
+            "Design and migrate SQLite / PostgreSQL schemas",
             "Write optimized queries and add proper indexes",
             "Configure Redis / edge caching strategies",
-            "Manage file storage (Supabase Storage, S3)",
+            "Manage file storage (local, S3)",
             "Ensure data backups and disaster recovery plans",
         ],
         iconPrompt: `Create a minimal AI agent avatar icon for "Sand" - Storage.\n• Color: Warm terracotta #cc6633 on dark background\n• Symbol: Database cylinder built from layered sand strata, like geological cross-section\n• Style: Earthy, structured, stacked circles suggesting depth and data layers\n• Mood: Solid, ancient reliability, foundational strength\n• Size: 512×512 PNG, dark bg, no text`,
