@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
+import { isRealRepo } from "@/lib/project-utils";
 
 const CLAUDE_DIR = path.join(os.homedir(), ".claude", "projects");
 const STALE_DAYS = 7;
@@ -145,7 +146,6 @@ export async function GET(req: Request) {
     const localProjects: ProjectData[] = [];
     if (!machineFilter || machineFilter === localMachineId) {
         if (fs.existsSync(CLAUDE_DIR)) {
-            const { isRealRepo } = await import("@/lib/project-utils");
             for (const folder of fs.readdirSync(CLAUDE_DIR)) {
                 const folderPath = path.join(CLAUDE_DIR, folder);
                 try { if (!fs.statSync(folderPath).isDirectory()) continue; } catch { continue; }
