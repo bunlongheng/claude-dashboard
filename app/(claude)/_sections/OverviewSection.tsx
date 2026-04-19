@@ -135,7 +135,7 @@ export default function OverviewSection() {
                     mcp: skills?.summary?.mcp ?? 0,
                     plugins: skills?.summary?.plugins ?? 0,
                     claudeMd: skills?.summary?.claudeMd ?? 0,
-                    memory: (brain?.memoryFiles ?? []).length,
+                    memory: brain?.categoryCounts?.memory ?? brain?.totalFiles ?? 0,
                     rules: (brain?.globalRules ?? []).length,
                     tokens: { input: 0, output: 0, cacheRead: 0, cost: 0 },
                 });
