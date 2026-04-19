@@ -12,8 +12,8 @@ export function folderToPath(folder: string): string {
 
 /**
  * Extract project name from folder - uses last meaningful segment.
- * "-Users-bheng-Sites-local-apps" -> "local-apps"
- * "-Users-bheng-Sites-bheng" -> "bheng"
+ * "-Users-alice-Sites-local-apps" -> "local-apps"
+ * "-Users-alice-Sites-myapp" -> "myapp"
  */
 export function folderToName(folder: string): string {
     // Find "Sites" in the folder, return everything after it
