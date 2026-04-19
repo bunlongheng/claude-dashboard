@@ -14,13 +14,9 @@ import {
 import { useMachine } from "./MachineContext";
 
 const PAGE_SIZE = 20;
-const APP_COLORS: Record<string, string> = {};
 const COLOR_PALETTE = ["#ff3b5c", "#ff6347", "#f97316", "#ffb800", "#cddc39", "#00c853", "#00bfa5", "#4fc3f7", "#2962ff", "#5c4db1", "#ab47bc", "#ff1667"];
-function getAppColor(name: string): string {
-    if (!APP_COLORS[name]) {
-        APP_COLORS[name] = COLOR_PALETTE[Object.keys(APP_COLORS).length % COLOR_PALETTE.length];
-    }
-    return APP_COLORS[name];
+function getAppColor(index: number): string {
+    return COLOR_PALETTE[index % COLOR_PALETTE.length];
 }
 
 export default function TokensSection({ initialTokens }: { initialTokens: Token[] }) {
@@ -177,10 +173,10 @@ export default function TokensSection({ initialTokens }: { initialTokens: Token[
                                 const total = t.input_tokens + t.output_tokens;
                                 const pct = Math.min((total / maxSessionTokens) * 100, 100);
                                 const name = t.project?.split("/").pop() || "unknown";
-                                const color = getAppColor(name);
+                                const color = getAppColor(i);
                                 return (
                                     <a key={t.session_id} href={`/${t.session_id}`} target="_blank" rel="noopener noreferrer"
-                                        className="block rounded-lg px-2 py-1 -mx-2 transition hover:bg-white/[0.03] cursor-pointer">
+                                        className="block transition hover:bg-white/[0.03] cursor-pointer" style={{ textDecoration: "none" }}>
                                         <div className="flex items-center justify-between mb-1">
                                             <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>{name}</span>
                                             <span style={{ fontSize: 10, fontWeight: 700, color }}>{fmtNum(total)}</span>
@@ -199,7 +195,7 @@ export default function TokensSection({ initialTokens }: { initialTokens: Token[
                             {byProject.slice(0, 8).map((p, i) => {
                                 const maxCount = byProject[0]?.count ?? 1;
                                 const pct = Math.min((p.count / maxCount) * 100, 100);
-                                const color = getAppColor(p.project);
+                                const color = getAppColor(i);
                                 return (
                                     <div key={p.project}>
                                         <div className="flex items-center justify-between mb-1">
@@ -220,7 +216,7 @@ export default function TokensSection({ initialTokens }: { initialTokens: Token[
                             {byProject.slice(0, 8).map((p, i) => {
                                 const maxCost = byProject[0]?.cost ?? 1;
                                 const pct = Math.min((p.cost / maxCost) * 100, 100);
-                                const color = getAppColor(p.project);
+                                const color = getAppColor(i);
                                 return (
                                     <div key={p.project + "-cost"}>
                                         <div className="flex items-center justify-between mb-1">

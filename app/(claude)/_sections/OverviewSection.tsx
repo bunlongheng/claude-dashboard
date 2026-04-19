@@ -109,6 +109,8 @@ function DonutChart({ segments, size = 120 }: { segments: { value: number; color
     );
 }
 
+const OV_COLORS = ["#ff3b5c", "#ff6347", "#f97316", "#ffb800", "#cddc39", "#00c853", "#00bfa5", "#4fc3f7", "#2962ff", "#5c4db1", "#ab47bc", "#ff1667"];
+
 export default function OverviewSection() {
     const { machine } = useMachine();
     const [stats, setStats] = useState<Stats | null>(null);
@@ -295,22 +297,23 @@ export default function OverviewSection() {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                     {/* Top sessions by token usage */}
                     <div style={{ padding: "20px 24px", borderRadius: 14, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                        <h3 style={{ fontSize: 9, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: "#f59e0b", marginBottom: 14 }}>Top Sessions by Token Usage</h3>
+                        <h3 style={{ fontSize: 9, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.3)", marginBottom: 14 }}>Top Sessions by Tokens</h3>
                         <div className="space-y-2">
                             {tokensBySession.slice(0, 8).map((t: any, i: number) => {
                                 const total = t.input_tokens + t.output_tokens;
                                 const maxTotal = tokensBySession[0] ? tokensBySession[0].input_tokens + tokensBySession[0].output_tokens : 1;
                                 const pct = Math.min((total / maxTotal) * 100, 100);
                                 const project = t.project?.split("/").pop() || "unknown";
+                                const color = OV_COLORS[i % OV_COLORS.length];
                                 return (
                                     <a key={t.session_id || i} href={`/${t.session_id}`} target="_blank" rel="noopener noreferrer"
-                                        className="block cursor-pointer rounded-lg px-2 py-1.5 -mx-2 transition hover:bg-white/[0.03]">
+                                        className="block transition hover:bg-white/[0.03] cursor-pointer" style={{ textDecoration: "none" }}>
                                         <div className="flex items-center justify-between mb-1">
                                             <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>{project}</span>
-                                            <span style={{ fontSize: 10, fontWeight: 700, color: "#f59e0b" }}>{(total / 1000).toFixed(0)}K</span>
+                                            <span style={{ fontSize: 10, fontWeight: 700, color }}>{(total / 1000).toFixed(0)}K</span>
                                         </div>
                                         <div style={{ height: 4, borderRadius: 2, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
-                                            <div style={{ width: `${pct}%`, height: "100%", borderRadius: 2, background: "#f59e0b", transition: "width 0.8s" }} />
+                                            <div style={{ width: `${pct}%`, height: "100%", borderRadius: 2, background: color, transition: "width 0.8s", transitionDelay: `${i * 0.05}s` }} />
                                         </div>
                                     </a>
                                 );
@@ -320,10 +323,9 @@ export default function OverviewSection() {
 
                     {/* Sessions per app */}
                     <div style={{ padding: "20px 24px", borderRadius: 14, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                        <h3 style={{ fontSize: 9, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: "#22c55e", marginBottom: 14 }}>Sessions per App</h3>
+                        <h3 style={{ fontSize: 9, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.3)", marginBottom: 14 }}>Sessions per App</h3>
                         <div className="space-y-2">
                             {(() => {
-                                // Deduplicate by project name
                                 const grouped = new Map<string, number>();
                                 for (const p of sessionProjects) {
                                     const name = p.project?.replace(/-/g, "/").split("/").pop() || "unknown";
@@ -331,38 +333,40 @@ export default function OverviewSection() {
                                 }
                                 const sorted = [...grouped.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);
                                 const maxCount = sorted[0]?.[1] ?? 1;
-                                const colors = ["#22c55e", "#06b6d4", "#f97316", "#8b5cf6", "#f472b6", "#eab308", "#a3e635", "#10b981"];
-                                return sorted.map(([name, count], i) => (
+                                return sorted.map(([name, count], i) => {
+                                    const color = OV_COLORS[i % OV_COLORS.length];
+                                    return (
                                     <div key={name}>
                                         <div className="flex items-center justify-between mb-1">
                                             <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>{name}</span>
-                                            <span style={{ fontSize: 10, fontWeight: 700, color: colors[i % colors.length] }}>{count}</span>
+                                            <span style={{ fontSize: 10, fontWeight: 700, color }}>{count}</span>
                                         </div>
                                         <div style={{ height: 4, borderRadius: 2, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
-                                            <div style={{ width: `${Math.min((count / maxCount) * 100, 100)}%`, height: "100%", borderRadius: 2, background: colors[i % colors.length], transition: "width 0.8s" }} />
+                                            <div style={{ width: `${Math.min((count / maxCount) * 100, 100)}%`, height: "100%", borderRadius: 2, background: color, transition: "width 0.8s", transitionDelay: `${i * 0.05}s` }} />
                                         </div>
                                     </div>
-                                ));
+                                )});
                             })()}
                         </div>
                     </div>
 
                     {/* Token cost by app */}
                     <div style={{ padding: "20px 24px", borderRadius: 14, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                        <h3 style={{ fontSize: 9, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: "#f97316", marginBottom: 14 }}>Token Cost by App</h3>
+                        <h3 style={{ fontSize: 9, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.3)", marginBottom: 14 }}>Cost by App</h3>
                         <div className="space-y-2">
                             {tokensByProject.slice(0, 8).map((p: any, i: number) => {
                                 const name = p.project || "unknown";
                                 const maxCost = tokensByProject[0]?.cost ?? 1;
                                 const pct = Math.min(((p.cost ?? 0) / maxCost) * 100, 100);
+                                const color = OV_COLORS[i % OV_COLORS.length];
                                 return (
                                     <div key={name}>
                                         <div className="flex items-center justify-between mb-1">
                                             <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>{name}</span>
-                                            <span style={{ fontSize: 10, fontWeight: 700, color: "#f97316" }}>${(p.cost ?? 0).toFixed(2)}</span>
+                                            <span style={{ fontSize: 10, fontWeight: 700, color }}>${(p.cost ?? 0).toFixed(2)}</span>
                                         </div>
                                         <div style={{ height: 4, borderRadius: 2, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
-                                            <div style={{ width: `${pct}%`, height: "100%", borderRadius: 2, background: "#f97316", transition: "width 0.8s cubic-bezier(0.4,0,0.2,1)", transitionDelay: `${i * 0.1}s` }} />
+                                            <div style={{ width: `${pct}%`, height: "100%", borderRadius: 2, background: color, transition: "width 0.8s", transitionDelay: `${i * 0.05}s` }} />
                                         </div>
                                     </div>
                                 );
