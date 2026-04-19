@@ -138,10 +138,8 @@ export default function ClaudeContentArea({ children }: { children: React.ReactN
                     <div className="flex items-center gap-2 overflow-x-auto flex-1" style={{ scrollbarWidth: "none" }}>
                         {activeSessions.slice(0, 8).map(s => {
                             const shortId = s.id.slice(-3).toUpperCase();
-                            let projectName = s.project?.replace(/-/g, "/").split("/").pop() || "";
-                            // Home dir sessions show as ~ to distinguish from project
-                            if (s.project && !s.project.includes("-Sites-")) projectName = "~";
-                            const label = s.customTitle || projectName || shortId;
+                            const projectName = s.project?.replace(/-/g, "/").split("/").pop() || "";
+                            const label = s.customTitle || s.title?.slice(0, 20) || projectName || shortId;
                             const ago = timeAgo(new Date(s.updatedAt).getTime());
                             const isSelected = currentSessionId === s.id;
                             return (
