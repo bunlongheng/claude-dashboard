@@ -19,13 +19,16 @@ export function folderToName(folder: string): string {
     // Find "Sites" in the folder, return everything after it
     const sitesIdx = folder.indexOf("-Sites-");
     if (sitesIdx >= 0) {
-        const after = folder.slice(sitesIdx + 7); // after "-Sites-"
-        // Check if the hyphenated name exists as a real directory
-        const sitesDir = folder.slice(0, sitesIdx + 6).replace(/-/g, "/"); // e.g. /Users/bheng/Sites
+        const after = folder.slice(sitesIdx + 7);
+        const sitesDir = folder.slice(0, sitesIdx + 6).replace(/-/g, "/");
         if (fs.existsSync(path.join(sitesDir, after))) return after;
-        // Try with hyphens as path separators for nested dirs
         return after;
     }
+    // Home directory sessions - show as "~" or custom title from session
+    const username = os.userInfo().username;
+    if (folder === `-Users-${username}` || folder === `-home-${username}`) return "~";
+    // Sites folder itself
+    if (folder.endsWith("-Sites")) return "Sites";
     const parts = folder.replace(/^-/, "").split("-");
     return parts[parts.length - 1] || folder;
 }
