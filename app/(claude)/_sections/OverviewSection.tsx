@@ -352,17 +352,17 @@ export default function OverviewSection() {
                         <h3 style={{ fontSize: 9, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: "#f97316", marginBottom: 14 }}>Token Cost by App</h3>
                         <div className="space-y-2">
                             {tokensByProject.slice(0, 8).map((p: any, i: number) => {
-                                const name = p.project?.split("/").pop() || "unknown";
+                                const name = p.project || "unknown";
                                 const maxCost = tokensByProject[0]?.cost ?? 1;
                                 const pct = Math.min(((p.cost ?? 0) / maxCost) * 100, 100);
                                 return (
-                                    <div key={name + i}>
+                                    <div key={name}>
                                         <div className="flex items-center justify-between mb-1">
                                             <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>{name}</span>
                                             <span style={{ fontSize: 10, fontWeight: 700, color: "#f97316" }}>${(p.cost ?? 0).toFixed(2)}</span>
                                         </div>
                                         <div style={{ height: 4, borderRadius: 2, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
-                                            <div style={{ width: `${pct}%`, height: "100%", borderRadius: 2, background: "#f97316", transition: "width 0.8s" }} />
+                                            <div style={{ width: `${pct}%`, height: "100%", borderRadius: 2, background: "#f97316", transition: "width 0.8s cubic-bezier(0.4,0,0.2,1)", transitionDelay: `${i * 0.1}s` }} />
                                         </div>
                                     </div>
                                 );
