@@ -43,7 +43,7 @@ export async function GET() {
     // 2. All projects - only real git repos
     const projectFolders = dirExists(PROJECTS_DIR) ? fs.readdirSync(PROJECTS_DIR).filter((f: string) => {
         const projectPath = f.replace(/-/g, "/");
-        try { return fs.existsSync(projectPath) && fs.existsSync(projectPath + "/.git"); } catch { return false; }
+        try { return fs.existsSync(projectPath) && fs.statSync(projectPath).isDirectory(); } catch { return false; }
     }) : [];
     const projectNames = projectFolders.map(f => f.replace(/-/g, "/").split("/").pop() ?? f);
 
