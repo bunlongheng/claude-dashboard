@@ -31,15 +31,14 @@ export function folderToName(folder: string): string {
 }
 
 /**
- * Check if a Claude project folder maps to a real local git repo.
+ * Check if a Claude project folder maps to a real local directory.
+ * Accepts any local directory (git repo or not), rejects remote/non-existent paths.
  */
 export function isRealRepo(folder: string): boolean {
     const projectPath = folderToPath(folder);
     try {
-        // Must be a local directory that exists AND has .git
         if (!fs.existsSync(projectPath)) return false;
-        if (!fs.statSync(projectPath).isDirectory()) return false;
-        return fs.existsSync(path.join(projectPath, ".git"));
+        return fs.statSync(projectPath).isDirectory();
     } catch {
         return false;
     }
