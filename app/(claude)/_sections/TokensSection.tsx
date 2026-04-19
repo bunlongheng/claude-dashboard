@@ -128,10 +128,11 @@ export default function TokensSection({ initialTokens }: { initialTokens: Token[
     // Reset page when filter changes
     useEffect(() => { setPage(0); }, [machine]);
 
-    // Chart data
+    // Chart data - same row count across all 3
+    const CHART_ROWS = Math.max(Math.min(byProject.length, 8), Math.min(filtered.length, 8));
     const topSessions = useMemo(() =>
-        [...filtered].sort((a, b) => (b.input_tokens + b.output_tokens) - (a.input_tokens + a.output_tokens)).slice(0, 8),
-    [filtered]);
+        [...filtered].sort((a, b) => (b.input_tokens + b.output_tokens) - (a.input_tokens + a.output_tokens)).slice(0, CHART_ROWS),
+    [filtered, CHART_ROWS]);
     const maxSessionTokens = topSessions[0] ? topSessions[0].input_tokens + topSessions[0].output_tokens : 1;
 
     return (
@@ -192,7 +193,7 @@ export default function TokensSection({ initialTokens }: { initialTokens: Token[
                     <div style={{ padding: "20px 24px", borderRadius: 14, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
                         <h3 style={{ fontSize: 9, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.3)", marginBottom: 14 }}>Sessions per App</h3>
                         <div className="space-y-2">
-                            {byProject.slice(0, 8).map((p, i) => {
+                            {byProject.slice(0, CHART_ROWS).map((p, i) => {
                                 const maxCount = byProject[0]?.count ?? 1;
                                 const pct = Math.min((p.count / maxCount) * 100, 100);
                                 const color = getAppColor(i);
@@ -213,7 +214,7 @@ export default function TokensSection({ initialTokens }: { initialTokens: Token[
                     <div style={{ padding: "20px 24px", borderRadius: 14, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
                         <h3 style={{ fontSize: 9, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.3)", marginBottom: 14 }}>Cost by App</h3>
                         <div className="space-y-2">
-                            {byProject.slice(0, 8).map((p, i) => {
+                            {byProject.slice(0, CHART_ROWS).map((p, i) => {
                                 const maxCost = byProject[0]?.cost ?? 1;
                                 const pct = Math.min((p.cost / maxCost) * 100, 100);
                                 const color = getAppColor(i);
