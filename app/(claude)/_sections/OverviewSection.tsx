@@ -115,7 +115,7 @@ export default function OverviewSection() {
     const [loading, setLoading] = useState(true);
     const [allTokens, setAllTokens] = useState<any[]>([]);
     const [allSessionProjects, setAllSessionProjects] = useState<any[]>([]);
-    const [chartPeriod, setChartPeriod] = useState<"today" | "7d" | "30d" | "all">("all");
+    const [chartPeriod, setChartPeriod] = useState<"today" | "7d" | "30d" | "all">("today");
 
     useEffect(() => {
         setLoading(true);
