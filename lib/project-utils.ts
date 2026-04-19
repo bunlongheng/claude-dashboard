@@ -16,13 +16,17 @@ export function folderToPath(folder: string): string {
  * "-Users-bheng-Sites-bheng" -> "bheng"
  */
 export function folderToName(folder: string): string {
-    // Convert to path, take last segment after "Sites/" or last 1-2 segments
-    const fullPath = folderToPath(folder);
-    const sitesIdx = fullPath.lastIndexOf("/Sites/");
+    // Find "Sites" in the folder, return everything after it
+    const sitesIdx = folder.indexOf("-Sites-");
     if (sitesIdx >= 0) {
-        return fullPath.slice(sitesIdx + 7); // everything after "/Sites/"
+        const after = folder.slice(sitesIdx + 7); // after "-Sites-"
+        // Check if the hyphenated name exists as a real directory
+        const sitesDir = folder.slice(0, sitesIdx + 6).replace(/-/g, "/"); // e.g. /Users/bheng/Sites
+        if (fs.existsSync(path.join(sitesDir, after))) return after;
+        // Try with hyphens as path separators for nested dirs
+        return after;
     }
-    const parts = fullPath.split("/").filter(Boolean);
+    const parts = folder.replace(/^-/, "").split("-");
     return parts[parts.length - 1] || folder;
 }
 
