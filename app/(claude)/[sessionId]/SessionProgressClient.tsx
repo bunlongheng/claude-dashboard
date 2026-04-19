@@ -110,7 +110,13 @@ function fmtTokens(n: number) {
 }
 
 function shortTime(iso: string) {
-    return new Date(iso).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
+    const d = new Date(iso);
+    const now = new Date();
+    const isToday = d.toDateString() === now.toDateString();
+    const time = d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
+    if (isToday) return time;
+    const date = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    return `${date} ${time}`;
 }
 
 // ─── Token Bar ────────────────────────────────────────────────────────────────
@@ -289,7 +295,7 @@ function ActivityRow({ item, isLatest, showToast }: { item: ActivityItem; isLate
                         <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" /> LIVE
                     </span>
                 )}
-                <span className="ml-auto text-[9px] font-mono text-white/20 shrink-0">{shortTime(item.timestamp)}</span>
+                <span className="ml-auto text-[9px] font-mono text-white/20 shrink-0">{shortTime(item.timestamp)} <span className="text-white/10">{timeAgo(item.timestamp)}</span></span>
                 <CopyBtn text={item.content} showToast={showToast} />
             </div>
             {item.type === "text" ? (
