@@ -14,6 +14,14 @@ import {
 import { useMachine } from "./MachineContext";
 
 const PAGE_SIZE = 20;
+const APP_COLORS: Record<string, string> = {};
+const COLOR_PALETTE = ["#ff3b5c", "#ff6347", "#f97316", "#ffb800", "#cddc39", "#00c853", "#00bfa5", "#4fc3f7", "#2962ff", "#5c4db1", "#ab47bc", "#ff1667"];
+function getAppColor(name: string): string {
+    if (!APP_COLORS[name]) {
+        APP_COLORS[name] = COLOR_PALETTE[Object.keys(APP_COLORS).length % COLOR_PALETTE.length];
+    }
+    return APP_COLORS[name];
+}
 
 export default function TokensSection({ initialTokens }: { initialTokens: Token[] }) {
     const [tokens] = useState<Token[]>(initialTokens);
@@ -163,21 +171,22 @@ export default function TokensSection({ initialTokens }: { initialTokens: Token[
             {filtered.length > 0 && (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
                     <div style={{ padding: "20px 24px", borderRadius: 14, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                        <h3 style={{ fontSize: 9, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: "#f59e0b", marginBottom: 14 }}>Top Sessions by Tokens</h3>
+                        <h3 style={{ fontSize: 9, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.3)", marginBottom: 14 }}>Top Sessions by Tokens</h3>
                         <div className="space-y-2">
                             {topSessions.map((t, i) => {
                                 const total = t.input_tokens + t.output_tokens;
                                 const pct = Math.min((total / maxSessionTokens) * 100, 100);
                                 const name = t.project?.split("/").pop() || "unknown";
+                                const color = getAppColor(name);
                                 return (
                                     <a key={t.session_id} href={`/${t.session_id}`} target="_blank" rel="noopener noreferrer"
                                         className="block rounded-lg px-2 py-1 -mx-2 transition hover:bg-white/[0.03] cursor-pointer">
                                         <div className="flex items-center justify-between mb-1">
                                             <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>{name}</span>
-                                            <span style={{ fontSize: 10, fontWeight: 700, color: "#f59e0b" }}>{fmtNum(total)}</span>
+                                            <span style={{ fontSize: 10, fontWeight: 700, color }}>{fmtNum(total)}</span>
                                         </div>
                                         <div style={{ height: 4, borderRadius: 2, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
-                                            <div style={{ width: `${pct}%`, height: "100%", borderRadius: 2, background: "#f59e0b", transition: "width 0.8s", transitionDelay: `${i * 0.05}s` }} />
+                                            <div style={{ width: `${pct}%`, height: "100%", borderRadius: 2, background: color, transition: "width 0.8s", transitionDelay: `${i * 0.05}s` }} />
                                         </div>
                                     </a>
                                 );
@@ -185,20 +194,20 @@ export default function TokensSection({ initialTokens }: { initialTokens: Token[
                         </div>
                     </div>
                     <div style={{ padding: "20px 24px", borderRadius: 14, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                        <h3 style={{ fontSize: 9, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: "#22c55e", marginBottom: 14 }}>Sessions per App</h3>
+                        <h3 style={{ fontSize: 9, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.3)", marginBottom: 14 }}>Sessions per App</h3>
                         <div className="space-y-2">
                             {byProject.slice(0, 8).map((p, i) => {
                                 const maxCount = byProject[0]?.count ?? 1;
                                 const pct = Math.min((p.count / maxCount) * 100, 100);
-                                const colors = ["#22c55e", "#06b6d4", "#f97316", "#8b5cf6", "#f472b6", "#eab308", "#a3e635", "#10b981"];
+                                const color = getAppColor(p.project);
                                 return (
                                     <div key={p.project}>
                                         <div className="flex items-center justify-between mb-1">
                                             <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>{p.project}</span>
-                                            <span style={{ fontSize: 10, fontWeight: 700, color: colors[i % colors.length] }}>{p.count}</span>
+                                            <span style={{ fontSize: 10, fontWeight: 700, color }}>{p.count}</span>
                                         </div>
                                         <div style={{ height: 4, borderRadius: 2, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
-                                            <div style={{ width: `${pct}%`, height: "100%", borderRadius: 2, background: colors[i % colors.length], transition: "width 0.8s", transitionDelay: `${i * 0.05}s` }} />
+                                            <div style={{ width: `${pct}%`, height: "100%", borderRadius: 2, background: color, transition: "width 0.8s", transitionDelay: `${i * 0.05}s` }} />
                                         </div>
                                     </div>
                                 );
@@ -206,19 +215,20 @@ export default function TokensSection({ initialTokens }: { initialTokens: Token[
                         </div>
                     </div>
                     <div style={{ padding: "20px 24px", borderRadius: 14, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                        <h3 style={{ fontSize: 9, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: "#f97316", marginBottom: 14 }}>Cost by App</h3>
+                        <h3 style={{ fontSize: 9, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.3)", marginBottom: 14 }}>Cost by App</h3>
                         <div className="space-y-2">
                             {byProject.slice(0, 8).map((p, i) => {
                                 const maxCost = byProject[0]?.cost ?? 1;
                                 const pct = Math.min((p.cost / maxCost) * 100, 100);
+                                const color = getAppColor(p.project);
                                 return (
                                     <div key={p.project + "-cost"}>
                                         <div className="flex items-center justify-between mb-1">
                                             <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>{p.project}</span>
-                                            <span style={{ fontSize: 10, fontWeight: 700, color: "#f97316" }}>{fmtCost(p.cost)}</span>
+                                            <span style={{ fontSize: 10, fontWeight: 700, color }}>{fmtCost(p.cost)}</span>
                                         </div>
                                         <div style={{ height: 4, borderRadius: 2, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
-                                            <div style={{ width: `${pct}%`, height: "100%", borderRadius: 2, background: "#f97316", transition: "width 0.8s", transitionDelay: `${i * 0.05}s` }} />
+                                            <div style={{ width: `${pct}%`, height: "100%", borderRadius: 2, background: color, transition: "width 0.8s", transitionDelay: `${i * 0.05}s` }} />
                                         </div>
                                     </div>
                                 );
@@ -254,82 +264,6 @@ export default function TokensSection({ initialTokens }: { initialTokens: Token[
                             </div>
                         ))}
                     </div>
-                </div>
-            </section>
-
-            {/* Per-model breakdown */}
-            <section className="mb-4">
-                <SectionHeader icon={CpuChipIcon} title={`Per-Model Breakdown (${byModel.length})`} />
-                <div className="space-y-1">
-                    {byModel.map(({ model, total, cost, count }) => (
-                        <div key={model} className="bg-[#0f1117] border border-white/[0.08] rounded-xl px-3 py-2">
-                            <div className="flex items-center justify-between mb-1">
-                                <span className="text-[11px] font-bold text-white truncate">{model}</span>
-                                <div className="flex items-center gap-2 shrink-0">
-                                    <span className="text-[10px] text-white/40">{count} sessions</span>
-                                    <span className="text-[10px] font-mono text-amber-400">{fmtCost(cost)}</span>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <div className="flex-1 h-1.5 rounded-full bg-white/5 overflow-hidden">
-                                    <div className="h-full rounded-full" style={{ width: `${(total / maxModelTokens) * 100}%`, background: `${ACCENT}40` }} />
-                                </div>
-                                <span className="text-[9px] text-white/30 font-mono w-14 text-right">{fmtNum(total)}</span>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </section>
-
-            {/* Per-machine breakdown */}
-            <section className="mb-4">
-                <SectionHeader icon={ServerIcon} title="Machine" />
-                <div className="space-y-1">
-                    {byMachine.map(({ machine: mac, total, cost, count }) => {
-                        const color = MACHINE_COLORS[mac] ?? "#6b7280";
-                        return (
-                            <div key={mac} className="bg-[#0f1117] border border-white/[0.08] rounded-xl px-3 py-2">
-                                <div className="flex items-center justify-between mb-1">
-                                    <div className="flex items-center gap-2">
-                                        <ServerIcon className="w-3.5 h-3.5" style={{ color: "rgba(255,255,255,0.5)" }} />
-                                        <span className="text-[11px] font-semibold text-white/70">{mac}</span>
-                                        <span className="text-[10px] text-white/40">{count} sessions</span>
-                                    </div>
-                                    <span className="text-[10px] font-mono text-amber-400">{fmtCost(cost)}</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <div className="flex-1 h-1.5 rounded-full bg-white/5 overflow-hidden">
-                                        <div className="h-full rounded-full" style={{ width: `${(total / maxMachineTokens) * 100}%`, background: hexToRgba(color, 0.35) }} />
-                                    </div>
-                                    <span className="text-[9px] text-white/30 font-mono w-14 text-right">{fmtNum(total)}</span>
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
-            </section>
-
-            {/* Per-project breakdown */}
-            <section className="mb-4">
-                <SectionHeader icon={FolderIcon} title="Projects" />
-                <div className="space-y-1">
-                    {byProject.map(({ project, total, cost, count }) => (
-                        <div key={project} className="bg-[#0f1117] border border-white/[0.08] rounded-xl px-3 py-2">
-                            <div className="flex items-center justify-between mb-1">
-                                <span className="text-[11px] font-bold text-white truncate">{project}</span>
-                                <div className="flex items-center gap-2 shrink-0">
-                                    <span className="text-[10px] text-white/40">{count} sessions</span>
-                                    <span className="text-[10px] font-mono text-amber-400">{fmtCost(cost)}</span>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <div className="flex-1 h-1.5 rounded-full bg-white/5 overflow-hidden">
-                                    <div className="h-full rounded-full" style={{ width: `${(total / maxProjectTokens) * 100}%`, background: "rgba(255,136,0,0.35)" }} />
-                                </div>
-                                <span className="text-[9px] text-white/30 font-mono w-14 text-right">{fmtNum(total)}</span>
-                            </div>
-                        </div>
-                    ))}
                 </div>
             </section>
 
