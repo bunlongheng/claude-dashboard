@@ -152,7 +152,8 @@ export async function GET(req: Request) {
                 if (!isRealRepo(folder)) continue;
                 // Skip sessions from other machines' usernames
                 const currentUser = os.userInfo().username;
-                if (!folder.includes(`-${currentUser}-`) && !folder.startsWith(`-${currentUser}`)) continue;
+                const hasUser = folder.includes(`-${currentUser}-`) || folder.endsWith(`-${currentUser}`);
+                if (!hasUser) continue;
 
                 const sessions: SessionData[] = [];
                 for (const file of fs.readdirSync(folderPath).filter(f => f.endsWith(".jsonl"))) {
