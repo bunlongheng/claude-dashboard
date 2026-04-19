@@ -236,7 +236,8 @@ export default function OverviewSection() {
                                 const pct = Math.min((total / maxTotal) * 100, 100);
                                 const project = t.project?.split("/").pop() || "unknown";
                                 return (
-                                    <div key={t.session_id || i}>
+                                    <a key={t.session_id || i} href={`/${t.session_id}`} target="_blank" rel="noopener noreferrer"
+                                        className="block cursor-pointer rounded-lg px-2 py-1.5 -mx-2 transition hover:bg-white/[0.03]">
                                         <div className="flex items-center justify-between mb-1">
                                             <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>{project}</span>
                                             <span style={{ fontSize: 10, fontWeight: 700, color: "#f59e0b" }}>{(total / 1000).toFixed(0)}K</span>
@@ -244,7 +245,7 @@ export default function OverviewSection() {
                                         <div style={{ height: 4, borderRadius: 2, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
                                             <div style={{ width: `${pct}%`, height: "100%", borderRadius: 2, background: "#f59e0b", transition: "width 0.8s" }} />
                                         </div>
-                                    </div>
+                                    </a>
                                 );
                             })}
                         </div>
