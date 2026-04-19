@@ -181,11 +181,12 @@ export async function GET(req: Request) {
         }
     }
 
-    // Remote sessions (other machines from local.db)
-    const remoteMachines = getRemoteMachines();
+    // Remote sessions (only in admin mode with explicit machine selection)
+    const isAdmin = process.env.MODE === "admin";
+    const remoteMachines = isAdmin ? getRemoteMachines() : [];
     const remoteResults = await Promise.all(
         remoteMachines
-            .filter(m => !machineFilter || machineFilter === m.id)
+            .filter(m => machineFilter && machineFilter !== localMachineId && machineFilter === m.id)
             .map(m => fetchRemoteSessions(m))
     );
 
