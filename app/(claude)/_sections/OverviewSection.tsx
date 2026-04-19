@@ -113,9 +113,8 @@ export default function OverviewSection() {
     const { machine } = useMachine();
     const [stats, setStats] = useState<Stats | null>(null);
     const [loading, setLoading] = useState(true);
-    const [tokensBySession, setTokensBySession] = useState<any[]>([]);
-    const [tokensByProject, setTokensByProject] = useState<any[]>([]);
-    const [sessionProjects, setSessionProjects] = useState<any[]>([]);
+    const [allTokens, setAllTokens] = useState<any[]>([]);
+    const [allSessionProjects, setAllSessionProjects] = useState<any[]>([]);
     const [chartPeriod, setChartPeriod] = useState<"today" | "7d" | "30d" | "all">("all");
 
     useEffect(() => {
@@ -149,13 +148,49 @@ export default function OverviewSection() {
                         cost: tokenData?.totals?.total_cost ?? 0,
                     },
                 });
-                setTokensBySession((tokenData?.tokens ?? []).sort((a: any, b: any) => (b.input_tokens + b.output_tokens) - (a.input_tokens + a.output_tokens)).slice(0, 10));
-                setTokensByProject(tokenData?.byProject ?? []);
-                setSessionProjects(sessions.projects ?? []);
+                setAllTokens(tokenData?.tokens ?? []);
+                setAllSessionProjects(sessions.projects ?? []);
             } catch { /* prevent crash */ }
             setLoading(false);
         }).catch(() => setLoading(false));
     }, [machine]);
+
+    // Filter data by time period
+    const periodCutoff = useMemo(() => {
+        if (chartPeriod === "today") return Date.now() - 24 * 60 * 60 * 1000;
+        if (chartPeriod === "7d") return Date.now() - 7 * 24 * 60 * 60 * 1000;
+        if (chartPeriod === "30d") return Date.now() - 30 * 24 * 60 * 60 * 1000;
+        return 0;
+    }, [chartPeriod]);
+
+    const tokensBySession = useMemo(() => {
+        return allTokens
+            .sort((a: any, b: any) => (b.input_tokens + b.output_tokens) - (a.input_tokens + a.output_tokens))
+            .slice(0, 10);
+    }, [allTokens]);
+
+    const sessionProjects = useMemo(() => {
+        if (periodCutoff === 0) return allSessionProjects;
+        return allSessionProjects.map((p: any) => ({
+            ...p,
+            sessions: (p.sessions ?? []).filter((s: any) => new Date(s.updatedAt).getTime() > periodCutoff),
+        })).filter((p: any) => p.sessions.length > 0);
+    }, [allSessionProjects, periodCutoff]);
+
+    const tokensByProject = useMemo(() => {
+        const grouped = new Map<string, { total: number; cost: number }>();
+        for (const t of allTokens) {
+            const name = t.project?.split("/").pop() || "unknown";
+            const prev = grouped.get(name) ?? { total: 0, cost: 0 };
+            const tokens = (t.input_tokens ?? 0) + (t.output_tokens ?? 0);
+            // Simple cost estimate
+            const cost = ((t.input_tokens ?? 0) / 1_000_000 * 3) + ((t.output_tokens ?? 0) / 1_000_000 * 15);
+            grouped.set(name, { total: prev.total + tokens, cost: prev.cost + cost });
+        }
+        return [...grouped.entries()]
+            .map(([project, data]) => ({ project, ...data }))
+            .sort((a, b) => b.cost - a.cost);
+    }, [allTokens]);
 
     if (loading || !stats) return <p className="text-white/30 text-center py-16">Loading dashboard...</p>;
 
