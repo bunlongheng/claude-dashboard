@@ -41,7 +41,7 @@ export async function GET() {
     const globalClaude = safeRead(path.join(CLAUDE_DIR, "CLAUDE.md"));
 
     // 2. All projects - only real git repos
-    const { isRealRepo } = require("@/lib/project-utils");
+    const { isRealRepo } = await import("@/lib/project-utils");
     const projectFolders = dirExists(PROJECTS_DIR) ? fs.readdirSync(PROJECTS_DIR).filter((f: string) => isRealRepo(f)) : [];
     const projectNames = projectFolders.map(f => f.replace(/-/g, "/").split("/").pop() ?? f);
 
