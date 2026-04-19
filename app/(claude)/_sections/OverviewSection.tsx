@@ -116,6 +116,7 @@ export default function OverviewSection() {
     const [tokensBySession, setTokensBySession] = useState<any[]>([]);
     const [tokensByProject, setTokensByProject] = useState<any[]>([]);
     const [sessionProjects, setSessionProjects] = useState<any[]>([]);
+    const [chartPeriod, setChartPeriod] = useState<"today" | "7d" | "30d" | "all">("all");
 
     useEffect(() => {
         setLoading(true);
@@ -224,13 +225,29 @@ export default function OverviewSection() {
             </div>
 
             {/* Token charts */}
-            {tokensBySession.length > 0 && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {tokensBySession.length > 0 && (<>
+                {/* Time filter */}
+                <div className="flex items-center gap-2">
+                    {(["today", "7d", "30d", "all"] as const).map(p => (
+                        <button key={p} onClick={() => setChartPeriod(p)}
+                            className="px-3 py-1 rounded-full text-[10px] font-bold transition"
+                            style={{
+                                background: chartPeriod === p ? "rgba(249,115,22,0.15)" : "rgba(255,255,255,0.03)",
+                                border: chartPeriod === p ? "1px solid rgba(249,115,22,0.4)" : "1px solid rgba(255,255,255,0.06)",
+                                color: chartPeriod === p ? "#f97316" : "rgba(255,255,255,0.35)",
+                                cursor: "pointer",
+                            }}>
+                            {p === "today" ? "Today" : p === "7d" ? "7 Days" : p === "30d" ? "30 Days" : "All Time"}
+                        </button>
+                    ))}
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                     {/* Top sessions by token usage */}
                     <div style={{ padding: "20px 24px", borderRadius: 14, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
                         <h3 style={{ fontSize: 9, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: "#f59e0b", marginBottom: 14 }}>Top Sessions by Token Usage</h3>
                         <div className="space-y-2">
-                            {tokensBySession.slice(0, 6).map((t: any, i: number) => {
+                            {tokensBySession.slice(0, 8).map((t: any, i: number) => {
                                 const total = t.input_tokens + t.output_tokens;
                                 const maxTotal = tokensBySession[0] ? tokensBySession[0].input_tokens + tokensBySession[0].output_tokens : 1;
                                 const pct = Math.min((total / maxTotal) * 100, 100);
@@ -251,32 +268,36 @@ export default function OverviewSection() {
                         </div>
                     </div>
 
-                    {/* Sessions by project */}
+                    {/* Sessions per app */}
                     <div style={{ padding: "20px 24px", borderRadius: 14, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
                         <h3 style={{ fontSize: 9, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: "#22c55e", marginBottom: 14 }}>Sessions per App</h3>
                         <div className="space-y-2">
-                            {sessionProjects.sort((a: any, b: any) => (b.sessions?.length ?? 0) - (a.sessions?.length ?? 0)).slice(0, 8).map((p: any, i: number) => {
-                                const name = p.project?.replace(/-/g, "/").split("/").pop() || "unknown";
-                                const count = p.sessions?.length ?? 0;
-                                const maxCount = sessionProjects[0]?.sessions?.length ?? 1;
-                                const pct = Math.min((count / maxCount) * 100, 100);
+                            {(() => {
+                                // Deduplicate by project name
+                                const grouped = new Map<string, number>();
+                                for (const p of sessionProjects) {
+                                    const name = p.project?.replace(/-/g, "/").split("/").pop() || "unknown";
+                                    grouped.set(name, (grouped.get(name) ?? 0) + (p.sessions?.length ?? 0));
+                                }
+                                const sorted = [...grouped.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);
+                                const maxCount = sorted[0]?.[1] ?? 1;
                                 const colors = ["#22c55e", "#06b6d4", "#f97316", "#8b5cf6", "#f472b6", "#eab308", "#a3e635", "#10b981"];
-                                return (
-                                    <div key={name + i}>
+                                return sorted.map(([name, count], i) => (
+                                    <div key={name}>
                                         <div className="flex items-center justify-between mb-1">
                                             <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>{name}</span>
                                             <span style={{ fontSize: 10, fontWeight: 700, color: colors[i % colors.length] }}>{count}</span>
                                         </div>
                                         <div style={{ height: 4, borderRadius: 2, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
-                                            <div style={{ width: `${pct}%`, height: "100%", borderRadius: 2, background: colors[i % colors.length], transition: "width 0.8s" }} />
+                                            <div style={{ width: `${Math.min((count / maxCount) * 100, 100)}%`, height: "100%", borderRadius: 2, background: colors[i % colors.length], transition: "width 0.8s" }} />
                                         </div>
                                     </div>
-                                );
-                            })}
+                                ));
+                            })()}
                         </div>
                     </div>
 
-                    {/* Token cost by project */}
+                    {/* Token cost by app */}
                     <div style={{ padding: "20px 24px", borderRadius: 14, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
                         <h3 style={{ fontSize: 9, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: "#f97316", marginBottom: 14 }}>Token Cost by App</h3>
                         <div className="space-y-2">
@@ -303,33 +324,8 @@ export default function OverviewSection() {
                             </div>
                         )}
                     </div>
-
-                    {/* Context usage - sessions near limit */}
-                    <div style={{ padding: "20px 24px", borderRadius: 14, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                        <h3 style={{ fontSize: 9, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: "#ef4444", marginBottom: 14 }}>Heaviest Sessions (Context)</h3>
-                        <div className="space-y-2">
-                            {tokensBySession.slice(0, 6).map((t: any, i: number) => {
-                                const total = (t.input_tokens ?? 0) + (t.cache_read_tokens ?? 0) + (t.cache_creation_tokens ?? 0);
-                                const contextLimit = 200000; // approximate context window
-                                const pct = Math.min((total / contextLimit) * 100, 100);
-                                const project = t.project?.split("/").pop() || "unknown";
-                                const isFull = pct > 80;
-                                return (
-                                    <div key={t.session_id || i}>
-                                        <div className="flex items-center justify-between mb-1">
-                                            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>{project}</span>
-                                            <span style={{ fontSize: 10, fontWeight: 700, color: isFull ? "#ef4444" : "rgba(255,255,255,0.4)" }}>{pct.toFixed(0)}%</span>
-                                        </div>
-                                        <div style={{ height: 4, borderRadius: 2, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
-                                            <div style={{ width: `${pct}%`, height: "100%", borderRadius: 2, background: isFull ? "#ef4444" : "rgba(255,255,255,0.15)", transition: "width 0.8s" }} />
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
                 </div>
-            )}
+            </>)}
         </div>
     );
 }
