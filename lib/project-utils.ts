@@ -4,7 +4,7 @@ import * as os from "os";
 
 /**
  * Convert a Claude project folder name to a directory path.
- * "-Users-bheng-Sites-stickies" -> "/Users/bheng/Sites/stickies"
+ * "-Users-alice-Sites-myapp" -> "/Users/alice/Sites/myapp"
  */
 export function folderToPath(folder: string): string {
     return folder.replace(/-/g, "/");

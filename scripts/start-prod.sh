@@ -1,8 +1,8 @@
 #!/bin/bash
 # Production start script for launchd
-cd /Users/bheng/Sites/claude
+cd "$(dirname "$0")/.."
 
-export PATH="/Users/bheng/.nvm/versions/node/v20.19.5/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
+export PATH="$HOME/.nvm/versions/node/$(ls $HOME/.nvm/versions/node/ 2>/dev/null | tail -1)/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
 
 # Build first
 npm run build
