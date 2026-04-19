@@ -113,6 +113,9 @@ export default function OverviewSection() {
     const { machine } = useMachine();
     const [stats, setStats] = useState<Stats | null>(null);
     const [loading, setLoading] = useState(true);
+    const [tokensBySession, setTokensBySession] = useState<any[]>([]);
+    const [tokensByProject, setTokensByProject] = useState<any[]>([]);
+    const [sessionProjects, setSessionProjects] = useState<any[]>([]);
 
     useEffect(() => {
         setLoading(true);
@@ -121,7 +124,8 @@ export default function OverviewSection() {
             fetch(`/api/claude/sessions${q}`).then(r => r.json()).catch(() => ({ projects: [] })),
             fetch(`/api/claude/skills${q}`).then(r => r.json()).catch(() => ({ summary: {} })),
             fetch("/api/claude/brain").then(r => r.json()).catch(() => ({ memoryFiles: [], globalRules: [] })),
-        ]).then(([sessions, skills, brain]) => {
+            fetch("/api/claude/token-stats").then(r => r.json()).catch(() => ({ tokens: [], byProject: [], byModel: [], totals: {} })),
+        ]).then(([sessions, skills, brain, tokenData]) => {
             try {
                 const allSessions = (sessions.projects ?? []).flatMap((p: { sessions: { updatedAt: string }[] }) => p.sessions ?? []);
                 const cutoff = Date.now() - 60 * 60 * 1000;
@@ -137,8 +141,16 @@ export default function OverviewSection() {
                     claudeMd: skills?.summary?.claudeMd ?? 0,
                     memory: brain?.categoryCounts?.memory ?? brain?.totalFiles ?? 0,
                     rules: (brain?.globalRules ?? []).length,
-                    tokens: { input: 0, output: 0, cacheRead: 0, cost: 0 },
+                    tokens: {
+                        input: tokenData?.totals?.input_tokens ?? 0,
+                        output: tokenData?.totals?.output_tokens ?? 0,
+                        cacheRead: tokenData?.totals?.cache_read_tokens ?? 0,
+                        cost: tokenData?.totals?.total_cost ?? 0,
+                    },
                 });
+                setTokensBySession((tokenData?.tokens ?? []).sort((a: any, b: any) => (b.input_tokens + b.output_tokens) - (a.input_tokens + a.output_tokens)).slice(0, 10));
+                setTokensByProject(tokenData?.byProject ?? []);
+                setSessionProjects(sessions.projects ?? []);
             } catch { /* prevent crash */ }
             setLoading(false);
         }).catch(() => setLoading(false));
@@ -210,6 +222,113 @@ export default function OverviewSection() {
                     </div>
                 </div>
             </div>
+
+            {/* Token charts */}
+            {tokensBySession.length > 0 && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    {/* Top sessions by token usage */}
+                    <div style={{ padding: "20px 24px", borderRadius: 14, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                        <h3 style={{ fontSize: 9, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: "#f59e0b", marginBottom: 14 }}>Top Sessions by Token Usage</h3>
+                        <div className="space-y-2">
+                            {tokensBySession.slice(0, 6).map((t: any, i: number) => {
+                                const total = t.input_tokens + t.output_tokens;
+                                const maxTotal = tokensBySession[0] ? tokensBySession[0].input_tokens + tokensBySession[0].output_tokens : 1;
+                                const pct = Math.min((total / maxTotal) * 100, 100);
+                                const project = t.project?.split("/").pop() || "unknown";
+                                return (
+                                    <div key={t.session_id || i}>
+                                        <div className="flex items-center justify-between mb-1">
+                                            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>{project}</span>
+                                            <span style={{ fontSize: 10, fontWeight: 700, color: "#f59e0b" }}>{(total / 1000).toFixed(0)}K</span>
+                                        </div>
+                                        <div style={{ height: 4, borderRadius: 2, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+                                            <div style={{ width: `${pct}%`, height: "100%", borderRadius: 2, background: "#f59e0b", transition: "width 0.8s" }} />
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    {/* Sessions by project */}
+                    <div style={{ padding: "20px 24px", borderRadius: 14, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                        <h3 style={{ fontSize: 9, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: "#22c55e", marginBottom: 14 }}>Sessions per App</h3>
+                        <div className="space-y-2">
+                            {sessionProjects.sort((a: any, b: any) => (b.sessions?.length ?? 0) - (a.sessions?.length ?? 0)).slice(0, 8).map((p: any, i: number) => {
+                                const name = p.project?.replace(/-/g, "/").split("/").pop() || "unknown";
+                                const count = p.sessions?.length ?? 0;
+                                const maxCount = sessionProjects[0]?.sessions?.length ?? 1;
+                                const pct = Math.min((count / maxCount) * 100, 100);
+                                const colors = ["#22c55e", "#06b6d4", "#f97316", "#8b5cf6", "#f472b6", "#eab308", "#a3e635", "#10b981"];
+                                return (
+                                    <div key={name + i}>
+                                        <div className="flex items-center justify-between mb-1">
+                                            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>{name}</span>
+                                            <span style={{ fontSize: 10, fontWeight: 700, color: colors[i % colors.length] }}>{count}</span>
+                                        </div>
+                                        <div style={{ height: 4, borderRadius: 2, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+                                            <div style={{ width: `${pct}%`, height: "100%", borderRadius: 2, background: colors[i % colors.length], transition: "width 0.8s" }} />
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    {/* Token cost by project */}
+                    <div style={{ padding: "20px 24px", borderRadius: 14, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                        <h3 style={{ fontSize: 9, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: "#f97316", marginBottom: 14 }}>Token Cost by App</h3>
+                        <div className="space-y-2">
+                            {tokensByProject.slice(0, 8).map((p: any, i: number) => {
+                                const name = p.project?.split("/").pop() || "unknown";
+                                const maxCost = tokensByProject[0]?.cost ?? 1;
+                                const pct = Math.min(((p.cost ?? 0) / maxCost) * 100, 100);
+                                return (
+                                    <div key={name + i}>
+                                        <div className="flex items-center justify-between mb-1">
+                                            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>{name}</span>
+                                            <span style={{ fontSize: 10, fontWeight: 700, color: "#f97316" }}>${(p.cost ?? 0).toFixed(2)}</span>
+                                        </div>
+                                        <div style={{ height: 4, borderRadius: 2, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+                                            <div style={{ width: `${pct}%`, height: "100%", borderRadius: 2, background: "#f97316", transition: "width 0.8s" }} />
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        {stats.tokens.cost > 0 && (
+                            <div className="mt-3 pt-3" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                                <span style={{ fontSize: 11, fontWeight: 800, color: "#f97316" }}>Total: ${stats.tokens.cost.toFixed(2)}</span>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Context usage - sessions near limit */}
+                    <div style={{ padding: "20px 24px", borderRadius: 14, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                        <h3 style={{ fontSize: 9, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: "#ef4444", marginBottom: 14 }}>Heaviest Sessions (Context)</h3>
+                        <div className="space-y-2">
+                            {tokensBySession.slice(0, 6).map((t: any, i: number) => {
+                                const total = (t.input_tokens ?? 0) + (t.cache_read_tokens ?? 0) + (t.cache_creation_tokens ?? 0);
+                                const contextLimit = 200000; // approximate context window
+                                const pct = Math.min((total / contextLimit) * 100, 100);
+                                const project = t.project?.split("/").pop() || "unknown";
+                                const isFull = pct > 80;
+                                return (
+                                    <div key={t.session_id || i}>
+                                        <div className="flex items-center justify-between mb-1">
+                                            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>{project}</span>
+                                            <span style={{ fontSize: 10, fontWeight: 700, color: isFull ? "#ef4444" : "rgba(255,255,255,0.4)" }}>{pct.toFixed(0)}%</span>
+                                        </div>
+                                        <div style={{ height: 4, borderRadius: 2, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+                                            <div style={{ width: `${pct}%`, height: "100%", borderRadius: 2, background: isFull ? "#ef4444" : "rgba(255,255,255,0.15)", transition: "width 0.8s" }} />
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
