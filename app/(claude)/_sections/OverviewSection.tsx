@@ -163,11 +163,28 @@ export default function OverviewSection() {
         return 0;
     }, [chartPeriod]);
 
+    // Build a set of session IDs within the time period
+    const periodSessionIds = useMemo(() => {
+        if (periodCutoff === 0) return null; // null = no filter
+        const ids = new Set<string>();
+        for (const p of allSessionProjects) {
+            for (const s of p.sessions ?? []) {
+                if (new Date(s.updatedAt).getTime() > periodCutoff) ids.add(s.id);
+            }
+        }
+        return ids;
+    }, [allSessionProjects, periodCutoff]);
+
+    const filteredTokens = useMemo(() => {
+        if (!periodSessionIds) return allTokens;
+        return allTokens.filter((t: any) => periodSessionIds.has(t.session_id));
+    }, [allTokens, periodSessionIds]);
+
     const tokensBySession = useMemo(() => {
-        return allTokens
+        return filteredTokens
             .sort((a: any, b: any) => (b.input_tokens + b.output_tokens) - (a.input_tokens + a.output_tokens))
             .slice(0, 10);
-    }, [allTokens]);
+    }, [filteredTokens]);
 
     const sessionProjects = useMemo(() => {
         if (periodCutoff === 0) return allSessionProjects;
@@ -179,18 +196,16 @@ export default function OverviewSection() {
 
     const tokensByProject = useMemo(() => {
         const grouped = new Map<string, { total: number; cost: number }>();
-        for (const t of allTokens) {
+        for (const t of filteredTokens) {
             const name = t.project?.split("/").pop() || "unknown";
             const prev = grouped.get(name) ?? { total: 0, cost: 0 };
-            const tokens = (t.input_tokens ?? 0) + (t.output_tokens ?? 0);
-            // Simple cost estimate
             const cost = ((t.input_tokens ?? 0) / 1_000_000 * 3) + ((t.output_tokens ?? 0) / 1_000_000 * 15);
-            grouped.set(name, { total: prev.total + tokens, cost: prev.cost + cost });
+            grouped.set(name, { total: prev.total + (t.input_tokens ?? 0) + (t.output_tokens ?? 0), cost: prev.cost + cost });
         }
         return [...grouped.entries()]
             .map(([project, data]) => ({ project, ...data }))
             .sort((a, b) => b.cost - a.cost);
-    }, [allTokens]);
+    }, [filteredTokens]);
 
     if (loading || !stats) return <p className="text-white/30 text-center py-16">Loading dashboard...</p>;
 
@@ -353,9 +368,9 @@ export default function OverviewSection() {
                                 );
                             })}
                         </div>
-                        {stats.tokens.cost > 0 && (
+                        {tokensByProject.length > 0 && (
                             <div className="mt-3 pt-3" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-                                <span style={{ fontSize: 11, fontWeight: 800, color: "#f97316" }}>Total: ${stats.tokens.cost.toFixed(2)}</span>
+                                <span style={{ fontSize: 11, fontWeight: 800, color: "#f97316" }}>Total: ${tokensByProject.reduce((s: number, p: any) => s + (p.cost ?? 0), 0).toFixed(2)}</span>
                             </div>
                         )}
                     </div>
