@@ -168,7 +168,7 @@ export default function OverviewSection() {
                 <StatCard label="Hooks" value={stats.hooks} icon={Webhook} color="#a3e635" />
                 <StatCard label="Memory" value={stats.memory} icon={Brain} color="#eab308"
                     sub="across all projects" />
-                <StatCard label="Rules" value={stats.rules} icon={ShieldCheck} color="#ef4444" />
+                <StatCard label="Rules" value={stats.rules} icon={ShieldCheck} color="#14b8a6" />
             </div>
 
             {/* Bottom row - charts */}
@@ -196,8 +196,8 @@ export default function OverviewSection() {
                         {[
                             { label: "CLAUDE.md files", value: stats.claudeMd, icon: BookOpen, color: "#8b5cf6" },
                             { label: "Memory files", value: stats.memory, icon: Brain, color: "#eab308" },
-                            { label: "Global rules", value: stats.rules, icon: ShieldCheck, color: "#ef4444" },
-                            { label: "Active sessions", value: stats.activeSessions, icon: Activity, color: "#4ade80" },
+                            { label: "Global rules", value: stats.rules, icon: ShieldCheck, color: "#14b8a6" },
+                            { label: "Active sessions", value: stats.activeSessions, icon: Activity, color: "#22c55e" },
                         ].map(row => (
                             <div key={row.label} className="flex items-center gap-3">
                                 <row.icon size={14} style={{ color: row.color, flexShrink: 0 }} />
