@@ -352,6 +352,7 @@ export default function SessionProgressClient({ meta }: { meta: SessionMeta }) {
     const [usage, setUsage] = useState<UsageState | null>(meta.lastUsage);
     const [activity, setActivity] = useState<ActivityItem[]>([]);
     const [lastUserMsg, setLastUserMsg] = useState<string>(meta.firstMessage || "");
+    const [customTitle, setCustomTitle] = useState<string>(meta.customTitle || "");
     const [connected, setConnected] = useState(false);
     const [active, setActive] = useState(false);
     const [lastUpdate, setLastUpdate] = useState(meta.lastModified);
@@ -511,6 +512,10 @@ export default function SessionProgressClient({ meta }: { meta: SessionMeta }) {
                 const data = JSON.parse(e.data);
                 setTodos(data.todos as TodoItem[]);
             });
+            es.addEventListener("custom_title", (e) => {
+                const data = JSON.parse(e.data);
+                if (data.customTitle) setCustomTitle(data.customTitle);
+            });
             es.addEventListener("usage", (e) => {
                 const data = JSON.parse(e.data);
                 setUsage({
@@ -604,7 +609,7 @@ export default function SessionProgressClient({ meta }: { meta: SessionMeta }) {
                     <div className="flex items-center gap-3 min-w-0 flex-1">
                         <div className="min-w-0">
                             <h1 className="text-lg font-bold text-white leading-tight truncate" style={{ maxWidth: "60vw" }}>
-                                {(meta.customTitle || lastUserMsg || meta.sessionId.slice(0, 16) + "…").slice(0, 50)}
+                                {(customTitle || lastUserMsg || meta.sessionId.slice(0, 16) + "…").slice(0, 50)}
                             </h1>
                         </div>
                     </div>

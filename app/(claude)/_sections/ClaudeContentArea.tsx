@@ -52,7 +52,7 @@ export default function ClaudeContentArea({ children }: { children: React.ReactN
     }, []);
 
     const activeSessions = useMemo(() => {
-        const cutoff = Date.now() - 60 * 60 * 1000;
+        const cutoff = Date.now() - 5 * 60 * 1000;
         return sessionProjects.flatMap(p =>
             p.sessions
                 .filter(s => new Date(s.updatedAt).getTime() > cutoff)
@@ -65,9 +65,9 @@ export default function ClaudeContentArea({ children }: { children: React.ReactN
     const mLabel = selectedMachine?.hostname || machine || "All";
 
     return (
-        <div className="flex-1 overflow-y-auto overflow-x-hidden" style={{ background: "#08090d" }}>
+        <div className="flex-1 overflow-y-auto" style={{ background: "#08090d" }}>
             {/* Top bar - machine + sessions (all screen sizes) */}
-            <div className="flex items-center gap-2 md:gap-3 px-3 md:px-6 py-2 md:py-2.5 border-b overflow-x-auto sticky top-0 md:top-0 z-30" style={{ borderColor: "rgba(255,255,255,0.05)", scrollbarWidth: "none", background: "#08090d" }}>
+            <div className="flex items-center gap-2 md:gap-3 px-3 md:px-6 py-2 md:py-2.5 border-b sticky top-0 md:top-0 z-30" style={{ borderColor: "rgba(255,255,255,0.05)", background: "#08090d" }}>
                 {/* Machine - dropdown only if multiple, label if single */}
                 {machines.length > 1 ? (
                     <div ref={ddRef} style={{ position: "relative" }}>
@@ -193,7 +193,7 @@ export default function ClaudeContentArea({ children }: { children: React.ReactN
                 </div>
             </div>
 
-            <div className="p-3 md:p-6">
+            <div className="p-3 md:p-6" style={{ minWidth: 0 }}>
                 <PageHero />
                 {children}
             </div>
