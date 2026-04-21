@@ -15,6 +15,9 @@
 
 <p align="center">
   <a href="https://github.com/bunlongheng/claude-dashboard/stargazers"><img src="https://img.shields.io/github/stars/bunlongheng/claude-dashboard?style=flat&color=f97316&label=Stars" alt="Stars" /></a>
+  <a href="https://github.com/bunlongheng/claude-dashboard/network/members"><img src="https://img.shields.io/github/forks/bunlongheng/claude-dashboard?style=flat&color=4A9EFF&label=Forks" alt="Forks" /></a>
+  <img src="https://img.shields.io/github/repo-size/bunlongheng/claude-dashboard?style=flat&color=7C5CFF&label=Size" alt="Repo Size" />
+  <img src="https://img.shields.io/github/last-commit/bunlongheng/claude-dashboard?style=flat&color=3FB68B&label=Last%20Commit" alt="Last Commit" />
   <a href="https://github.com/bunlongheng/claude-dashboard/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue?style=flat" alt="MIT License" /></a>
   <a href="https://github.com/bunlongheng/claude-dashboard"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat" alt="PRs Welcome" /></a>
   <img src="https://img.shields.io/badge/Zero_Config-orange?style=flat" alt="Zero Config" />
