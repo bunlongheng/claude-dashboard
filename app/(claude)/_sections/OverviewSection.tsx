@@ -119,6 +119,24 @@ export default function OverviewSection() {
     const [allSessionProjects, setAllSessionProjects] = useState<any[]>([]);
     const [chartPeriod, setChartPeriod] = useState<"today" | "7d" | "30d" | "all">("today");
 
+    // Daily activity data
+    const [dailyData, setDailyData] = useState<{ day: string; turns: number }[]>([]);
+    const [favoriteModel, setFavoriteModel] = useState("");
+    const [totalTokensAll, setTotalTokensAll] = useState(0);
+
+    useEffect(() => {
+        fetch("/api/claude/token-stats/daily").then(r => r.json()).then(d => {
+            setDailyData(d.daily ?? []);
+            setTotalTokensAll((d.daily ?? []).reduce((s: number, b: { input: number; output: number }) => s + b.input + b.output, 0));
+            const models = d.byModel ?? [];
+            if (models.length > 0) {
+                const top = models.sort((a: { turns: number }, b: { turns: number }) => b.turns - a.turns)[0];
+                const name = (top.model || "").replace("claude-", "").replace(/-\d+$/, "").replace(/-/g, " ");
+                setFavoriteModel(name.charAt(0).toUpperCase() + name.slice(1));
+            }
+        }).catch(() => {});
+    }, []);
+
     useEffect(() => {
         setLoading(true);
         const q = machine ? `?machine=${machine}` : "";
@@ -235,6 +253,181 @@ export default function OverviewSection() {
                     sub="across all projects" />
                 <StatCard label="Rules" value={stats.rules} icon={ShieldCheck} color="#14b8a6" />
             </div>
+
+            {/* Activity Heatmap + Stats */}
+            {dailyData.length > 0 && (() => {
+                // Build heatmap data for last 365 days
+                const today = new Date();
+                const dayMap = new Map(dailyData.map(d => [d.day, d.turns]));
+                const cells: { date: string; turns: number; dayOfWeek: number; weekIndex: number }[] = [];
+                const totalWeeks = 53;
+
+                // Find the start: go back to the Sunday that is ~52 weeks ago
+                const startDate = new Date(today);
+                startDate.setDate(startDate.getDate() - (totalWeeks * 7 - 1) - startDate.getDay());
+
+                for (let i = 0; i < totalWeeks * 7; i++) {
+                    const d = new Date(startDate);
+                    d.setDate(d.getDate() + i);
+                    if (d > today) break;
+                    const iso = d.toISOString().slice(0, 10);
+                    cells.push({
+                        date: iso,
+                        turns: dayMap.get(iso) ?? 0,
+                        dayOfWeek: d.getDay(),
+                        weekIndex: Math.floor(i / 7),
+                    });
+                }
+
+                // Stats
+                const activeDays = cells.filter(c => c.turns > 0).length;
+                const totalDays = cells.length;
+                const maxTurns = Math.max(...cells.map(c => c.turns), 1);
+
+                // Most active day
+                const mostActive = cells.reduce((best, c) => c.turns > best.turns ? c : best, cells[0]);
+                const mostActiveLabel = mostActive ? new Date(mostActive.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "-";
+
+                // Streaks
+                let longestStreak = 0, currentStreak = 0, tempStreak = 0;
+                const sortedDays = cells.filter(c => c.turns > 0).map(c => c.date).sort();
+                for (let i = 0; i < sortedDays.length; i++) {
+                    if (i === 0) { tempStreak = 1; }
+                    else {
+                        const prev = new Date(sortedDays[i - 1]);
+                        const curr = new Date(sortedDays[i]);
+                        const diffDays = (curr.getTime() - prev.getTime()) / 86400000;
+                        tempStreak = diffDays === 1 ? tempStreak + 1 : 1;
+                    }
+                    longestStreak = Math.max(longestStreak, tempStreak);
+                }
+                // Current streak (count backwards from today)
+                const todayStr = today.toISOString().slice(0, 10);
+                const yesterdayDate = new Date(today); yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+                const yesterdayStr = yesterdayDate.toISOString().slice(0, 10);
+                let streakStart = dayMap.has(todayStr) ? todayStr : dayMap.has(yesterdayStr) ? yesterdayStr : null;
+                if (streakStart) {
+                    currentStreak = 1;
+                    const d = new Date(streakStart);
+                    while (true) {
+                        d.setDate(d.getDate() - 1);
+                        if (dayMap.has(d.toISOString().slice(0, 10))) currentStreak++;
+                        else break;
+                    }
+                }
+
+                // Month labels
+                const months: { label: string; weekIndex: number }[] = [];
+                let lastMonth = -1;
+                for (const c of cells) {
+                    const m = new Date(c.date).getMonth();
+                    if (m !== lastMonth) {
+                        months.push({ label: new Date(c.date).toLocaleDateString("en-US", { month: "short" }), weekIndex: c.weekIndex });
+                        lastMonth = m;
+                    }
+                }
+
+                function getColor(turns: number): string {
+                    if (turns === 0) return "rgba(255,255,255,0.04)";
+                    const intensity = Math.min(turns / (maxTurns * 0.6), 1);
+                    if (intensity < 0.25) return "rgba(249,115,22,0.2)";
+                    if (intensity < 0.5) return "rgba(249,115,22,0.4)";
+                    if (intensity < 0.75) return "rgba(249,115,22,0.65)";
+                    return "rgba(249,115,22,0.9)";
+                }
+
+                const cellSize = 11;
+                const gap = 2;
+                const weeksCount = Math.max(...cells.map(c => c.weekIndex)) + 1;
+
+                return (
+                    <div style={{ padding: "20px 24px", borderRadius: 14, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                            <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.3)", margin: 0 }}>
+                                Activity
+                            </p>
+                            <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-1">
+                                    <span style={{ fontSize: 9, color: "rgba(255,255,255,0.25)" }}>Less</span>
+                                    {[0, 0.2, 0.4, 0.65, 0.9].map((o, i) => (
+                                        <span key={i} style={{ width: 10, height: 10, borderRadius: 2, background: o === 0 ? "rgba(255,255,255,0.04)" : `rgba(249,115,22,${o})`, display: "inline-block" }} />
+                                    ))}
+                                    <span style={{ fontSize: 9, color: "rgba(255,255,255,0.25)" }}>More</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Heatmap */}
+                        <div style={{ overflowX: "auto", paddingBottom: 4 }}>
+                            {/* Month labels */}
+                            <div style={{ display: "flex", marginLeft: 28, marginBottom: 2, gap: 0, position: "relative", height: 14 }}>
+                                {months.map((m, i) => (
+                                    <span key={i} style={{
+                                        position: "absolute",
+                                        left: m.weekIndex * (cellSize + gap),
+                                        fontSize: 9,
+                                        color: "rgba(255,255,255,0.2)",
+                                    }}>{m.label}</span>
+                                ))}
+                            </div>
+                            <div style={{ display: "flex", gap: 0 }}>
+                                {/* Day labels */}
+                                <div style={{ display: "flex", flexDirection: "column", gap, width: 24, flexShrink: 0 }}>
+                                    {["", "Mon", "", "Wed", "", "Fri", ""].map((d, i) => (
+                                        <span key={i} style={{ height: cellSize, fontSize: 8, color: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center" }}>{d}</span>
+                                    ))}
+                                </div>
+                                {/* Grid */}
+                                <div style={{ display: "flex", gap }}>
+                                    {Array.from({ length: weeksCount }, (_, wi) => (
+                                        <div key={wi} style={{ display: "flex", flexDirection: "column", gap }}>
+                                            {Array.from({ length: 7 }, (_, di) => {
+                                                const cell = cells.find(c => c.weekIndex === wi && c.dayOfWeek === di);
+                                                return (
+                                                    <div key={di}
+                                                        title={cell ? `${cell.date}: ${cell.turns} turns` : ""}
+                                                        style={{
+                                                            width: cellSize, height: cellSize, borderRadius: 2,
+                                                            background: cell ? getColor(cell.turns) : "transparent",
+                                                        }} />
+                                                );
+                                            })}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Stats row */}
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mt-4 pt-3" style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+                            <div>
+                                <span style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Favorite model</span>
+                                <div style={{ fontSize: 13, fontWeight: 700, color: "#f97316", marginTop: 2 }}>{favoriteModel || "-"}</div>
+                            </div>
+                            <div>
+                                <span style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Total tokens</span>
+                                <div style={{ fontSize: 13, fontWeight: 700, color: "#4A9EFF", marginTop: 2 }}>{totalTokensAll >= 1e6 ? (totalTokensAll / 1e6).toFixed(1) + "m" : (totalTokensAll / 1e3).toFixed(0) + "k"}</div>
+                            </div>
+                            <div>
+                                <span style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Active days</span>
+                                <div style={{ marginTop: 2 }}><span style={{ fontSize: 13, fontWeight: 700, color: "#4ade80" }}>{activeDays}</span><span style={{ fontSize: 11, color: "rgba(255,255,255,0.2)" }}>/{totalDays}</span></div>
+                            </div>
+                            <div>
+                                <span style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Most active day</span>
+                                <div style={{ fontSize: 13, fontWeight: 700, color: "#f97316", marginTop: 2 }}>{mostActiveLabel}</div>
+                            </div>
+                            <div>
+                                <span style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Longest streak</span>
+                                <div style={{ fontSize: 13, fontWeight: 700, color: "#f472b6", marginTop: 2 }}>{longestStreak} days</div>
+                            </div>
+                            <div>
+                                <span style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Current streak</span>
+                                <div style={{ fontSize: 13, fontWeight: 700, color: "#7C5CFF", marginTop: 2 }}>{currentStreak} days</div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
 
             {/* Bottom row - charts */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

@@ -101,6 +101,11 @@ function parseJSONLLine(obj: Record<string, unknown>): ParsedEvent[] {
         }
     }
 
+    // custom-title events (from /rename command)
+    if (obj.type === "custom-title" && obj.customTitle) {
+        events.push({ event: "custom_title", data: { customTitle: obj.customTitle, timestamp: ts } });
+    }
+
     // summary lines (from Claude's internal usage tracking)
     if (obj.type === "summary") {
         const summary = obj.summary as { usage?: Record<string, number>; model?: string } | undefined;
