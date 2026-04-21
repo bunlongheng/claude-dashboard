@@ -93,7 +93,7 @@ export async function GET(req: Request) {
     }];
 
     // Multi-machine only in admin mode
-    const isAdmin = process.env.MODE === "admin";
+    const isAdmin = (process.env.MODE || "").replace(/"/g, "").trim() === "admin";
     if (!isAdmin) return NextResponse.json({ machines });
 
     // Collect remote machines from all sources
