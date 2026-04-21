@@ -120,9 +120,25 @@ export default function OverviewSection() {
     const [chartPeriod, setChartPeriod] = useState<"today" | "7d" | "30d" | "all">("today");
 
     // Daily activity data
-    const [dailyData, setDailyData] = useState<{ day: string; turns: number }[]>([]);
+    interface DayBucket { day: string; turns: number; input: number; output: number; cache_read: number; cache_creation: number; sessions: number; }
+    const [dailyData, setDailyData] = useState<DayBucket[]>([]);
     const [favoriteModel, setFavoriteModel] = useState("");
     const [totalTokensAll, setTotalTokensAll] = useState(0);
+    const [usagePeriod, setUsagePeriod] = useState<"today" | "week" | "month">("today");
+
+    // Usage windows (5h / 7d)
+    interface WindowBucket { messages: number; input: number; output: number; cache_read: number; cache_creation: number; cost: number; }
+    interface WindowQuota { five_hour_pct: number | null; seven_day_pct: number | null; updated_at: string | null; }
+    const [windows, setWindows] = useState<{ five_hour: WindowBucket; seven_day: WindowBucket; resets: { five_hour_at: string; seven_day_at: string }; quota: WindowQuota } | null>(null);
+
+    useEffect(() => {
+        function loadWindows() {
+            fetch("/api/claude/token-stats/windows").then(r => r.json()).then(d => setWindows(d)).catch(() => {});
+        }
+        loadWindows();
+        const t = setInterval(loadWindows, 60_000);
+        return () => clearInterval(t);
+    }, []);
 
     useEffect(() => {
         fetch("/api/claude/token-stats/daily").then(r => r.json()).then(d => {
@@ -240,6 +256,7 @@ export default function OverviewSection() {
 
     return (
         <div className="space-y-6">
+            {/* Usage Status — 5h session + 7d week windows */}
             {/* Top row - key metrics */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                 <StatCard label="Sessions" value={stats.sessions} icon={FolderOpen} color="#22c55e"
@@ -256,41 +273,31 @@ export default function OverviewSection() {
 
             {/* Activity Heatmap + Stats */}
             {dailyData.length > 0 && (() => {
-                // Build heatmap data for last 365 days
+                // Build heatmap data for last 7 days
                 const today = new Date();
                 const dayMap = new Map(dailyData.map(d => [d.day, d.turns]));
-                const cells: { date: string; turns: number; dayOfWeek: number; weekIndex: number }[] = [];
-                const totalWeeks = 53;
+                const cells: { date: string; turns: number }[] = [];
 
-                // Find the start: go back to the Sunday that is ~52 weeks ago
-                const startDate = new Date(today);
-                startDate.setDate(startDate.getDate() - (totalWeeks * 7 - 1) - startDate.getDay());
-
-                for (let i = 0; i < totalWeeks * 7; i++) {
-                    const d = new Date(startDate);
-                    d.setDate(d.getDate() + i);
-                    if (d > today) break;
+                for (let i = 6; i >= 0; i--) {
+                    const d = new Date(today);
+                    d.setDate(d.getDate() - i);
                     const iso = d.toISOString().slice(0, 10);
-                    cells.push({
-                        date: iso,
-                        turns: dayMap.get(iso) ?? 0,
-                        dayOfWeek: d.getDay(),
-                        weekIndex: Math.floor(i / 7),
-                    });
+                    cells.push({ date: iso, turns: dayMap.get(iso) ?? 0 });
                 }
 
-                // Stats
-                const activeDays = cells.filter(c => c.turns > 0).length;
-                const totalDays = cells.length;
+                // Stats (from all dailyData for accurate lifetime stats)
+                const allCells = dailyData.map(d => ({ date: d.day, turns: d.turns }));
+                const activeDays = allCells.filter(c => c.turns > 0).length;
+                const totalDays = allCells.length;
                 const maxTurns = Math.max(...cells.map(c => c.turns), 1);
 
-                // Most active day
-                const mostActive = cells.reduce((best, c) => c.turns > best.turns ? c : best, cells[0]);
-                const mostActiveLabel = mostActive ? new Date(mostActive.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "-";
+                // Most active day (all time)
+                const mostActive = allCells.reduce((best, c) => c.turns > best.turns ? c : best, allCells[0] ?? { date: "", turns: 0 });
+                const mostActiveLabel = mostActive?.date ? new Date(mostActive.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "-";
 
-                // Streaks
+                // Streaks (all time)
                 let longestStreak = 0, currentStreak = 0, tempStreak = 0;
-                const sortedDays = cells.filter(c => c.turns > 0).map(c => c.date).sort();
+                const sortedDays = allCells.filter(c => c.turns > 0).map(c => c.date).sort();
                 for (let i = 0; i < sortedDays.length; i++) {
                     if (i === 0) { tempStreak = 1; }
                     else {
@@ -316,17 +323,6 @@ export default function OverviewSection() {
                     }
                 }
 
-                // Month labels
-                const months: { label: string; weekIndex: number }[] = [];
-                let lastMonth = -1;
-                for (const c of cells) {
-                    const m = new Date(c.date).getMonth();
-                    if (m !== lastMonth) {
-                        months.push({ label: new Date(c.date).toLocaleDateString("en-US", { month: "short" }), weekIndex: c.weekIndex });
-                        lastMonth = m;
-                    }
-                }
-
                 function getColor(turns: number): string {
                     if (turns === 0) return "rgba(255,255,255,0.04)";
                     const intensity = Math.min(turns / (maxTurns * 0.6), 1);
@@ -336,17 +332,22 @@ export default function OverviewSection() {
                     return "rgba(249,115,22,0.9)";
                 }
 
-                const cellSize = 11;
-                const gap = 2;
-                const weeksCount = Math.max(...cells.map(c => c.weekIndex)) + 1;
+                // Quota helpers (inline, uses `windows` from outer scope)
+                function fmtResetQ(iso: string) {
+                    return new Date(iso).toLocaleString("en-US", { hour: "numeric", minute: "2-digit", month: "short", day: "numeric", timeZoneName: "short" });
+                }
+                const quotaCols = windows ? [
+                    { label: "Session", sub: "5h", data: windows.five_hour, reset: windows.resets.five_hour_at, accent: "#f97316", pct: windows.quota.five_hour_pct },
+                    { label: "Week", sub: "7d", data: windows.seven_day, reset: windows.resets.seven_day_at, accent: "#00d9ff", pct: windows.quota.seven_day_pct },
+                ] : [];
 
                 return (
-                    <div style={{ padding: "20px 24px", borderRadius: 14, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-                            <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.3)", margin: 0 }}>
-                                Activity
-                            </p>
-                            <div className="flex items-center gap-4">
+                    <div className="flex gap-3 flex-col lg:flex-row">
+
+                        {/* ── LEFT 60% — Activity heatmap (last 7 days) ── */}
+                        <div style={{ flex: "0 0 60%", padding: "20px 24px", borderRadius: 14, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", minWidth: 0 }}>
+                            <div className="flex items-center justify-between mb-4">
+                                <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.3)", margin: 0 }}>Activity — Last 7 Days</p>
                                 <div className="flex items-center gap-1">
                                     <span style={{ fontSize: 9, color: "rgba(255,255,255,0.25)" }}>Less</span>
                                     {[0, 0.2, 0.4, 0.65, 0.9].map((o, i) => (
@@ -355,76 +356,175 @@ export default function OverviewSection() {
                                     <span style={{ fontSize: 9, color: "rgba(255,255,255,0.25)" }}>More</span>
                                 </div>
                             </div>
-                        </div>
 
-                        {/* Heatmap */}
-                        <div style={{ overflowX: "auto", paddingBottom: 4 }}>
-                            {/* Month labels */}
-                            <div style={{ display: "flex", marginLeft: 28, marginBottom: 2, gap: 0, position: "relative", height: 14 }}>
-                                {months.map((m, i) => (
-                                    <span key={i} style={{
-                                        position: "absolute",
-                                        left: m.weekIndex * (cellSize + gap),
-                                        fontSize: 9,
-                                        color: "rgba(255,255,255,0.2)",
-                                    }}>{m.label}</span>
+                            {/* 7-day heatmap — one column per day */}
+                            <div style={{ display: "flex", gap: 6, alignItems: "flex-end", justifyContent: "space-between" }}>
+                                {cells.map(cell => {
+                                    const isToday = cell.date === todayStr;
+                                    const dayLabel = new Date(cell.date).toLocaleDateString("en-US", { weekday: "short" });
+                                    const dateLabel = new Date(cell.date).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                                    const heightPct = cell.turns > 0 ? Math.max((cell.turns / maxTurns), 0.08) : 0.04;
+                                    const barH = Math.round(heightPct * 120);
+                                    return (
+                                        <div key={cell.date} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }} title={`${cell.date}: ${cell.turns} turns`}>
+                                            {cell.turns > 0 && (
+                                                <span style={{ fontSize: 9, fontWeight: 700, color: isToday ? "#f97316" : "rgba(255,255,255,0.3)" }}>{cell.turns}</span>
+                                            )}
+                                            <div style={{
+                                                width: "100%", height: barH, minHeight: 6, borderRadius: 4,
+                                                background: isToday && cell.turns > 0 ? "#f97316" : getColor(cell.turns),
+                                                boxShadow: isToday && cell.turns > 0 ? "0 0 10px rgba(249,115,22,0.4)" : "none",
+                                                transition: "height 0.6s",
+                                            }} />
+                                            <span style={{ fontSize: 9, fontWeight: isToday ? 700 : 400, color: isToday ? "#f97316" : "rgba(255,255,255,0.25)", textAlign: "center" }}>{dayLabel}</span>
+                                            <span style={{ fontSize: 8, color: "rgba(255,255,255,0.15)", textAlign: "center" }}>{dateLabel}</span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Stats row */}
+                            <div className="grid grid-cols-3 gap-3 mt-4 pt-3" style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+                                {[
+                                    { label: "Active days",    value: `${activeDays}/${totalDays}`, color: "#4ade80" },
+                                    { label: "Longest streak", value: `${longestStreak}d`,           color: "#f472b6" },
+                                    { label: "Current streak", value: `${currentStreak}d`,           color: "#7C5CFF" },
+                                    { label: "Most active",    value: mostActiveLabel,               color: "#f97316" },
+                                    { label: "Total tokens",   value: totalTokensAll >= 1e6 ? `${(totalTokensAll/1e6).toFixed(1)}m` : `${(totalTokensAll/1e3).toFixed(0)}k`, color: "#4A9EFF" },
+                                    { label: "Top model",      value: favoriteModel || "—",          color: "#f97316" },
+                                ].map(s => (
+                                    <div key={s.label}>
+                                        <span style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{s.label}</span>
+                                        <div style={{ fontSize: 13, fontWeight: 700, color: s.color, marginTop: 2 }}>{s.value}</div>
+                                    </div>
                                 ))}
                             </div>
-                            <div style={{ display: "flex", gap: 0 }}>
-                                {/* Day labels */}
-                                <div style={{ display: "flex", flexDirection: "column", gap, width: 24, flexShrink: 0 }}>
-                                    {["", "Mon", "", "Wed", "", "Fri", ""].map((d, i) => (
-                                        <span key={i} style={{ height: cellSize, fontSize: 8, color: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center" }}>{d}</span>
-                                    ))}
-                                </div>
-                                {/* Grid */}
-                                <div style={{ display: "flex", gap }}>
-                                    {Array.from({ length: weeksCount }, (_, wi) => (
-                                        <div key={wi} style={{ display: "flex", flexDirection: "column", gap }}>
-                                            {Array.from({ length: 7 }, (_, di) => {
-                                                const cell = cells.find(c => c.weekIndex === wi && c.dayOfWeek === di);
+                        </div>
+
+                        {/* ── RIGHT 40% — Usage breakdown ── */}
+                        {(() => {
+                            const todayStr = new Date().toISOString().slice(0, 10);
+                            const now = new Date();
+                            const weekStart = new Date(now); weekStart.setDate(now.getDate() - 6); const weekStr = weekStart.toISOString().slice(0, 10);
+                            const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+                            const periodDays = dailyData.filter(d =>
+                                usagePeriod === "today"  ? d.day === todayStr :
+                                usagePeriod === "week"   ? d.day >= weekStr :
+                                d.day.startsWith(monthStr)
+                            );
+
+                            const sum = periodDays.reduce((acc, d) => ({
+                                turns:    acc.turns    + d.turns,
+                                input:    acc.input    + d.input,
+                                output:   acc.output   + d.output,
+                                sessions: acc.sessions + d.sessions,
+                            }), { turns: 0, input: 0, output: 0, sessions: 0 });
+
+                            const totalTok = sum.input + sum.output;
+                            function ft(n: number) { return n >= 1_000_000 ? `${(n/1_000_000).toFixed(1)}M` : n >= 1_000 ? `${(n/1_000).toFixed(1)}k` : String(n); }
+
+                            // Bar chart rows — daily (week/month) or single row (today)
+                            const barRows = usagePeriod === "today" ? [] : periodDays.slice().sort((a, b) => a.day.localeCompare(b.day));
+                            const barMax = Math.max(...barRows.map(d => d.turns), 1);
+
+                            // Quota bars
+                            const qCols = quotaCols;
+
+                            return (
+                                <div style={{ flex: "0 0 40%", padding: "20px 24px", borderRadius: 14, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", display: "flex", flexDirection: "column", gap: 14 }}>
+
+                                    {/* Header + tabs */}
+                                    <div className="flex items-center justify-between">
+                                        <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.3)", margin: 0 }}>Breakdown</p>
+                                        <div className="flex gap-1">
+                                            {(["today", "week", "month"] as const).map(p => (
+                                                <button key={p} onClick={() => setUsagePeriod(p)}
+                                                    style={{
+                                                        fontSize: 9, fontWeight: 700, padding: "3px 9px", borderRadius: 6, cursor: "pointer", border: "1px solid",
+                                                        textTransform: "uppercase", letterSpacing: "0.06em", transition: "all 0.15s",
+                                                        background: usagePeriod === p ? "rgba(249,115,22,0.15)" : "transparent",
+                                                        borderColor: usagePeriod === p ? "rgba(249,115,22,0.4)" : "rgba(255,255,255,0.08)",
+                                                        color: usagePeriod === p ? "#f97316" : "rgba(255,255,255,0.3)",
+                                                    }}>
+                                                    {p === "today" ? "Today" : p === "week" ? "This Week" : "This Month"}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Big numbers */}
+                                    <div className="flex items-end gap-5">
+                                        <div>
+                                            <p style={{ fontSize: 9, color: "rgba(255,255,255,0.2)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Messages</p>
+                                            <p style={{ fontSize: 28, fontWeight: 800, color: "#f97316", lineHeight: 1 }}>{sum.turns.toLocaleString()}</p>
+                                        </div>
+                                        <div>
+                                            <p style={{ fontSize: 9, color: "rgba(255,255,255,0.2)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Tokens</p>
+                                            <p style={{ fontSize: 28, fontWeight: 800, color: "#00d9ff", lineHeight: 1 }}>{ft(totalTok)}</p>
+                                        </div>
+                                        <div>
+                                            <p style={{ fontSize: 9, color: "rgba(255,255,255,0.2)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Sessions</p>
+                                            <p style={{ fontSize: 28, fontWeight: 800, color: "#a3e635", lineHeight: 1 }}>{sum.sessions}</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Day-by-day bar rows (week / month) */}
+                                    {barRows.length > 0 && (
+                                        <div className="space-y-1.5">
+                                            {barRows.map(d => {
+                                                const pct = Math.max((d.turns / barMax) * 100, d.turns > 0 ? 2 : 0);
+                                                const label = usagePeriod === "week"
+                                                    ? new Date(d.day).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })
+                                                    : new Date(d.day).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                                                const isToday = d.day === todayStr;
                                                 return (
-                                                    <div key={di}
-                                                        title={cell ? `${cell.date}: ${cell.turns} turns` : ""}
-                                                        style={{
-                                                            width: cellSize, height: cellSize, borderRadius: 2,
-                                                            background: cell ? getColor(cell.turns) : "transparent",
-                                                        }} />
+                                                    <div key={d.day} className="flex items-center gap-2">
+                                                        <span style={{ fontSize: 9, color: isToday ? "#f97316" : "rgba(255,255,255,0.25)", width: 70, flexShrink: 0, fontWeight: isToday ? 700 : 400 }}>{label}</span>
+                                                        <div style={{ flex: 1, height: 5, borderRadius: 3, background: "rgba(255,255,255,0.05)", overflow: "hidden" }}>
+                                                            <div style={{ width: `${pct}%`, height: "100%", borderRadius: 3, background: isToday ? "#f97316" : "rgba(249,115,22,0.45)", transition: "width 0.6s" }} />
+                                                        </div>
+                                                        <span style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", width: 28, textAlign: "right", flexShrink: 0 }}>{d.turns}</span>
+                                                    </div>
                                                 );
                                             })}
                                         </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
+                                    )}
 
-                        {/* Stats row */}
-                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mt-4 pt-3" style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
-                            <div>
-                                <span style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Favorite model</span>
-                                <div style={{ fontSize: 13, fontWeight: 700, color: "#f97316", marginTop: 2 }}>{favoriteModel || "-"}</div>
-                            </div>
-                            <div>
-                                <span style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Total tokens</span>
-                                <div style={{ fontSize: 13, fontWeight: 700, color: "#4A9EFF", marginTop: 2 }}>{totalTokensAll >= 1e6 ? (totalTokensAll / 1e6).toFixed(1) + "m" : (totalTokensAll / 1e3).toFixed(0) + "k"}</div>
-                            </div>
-                            <div>
-                                <span style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Active days</span>
-                                <div style={{ marginTop: 2 }}><span style={{ fontSize: 13, fontWeight: 700, color: "#4ade80" }}>{activeDays}</span><span style={{ fontSize: 11, color: "rgba(255,255,255,0.2)" }}>/{totalDays}</span></div>
-                            </div>
-                            <div>
-                                <span style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Most active day</span>
-                                <div style={{ fontSize: 13, fontWeight: 700, color: "#f97316", marginTop: 2 }}>{mostActiveLabel}</div>
-                            </div>
-                            <div>
-                                <span style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Longest streak</span>
-                                <div style={{ fontSize: 13, fontWeight: 700, color: "#f472b6", marginTop: 2 }}>{longestStreak} days</div>
-                            </div>
-                            <div>
-                                <span style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Current streak</span>
-                                <div style={{ fontSize: 13, fontWeight: 700, color: "#7C5CFF", marginTop: 2 }}>{currentStreak} days</div>
-                            </div>
-                        </div>
+                                    {/* Quota bars */}
+                                    {qCols.length > 0 && (
+                                        <div className="flex flex-col gap-2 mt-auto pt-3" style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+                                            {qCols.map(({ label, sub, reset, accent, pct }) => {
+                                                const hasPct = pct !== null && pct !== undefined;
+                                                const barColor = hasPct && pct! > 80 ? "#ef4444" : hasPct && pct! > 60 ? "#f59e0b" : accent;
+                                                return (
+                                                    <div key={label}>
+                                                        <div className="flex items-center justify-between mb-1">
+                                                            <span style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "rgba(255,255,255,0.3)" }}>
+                                                                {label} <span style={{ color: "rgba(255,255,255,0.18)", fontWeight: 400 }}>{sub}</span>
+                                                            </span>
+                                                            <span style={{ fontSize: 12, fontWeight: 800, color: hasPct ? barColor : "rgba(255,255,255,0.2)" }}>
+                                                                {hasPct ? `${pct}% used` : "— %"}
+                                                            </span>
+                                                        </div>
+                                                        <div style={{ height: 5, borderRadius: 3, background: "rgba(255,255,255,0.06)", overflow: "hidden", marginBottom: 3 }}>
+                                                            <div style={{
+                                                                width: hasPct ? `${Math.min(pct!, 100)}%` : "0%",
+                                                                height: "100%", borderRadius: 3, background: barColor,
+                                                                boxShadow: hasPct ? `0 0 8px ${barColor}50` : "none",
+                                                                transition: "width 1.2s cubic-bezier(0.4,0,0.2,1)",
+                                                            }} />
+                                                        </div>
+                                                        <p style={{ fontSize: 8, color: "rgba(255,255,255,0.15)" }}>resets {fmtResetQ(reset)}</p>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })()}
+
                     </div>
                 );
             })()}
@@ -471,22 +571,6 @@ export default function OverviewSection() {
 
             {/* Token charts */}
             {tokensBySession.length > 0 && (<>
-                {/* Time filter */}
-                <div className="flex items-center gap-2">
-                    {(["today", "7d", "30d", "all"] as const).map(p => (
-                        <button key={p} onClick={() => setChartPeriod(p)}
-                            className="px-3 py-1 rounded-full text-[10px] font-bold transition"
-                            style={{
-                                background: chartPeriod === p ? "rgba(249,115,22,0.15)" : "rgba(255,255,255,0.03)",
-                                border: chartPeriod === p ? "1px solid rgba(249,115,22,0.4)" : "1px solid rgba(255,255,255,0.06)",
-                                color: chartPeriod === p ? "#f97316" : "rgba(255,255,255,0.35)",
-                                cursor: "pointer",
-                            }}>
-                            {p === "today" ? "Today" : p === "7d" ? "7 Days" : p === "30d" ? "30 Days" : "All Time"}
-                        </button>
-                    ))}
-                </div>
-
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                     {/* Top sessions by token usage */}
                     <div style={{ padding: "20px 24px", borderRadius: 14, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
