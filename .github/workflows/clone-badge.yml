@@ -1,0 +1,41 @@
+name: Update clone badge
+on:
+  schedule:
+    - cron: '0 */6 * * *'  # Every 6 hours
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get clone count
+        id: clones
+        run: |
+          RESPONSE=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/traffic/clones")
+          TOTAL=$(echo "$RESPONSE" | jq '.count // 0')
+          UNIQUE=$(echo "$RESPONSE" | jq '.uniques // 0')
+          echo "total=$TOTAL" >> "$GITHUB_OUTPUT"
+          echo "unique=$UNIQUE" >> "$GITHUB_OUTPUT"
+
+      - name: Update badge JSON
+        run: |
+          mkdir -p .github/badges
+          cat > .github/badges/clones.json << EOF
+          {
+            "schemaVersion": 1,
+            "label": "clones",
+            "message": "${{ steps.clones.outputs.unique }}/month",
+            "color": "brightgreen"
+          }
+          EOF
+
+      - name: Commit if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .github/badges/clones.json
+          git diff --staged --quiet || git commit -m "chore: update clone badge [skip ci]"
+          git push
