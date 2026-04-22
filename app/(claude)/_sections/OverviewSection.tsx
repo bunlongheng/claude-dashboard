@@ -273,29 +273,26 @@ export default function OverviewSection() {
 
             {/* Activity Heatmap + Stats */}
             {dailyData.length > 0 && (() => {
-                // Build heatmap data for last 30 days
+                // Build all-time heatmap — from earliest recorded day to today
                 const today = new Date();
                 const dayMap = new Map(dailyData.map(d => [d.day, d.turns]));
                 const cells: { date: string; turns: number; weekIndex: number; dayOfWeek: number }[] = [];
 
-                // Align to Sunday so weeks line up in columns
-                const startDate = new Date(today);
-                startDate.setDate(startDate.getDate() - 29);
-                // Go back to the preceding Sunday
-                startDate.setDate(startDate.getDate() - startDate.getDay());
+                // Find earliest date, go back to its preceding Sunday
+                const sortedKeys = [...dayMap.keys()].sort();
+                const earliest = new Date(sortedKeys[0] ?? today.toISOString().slice(0, 10));
+                const startDate = new Date(earliest);
+                startDate.setDate(startDate.getDate() - startDate.getDay()); // snap to Sunday
 
                 for (let i = 0; ; i++) {
                     const d = new Date(startDate);
                     d.setDate(d.getDate() + i);
                     if (d > today) break;
                     const iso = d.toISOString().slice(0, 10);
-                    // Only include days within last 30
-                    const diffMs = today.getTime() - d.getTime();
-                    if (diffMs > 30 * 86400000) { cells.push({ date: iso, turns: -1, weekIndex: Math.floor(i / 7), dayOfWeek: d.getDay() }); continue; }
                     cells.push({ date: iso, turns: dayMap.get(iso) ?? 0, weekIndex: Math.floor(i / 7), dayOfWeek: d.getDay() });
                 }
 
-                // Stats (from all dailyData for accurate lifetime stats)
+                // Stats (all time)
                 const allCells = dailyData.map(d => ({ date: d.day, turns: d.turns }));
                 const activeDays = allCells.filter(c => c.turns > 0).length;
                 const totalDays = allCells.length;
@@ -354,10 +351,10 @@ export default function OverviewSection() {
                 return (
                     <div className="flex gap-3 flex-col lg:flex-row">
 
-                        {/* ── LEFT 60% — Activity heatmap (last 30 days) ── */}
+                        {/* ── LEFT 60% — Activity heatmap (all time) ── */}
                         <div style={{ flex: "0 0 60%", padding: "20px 24px", borderRadius: 14, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", minWidth: 0 }}>
                             <div className="flex items-center justify-between mb-3">
-                                <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.3)", margin: 0 }}>Activity — Last 30 Days</p>
+                                <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.3)", margin: 0 }}>Activity — All Time</p>
                                 <div className="flex items-center gap-1">
                                     <span style={{ fontSize: 9, color: "rgba(255,255,255,0.25)" }}>Less</span>
                                     {[0, 0.2, 0.4, 0.65, 0.9].map((o, i) => (
@@ -367,40 +364,59 @@ export default function OverviewSection() {
                                 </div>
                             </div>
 
-                            {/* 30-day heatmap grid — columns = weeks, rows = days of week */}
+                            {/* All-time heatmap grid — scrollable, columns = weeks */}
                             {(() => {
                                 const weeksCount = Math.max(...cells.map(c => c.weekIndex)) + 1;
-                                const cellSize = 14;
-                                const gap = 3;
-                                const dayLabels = ["S", "M", "T", "W", "T", "F", "S"];
+                                const cellSize = 11;
+                                const gap = 2;
+                                const dayLabels = ["", "Mon", "", "Wed", "", "Fri", ""];
+
+                                // Month labels
+                                const months: { label: string; weekIndex: number }[] = [];
+                                let lastMonth = -1;
+                                for (const c of cells) {
+                                    const m = new Date(c.date).getMonth();
+                                    if (m !== lastMonth) {
+                                        months.push({ label: new Date(c.date).toLocaleDateString("en-US", { month: "short" }), weekIndex: c.weekIndex });
+                                        lastMonth = m;
+                                    }
+                                }
+
                                 return (
-                                    <div style={{ display: "flex", gap: 0 }}>
-                                        <div style={{ display: "flex", flexDirection: "column", gap, width: 16, flexShrink: 0, marginTop: 2 }}>
-                                            {dayLabels.map((d, i) => (
-                                                <span key={i} style={{ height: cellSize, fontSize: 8, color: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center" }}>{d}</span>
+                                    <div style={{ overflowX: "auto", paddingBottom: 4 }}>
+                                        {/* Month labels */}
+                                        <div style={{ display: "flex", marginLeft: 22, marginBottom: 2, position: "relative", height: 14 }}>
+                                            {months.map((m, i) => (
+                                                <span key={i} style={{ position: "absolute", left: m.weekIndex * (cellSize + gap), fontSize: 9, color: "rgba(255,255,255,0.2)", whiteSpace: "nowrap" }}>{m.label}</span>
                                             ))}
                                         </div>
-                                        <div style={{ display: "flex", gap }}>
-                                            {Array.from({ length: weeksCount }, (_, wi) => (
-                                                <div key={wi} style={{ display: "flex", flexDirection: "column", gap }}>
-                                                    {Array.from({ length: 7 }, (_, di) => {
-                                                        const cell = cells.find(c => c.weekIndex === wi && c.dayOfWeek === di);
-                                                        const isToday = cell?.date === todayStr;
-                                                        const faded = !cell || cell.turns < 0;
-                                                        return (
-                                                            <div key={di}
-                                                                title={cell && cell.turns >= 0 ? `${cell.date}: ${cell.turns} turns` : ""}
-                                                                style={{
-                                                                    width: cellSize, height: cellSize, borderRadius: 3,
-                                                                    background: faded ? "transparent" : isToday && cell!.turns > 0 ? "#f97316" : getColor(cell?.turns ?? 0),
-                                                                    boxShadow: isToday && cell?.turns ? `0 0 6px rgba(249,115,22,0.5)` : "none",
-                                                                    outline: isToday ? "1px solid rgba(249,115,22,0.5)" : "none",
-                                                                }}
-                                                            />
-                                                        );
-                                                    })}
-                                                </div>
-                                            ))}
+                                        <div style={{ display: "flex", gap: 0 }}>
+                                            <div style={{ display: "flex", flexDirection: "column", gap, width: 22, flexShrink: 0 }}>
+                                                {dayLabels.map((d, i) => (
+                                                    <span key={i} style={{ height: cellSize, fontSize: 8, color: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center" }}>{d}</span>
+                                                ))}
+                                            </div>
+                                            <div style={{ display: "flex", gap }}>
+                                                {Array.from({ length: weeksCount }, (_, wi) => (
+                                                    <div key={wi} style={{ display: "flex", flexDirection: "column", gap }}>
+                                                        {Array.from({ length: 7 }, (_, di) => {
+                                                            const cell = cells.find(c => c.weekIndex === wi && c.dayOfWeek === di);
+                                                            const isToday = cell?.date === todayStr;
+                                                            return (
+                                                                <div key={di}
+                                                                    title={cell ? `${cell.date}: ${cell.turns} turns` : ""}
+                                                                    style={{
+                                                                        width: cellSize, height: cellSize, borderRadius: 2,
+                                                                        background: cell ? (isToday && cell.turns > 0 ? "#f97316" : getColor(cell.turns)) : "transparent",
+                                                                        boxShadow: isToday && cell?.turns ? "0 0 6px rgba(249,115,22,0.5)" : "none",
+                                                                        outline: isToday ? "1px solid rgba(249,115,22,0.4)" : "none",
+                                                                    }}
+                                                                />
+                                                            );
+                                                        })}
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
                                     </div>
                                 );
