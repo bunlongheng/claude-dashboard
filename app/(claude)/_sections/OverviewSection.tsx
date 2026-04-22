@@ -273,15 +273,14 @@ export default function OverviewSection() {
 
             {/* Activity Heatmap + Stats */}
             {dailyData.length > 0 && (() => {
-                // Build all-time heatmap — from earliest recorded day to today
+                // Build GitHub-style heatmap — always 52 weeks, today in last column
                 const today = new Date();
                 const dayMap = new Map(dailyData.map(d => [d.day, d.turns]));
                 const cells: { date: string; turns: number; weekIndex: number; dayOfWeek: number }[] = [];
 
-                // Find earliest date, go back to its preceding Sunday
-                const sortedKeys = [...dayMap.keys()].sort();
-                const earliest = new Date(sortedKeys[0] ?? today.toISOString().slice(0, 10));
-                const startDate = new Date(earliest);
+                // Start from the Sunday that is ~51 weeks ago
+                const startDate = new Date(today);
+                startDate.setDate(startDate.getDate() - 52 * 7 + 1);
                 startDate.setDate(startDate.getDate() - startDate.getDay()); // snap to Sunday
 
                 for (let i = 0; ; i++) {
@@ -296,7 +295,7 @@ export default function OverviewSection() {
                 const allCells = dailyData.map(d => ({ date: d.day, turns: d.turns }));
                 const activeDays = allCells.filter(c => c.turns > 0).length;
                 const totalDays = allCells.length;
-                const maxTurns = Math.max(...cells.filter(c => c.turns > 0).map(c => c.turns), 1);
+                const maxTurns = Math.max(...cells.map(c => c.turns), 1);
 
                 // Most active day (all time)
                 const mostActive = allCells.reduce((best, c) => c.turns > best.turns ? c : best, allCells[0] ?? { date: "", turns: 0 });
@@ -354,7 +353,7 @@ export default function OverviewSection() {
                         {/* ── LEFT 60% — Activity heatmap (all time) ── */}
                         <div style={{ flex: "0 0 60%", padding: "20px 24px", borderRadius: 14, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", minWidth: 0 }}>
                             <div className="flex items-center justify-between mb-3">
-                                <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.3)", margin: 0 }}>Activity — All Time</p>
+                                <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.3)", margin: 0 }}>Activity — Last 12 Months</p>
                                 <div className="flex items-center gap-1">
                                     <span style={{ fontSize: 9, color: "rgba(255,255,255,0.25)" }}>Less</span>
                                     {[0, 0.2, 0.4, 0.65, 0.9].map((o, i) => (
