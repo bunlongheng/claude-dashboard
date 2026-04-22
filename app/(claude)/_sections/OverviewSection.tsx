@@ -124,7 +124,7 @@ export default function OverviewSection() {
     const [dailyData, setDailyData] = useState<DayBucket[]>([]);
     const [favoriteModel, setFavoriteModel] = useState("");
     const [totalTokensAll, setTotalTokensAll] = useState(0);
-    const [usagePeriod, setUsagePeriod] = useState<"today" | "week" | "month">("today");
+    const [usagePeriod, setUsagePeriod] = useState<"today" | "week" | "month">("week");
 
     // Usage windows (5h / 7d)
     interface WindowBucket { messages: number; input: number; output: number; cache_read: number; cache_creation: number; cost: number; }
@@ -273,23 +273,33 @@ export default function OverviewSection() {
 
             {/* Activity Heatmap + Stats */}
             {dailyData.length > 0 && (() => {
-                // Build heatmap data for last 7 days
+                // Build heatmap data for last 30 days
                 const today = new Date();
                 const dayMap = new Map(dailyData.map(d => [d.day, d.turns]));
-                const cells: { date: string; turns: number }[] = [];
+                const cells: { date: string; turns: number; weekIndex: number; dayOfWeek: number }[] = [];
 
-                for (let i = 6; i >= 0; i--) {
-                    const d = new Date(today);
-                    d.setDate(d.getDate() - i);
+                // Align to Sunday so weeks line up in columns
+                const startDate = new Date(today);
+                startDate.setDate(startDate.getDate() - 29);
+                // Go back to the preceding Sunday
+                startDate.setDate(startDate.getDate() - startDate.getDay());
+
+                for (let i = 0; ; i++) {
+                    const d = new Date(startDate);
+                    d.setDate(d.getDate() + i);
+                    if (d > today) break;
                     const iso = d.toISOString().slice(0, 10);
-                    cells.push({ date: iso, turns: dayMap.get(iso) ?? 0 });
+                    // Only include days within last 30
+                    const diffMs = today.getTime() - d.getTime();
+                    if (diffMs > 30 * 86400000) { cells.push({ date: iso, turns: -1, weekIndex: Math.floor(i / 7), dayOfWeek: d.getDay() }); continue; }
+                    cells.push({ date: iso, turns: dayMap.get(iso) ?? 0, weekIndex: Math.floor(i / 7), dayOfWeek: d.getDay() });
                 }
 
                 // Stats (from all dailyData for accurate lifetime stats)
                 const allCells = dailyData.map(d => ({ date: d.day, turns: d.turns }));
                 const activeDays = allCells.filter(c => c.turns > 0).length;
                 const totalDays = allCells.length;
-                const maxTurns = Math.max(...cells.map(c => c.turns), 1);
+                const maxTurns = Math.max(...cells.filter(c => c.turns > 0).map(c => c.turns), 1);
 
                 // Most active day (all time)
                 const mostActive = allCells.reduce((best, c) => c.turns > best.turns ? c : best, allCells[0] ?? { date: "", turns: 0 });
@@ -344,10 +354,10 @@ export default function OverviewSection() {
                 return (
                     <div className="flex gap-3 flex-col lg:flex-row">
 
-                        {/* ── LEFT 60% — Activity heatmap (last 7 days) ── */}
+                        {/* ── LEFT 60% — Activity heatmap (last 30 days) ── */}
                         <div style={{ flex: "0 0 60%", padding: "20px 24px", borderRadius: 14, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", minWidth: 0 }}>
-                            <div className="flex items-center justify-between mb-4">
-                                <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.3)", margin: 0 }}>Activity — Last 7 Days</p>
+                            <div className="flex items-center justify-between mb-3">
+                                <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.3)", margin: 0 }}>Activity — Last 30 Days</p>
                                 <div className="flex items-center gap-1">
                                     <span style={{ fontSize: 9, color: "rgba(255,255,255,0.25)" }}>Less</span>
                                     {[0, 0.2, 0.4, 0.65, 0.9].map((o, i) => (
@@ -357,31 +367,44 @@ export default function OverviewSection() {
                                 </div>
                             </div>
 
-                            {/* 7-day heatmap — one column per day */}
-                            <div style={{ display: "flex", gap: 6, alignItems: "flex-end", justifyContent: "space-between" }}>
-                                {cells.map(cell => {
-                                    const isToday = cell.date === todayStr;
-                                    const dayLabel = new Date(cell.date).toLocaleDateString("en-US", { weekday: "short" });
-                                    const dateLabel = new Date(cell.date).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-                                    const heightPct = cell.turns > 0 ? Math.max((cell.turns / maxTurns), 0.08) : 0.04;
-                                    const barH = Math.round(heightPct * 120);
-                                    return (
-                                        <div key={cell.date} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }} title={`${cell.date}: ${cell.turns} turns`}>
-                                            {cell.turns > 0 && (
-                                                <span style={{ fontSize: 9, fontWeight: 700, color: isToday ? "#f97316" : "rgba(255,255,255,0.3)" }}>{cell.turns}</span>
-                                            )}
-                                            <div style={{
-                                                width: "100%", height: barH, minHeight: 6, borderRadius: 4,
-                                                background: isToday && cell.turns > 0 ? "#f97316" : getColor(cell.turns),
-                                                boxShadow: isToday && cell.turns > 0 ? "0 0 10px rgba(249,115,22,0.4)" : "none",
-                                                transition: "height 0.6s",
-                                            }} />
-                                            <span style={{ fontSize: 9, fontWeight: isToday ? 700 : 400, color: isToday ? "#f97316" : "rgba(255,255,255,0.25)", textAlign: "center" }}>{dayLabel}</span>
-                                            <span style={{ fontSize: 8, color: "rgba(255,255,255,0.15)", textAlign: "center" }}>{dateLabel}</span>
+                            {/* 30-day heatmap grid — columns = weeks, rows = days of week */}
+                            {(() => {
+                                const weeksCount = Math.max(...cells.map(c => c.weekIndex)) + 1;
+                                const cellSize = 14;
+                                const gap = 3;
+                                const dayLabels = ["S", "M", "T", "W", "T", "F", "S"];
+                                return (
+                                    <div style={{ display: "flex", gap: 0 }}>
+                                        <div style={{ display: "flex", flexDirection: "column", gap, width: 16, flexShrink: 0, marginTop: 2 }}>
+                                            {dayLabels.map((d, i) => (
+                                                <span key={i} style={{ height: cellSize, fontSize: 8, color: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center" }}>{d}</span>
+                                            ))}
                                         </div>
-                                    );
-                                })}
-                            </div>
+                                        <div style={{ display: "flex", gap }}>
+                                            {Array.from({ length: weeksCount }, (_, wi) => (
+                                                <div key={wi} style={{ display: "flex", flexDirection: "column", gap }}>
+                                                    {Array.from({ length: 7 }, (_, di) => {
+                                                        const cell = cells.find(c => c.weekIndex === wi && c.dayOfWeek === di);
+                                                        const isToday = cell?.date === todayStr;
+                                                        const faded = !cell || cell.turns < 0;
+                                                        return (
+                                                            <div key={di}
+                                                                title={cell && cell.turns >= 0 ? `${cell.date}: ${cell.turns} turns` : ""}
+                                                                style={{
+                                                                    width: cellSize, height: cellSize, borderRadius: 3,
+                                                                    background: faded ? "transparent" : isToday && cell!.turns > 0 ? "#f97316" : getColor(cell?.turns ?? 0),
+                                                                    boxShadow: isToday && cell?.turns ? `0 0 6px rgba(249,115,22,0.5)` : "none",
+                                                                    outline: isToday ? "1px solid rgba(249,115,22,0.5)" : "none",
+                                                                }}
+                                                            />
+                                                        );
+                                                    })}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                );
+                            })()}
 
                             {/* Stats row */}
                             <div className="grid grid-cols-3 gap-3 mt-4 pt-3" style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
@@ -434,23 +457,9 @@ export default function OverviewSection() {
                             return (
                                 <div style={{ flex: "0 0 40%", padding: "20px 24px", borderRadius: 14, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", display: "flex", flexDirection: "column", gap: 14 }}>
 
-                                    {/* Header + tabs */}
+                                    {/* Header */}
                                     <div className="flex items-center justify-between">
-                                        <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.3)", margin: 0 }}>Breakdown</p>
-                                        <div className="flex gap-1">
-                                            {(["today", "week", "month"] as const).map(p => (
-                                                <button key={p} onClick={() => setUsagePeriod(p)}
-                                                    style={{
-                                                        fontSize: 9, fontWeight: 700, padding: "3px 9px", borderRadius: 6, cursor: "pointer", border: "1px solid",
-                                                        textTransform: "uppercase", letterSpacing: "0.06em", transition: "all 0.15s",
-                                                        background: usagePeriod === p ? "rgba(249,115,22,0.15)" : "transparent",
-                                                        borderColor: usagePeriod === p ? "rgba(249,115,22,0.4)" : "rgba(255,255,255,0.08)",
-                                                        color: usagePeriod === p ? "#f97316" : "rgba(255,255,255,0.3)",
-                                                    }}>
-                                                    {p === "today" ? "Today" : p === "week" ? "This Week" : "This Month"}
-                                                </button>
-                                            ))}
-                                        </div>
+                                        <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.3)", margin: 0 }}>Breakdown — Last 7 Days</p>
                                     </div>
 
                                     {/* Big numbers */}
