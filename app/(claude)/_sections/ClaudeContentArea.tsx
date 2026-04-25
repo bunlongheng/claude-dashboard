@@ -52,7 +52,7 @@ export default function ClaudeContentArea({ children }: { children: React.ReactN
     }, []);
 
     const activeSessions = useMemo(() => {
-        const cutoff = Date.now() - 5 * 60 * 1000;
+        const cutoff = Date.now() - 15 * 60 * 1000;
         return sessionProjects.flatMap(p =>
             p.sessions
                 .filter(s => new Date(s.updatedAt).getTime() > cutoff)
