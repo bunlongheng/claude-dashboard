@@ -422,7 +422,7 @@ export default function OverviewSection() {
                             })()}
 
                             {/* Stats row */}
-                            <div className="grid grid-cols-3 gap-3 mt-4 pt-3" style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-4 pt-3" style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
                                 {[
                                     { label: "Active days",    value: `${activeDays}/${totalDays}`, color: "#4ade80" },
                                     { label: "Longest streak", value: `${longestStreak}d`,           color: "#f472b6" },
