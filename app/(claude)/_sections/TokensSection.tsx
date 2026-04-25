@@ -431,7 +431,7 @@ export default function TokensSection({ initialTokens }: { initialTokens: Token[
             {byModel.length > 0 && (
                 <section className="mb-4">
                     <SectionHeader icon={CpuChipIcon} title="Cost by Model" />
-                    <div className="bg-[#0f1117] border border-white/[0.08] rounded-xl overflow-hidden">
+                    <div className="bg-[#0f1117] border border-white/[0.08] rounded-xl overflow-x-auto">
                         <div className="grid grid-cols-[1fr_60px_80px_80px_80px_80px_70px] gap-1 px-3 py-1.5 border-b border-white/[0.06] text-[9px] font-bold text-white/30 uppercase tracking-wider">
                             <span>Model</span><span className="text-right">Sessions</span><span className="text-right">Input</span><span className="text-right">Output</span><span className="text-right">Cache Read</span><span className="text-right">Cache Create</span><span className="text-right">Cost</span>
                         </div>
@@ -465,7 +465,7 @@ export default function TokensSection({ initialTokens }: { initialTokens: Token[
             {byProject.length > 0 && (
                 <section className="mb-4">
                     <SectionHeader icon={FolderIcon} title="Cost by Project" />
-                    <div className="bg-[#0f1117] border border-white/[0.08] rounded-xl overflow-hidden">
+                    <div className="bg-[#0f1117] border border-white/[0.08] rounded-xl overflow-x-auto">
                         <div className="grid grid-cols-[1fr_60px_80px_80px_70px] gap-1 px-3 py-1.5 border-b border-white/[0.06] text-[9px] font-bold text-white/30 uppercase tracking-wider">
                             <span>Project</span><span className="text-right">Sessions</span><span className="text-right">Tokens</span><span className="text-right">Share</span><span className="text-right">Cost</span>
                         </div>
