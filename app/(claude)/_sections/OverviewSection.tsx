@@ -130,36 +130,30 @@ export default function OverviewSection() {
     interface CtxSession { sessionId: string; project: string; model: string; contextUsed: number; contextMax: number; inputTokens: number; cacheRead: number; cacheCreate: number; outputTokens: number; turns: number; lastActive: string; customTitle: string | null }
     const [ctxSessions, setCtxSessions] = useState<CtxSession[]>([]);
 
-    // Usage windows (5h / 7d)
-    interface WindowBucket { messages: number; input: number; output: number; cache_read: number; cache_creation: number; cost: number; }
-    interface WindowQuota { five_hour_pct: number | null; seven_day_pct: number | null; updated_at: string | null; }
-    const [windows, setWindows] = useState<{ five_hour: WindowBucket; seven_day: WindowBucket; resets: { five_hour_at: string; seven_day_at: string }; quota: WindowQuota } | null>(null);
-
+    // Context window data - refresh every 30s (fast)
     useEffect(() => {
-        function loadWindows() {
-            fetch("/api/claude/token-stats/windows").then(r => r.json()).then(d => setWindows(d)).catch(() => {});
-        }
-        loadWindows();
-        const t = setInterval(loadWindows, 60_000);
-        return () => clearInterval(t);
-    }, []);
-
-    useEffect(() => {
-        fetch(apiBase("/api/claude/token-stats/daily")).then(r => r.json()).then(d => {
-            setDailyData(d.daily ?? []);
-            setTotalTokensAll((d.daily ?? []).reduce((s: number, b: { input: number; output: number }) => s + b.input + b.output, 0));
-            const models = d.byModel ?? [];
-            if (models.length > 0) {
-                const top = models.sort((a: { turns: number }, b: { turns: number }) => b.turns - a.turns)[0];
-                const name = (top.model || "").replace("claude-", "").replace(/-\d+$/, "").replace(/-/g, " ");
-                setFavoriteModel(name.charAt(0).toUpperCase() + name.slice(1));
-            }
-        }).catch(() => {});
-        // Context window data - refresh every 30s
         const fetchCtx = () => fetch(apiBase("/api/claude/context")).then(r => r.json()).then(d => setCtxSessions(d.sessions ?? [])).catch(() => {});
         fetchCtx();
         const ctxTimer = setInterval(fetchCtx, 30_000);
         return () => clearInterval(ctxTimer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [apiBase]);
+
+    // Daily data - lazy load (slow endpoint, ~3s)
+    useEffect(() => {
+        const t = setTimeout(() => {
+            fetch(apiBase("/api/claude/token-stats/daily")).then(r => r.json()).then(d => {
+                setDailyData(d.daily ?? []);
+                setTotalTokensAll((d.daily ?? []).reduce((s: number, b: { input: number; output: number }) => s + b.input + b.output, 0));
+                const models = d.byModel ?? [];
+                if (models.length > 0) {
+                    const top = models.sort((a: { turns: number }, b: { turns: number }) => b.turns - a.turns)[0];
+                    const name = (top.model || "").replace("claude-", "").replace(/-\d+$/, "").replace(/-/g, " ");
+                    setFavoriteModel(name.charAt(0).toUpperCase() + name.slice(1));
+                }
+            }).catch(() => {});
+        }, 100); // defer so page renders first
+        return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [apiBase]);
 
@@ -269,29 +263,112 @@ export default function OverviewSection() {
         <div className="space-y-6">
             {/* Usage Status — 5h session + 7d week windows */}
             {/* Top row - key metrics */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            {/* Row 1 — 6 cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                 <StatCard label="Sessions" value={stats.sessions} icon={FolderOpen} color="#22c55e"
                     sub={`${stats.activeSessions} active now`} />
                 <StatCard label="Skills" value={stats.skills} icon={Sparkles} color="#06b6d4" />
                 <StatCard label="Commands" value={stats.commands} icon={Terminal} color="#f472b6" />
-                <StatCard label="Plugins" value={stats.plugins} icon={Puzzle} color="#8b5cf6" />
                 <StatCard label="MCP Servers" value={stats.mcp} icon={Server} color="#10b981" />
                 <StatCard label="Hooks" value={stats.hooks} icon={Webhook} color="#a3e635" />
+                <StatCard label="Plugins" value={stats.plugins} icon={Puzzle} color="#8b5cf6" />
+            </div>
+            {/* Row 2 — 6 cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                 <StatCard label="Memory" value={stats.memory} icon={Brain} color="#eab308"
                     sub="across all projects" />
                 <StatCard label="Rules" value={stats.rules} icon={ShieldCheck} color="#14b8a6" />
+                <StatCard label="Tokens" value={Math.round(totalTokensAll / 1000)} icon={Coins} color="#4A9EFF"
+                    sub={`${favoriteModel || 'Opus'} primary`} />
+                <StatCard label="CLAUDE.md" value={stats.claudeMd} icon={BookOpen} color="#8b5cf6" />
+                <StatCard label="Active" value={stats.activeSessions} icon={Activity} color="#22c55e"
+                    sub="sessions now" />
+                <StatCard label="Projects" value={allSessionProjects.length} icon={FolderOpen} color="#f97316" />
+            </div>
+
+            {/* Row 4 — 3 columns: config, top sessions, context window */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                {/* Config donut */}
+                <div style={{ padding: "20px 24px", borderRadius: 14, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                    <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.3)", marginBottom: 14 }}>Configuration</p>
+                    <DonutChart segments={configSegments} />
+                </div>
+                {/* Top sessions by tokens */}
+                <div style={{ padding: "20px 24px", borderRadius: 14, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                    <h3 style={{ fontSize: 9, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.3)", marginBottom: 14 }}>Top Sessions by Tokens</h3>
+                    <div className="space-y-2">
+                        {tokensBySession.slice(0, 6).map((t: any, i: number) => {
+                            const total = t.input_tokens + t.output_tokens;
+                            const maxTotal = tokensBySession[0] ? tokensBySession[0].input_tokens + tokensBySession[0].output_tokens : 1;
+                            const pct = Math.min((total / maxTotal) * 100, 100);
+                            const project = t.project?.split("/").pop() || "unknown";
+                            const color = OV_COLORS[i % OV_COLORS.length];
+                            return (
+                                <a key={t.session_id || i} href={`/${t.session_id}`} target="_blank" rel="noopener noreferrer"
+                                    className="block transition hover:bg-white/[0.03] cursor-pointer" style={{ textDecoration: "none" }}>
+                                    <div className="flex items-center justify-between mb-1">
+                                        <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>{project}</span>
+                                        <span style={{ fontSize: 10, fontWeight: 700, color }}>{(total / 1000).toFixed(0)}K</span>
+                                    </div>
+                                    <div style={{ height: 4, borderRadius: 2, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+                                        <div style={{ width: `${pct}%`, height: "100%", borderRadius: 2, background: color, transition: "width 0.8s", transitionDelay: `${i * 0.05}s` }} />
+                                    </div>
+                                </a>
+                            );
+                        })}
+                    </div>
+                </div>
+                {/* Context Window */}
+                <div style={{ padding: "20px 24px", borderRadius: 14, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                    <div className="flex items-center justify-between mb-3">
+                        <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.3)", margin: 0 }}>Context Window</p>
+                        <div className="flex items-center gap-2">
+                            {[{ l: "Cache", c: "#3FB68B" }, { l: "Input", c: "#4A9EFF" }, { l: "Create", c: "#E8A23B" }].map(s => (
+                                <div key={s.l} className="flex items-center gap-0.5"><span style={{ width: 4, height: 4, borderRadius: 1, background: s.c, display: "inline-block" }} /><span style={{ fontSize: 7, color: "rgba(255,255,255,0.2)" }}>{s.l}</span></div>
+                            ))}
+                        </div>
+                    </div>
+                    {ctxSessions.length > 0 ? (
+                        <div className="space-y-2">
+                            {ctxSessions.slice(0, 6).map(s => {
+                                const pct = Math.min((s.contextUsed / s.contextMax) * 100, 100);
+                                const color = pct > 80 ? "#ef4444" : pct > 50 ? "#f59e0b" : "#4ade80";
+                                const label = s.customTitle || s.project;
+                                const usedK = s.contextUsed >= 1e6 ? `${(s.contextUsed / 1e6).toFixed(1)}m` : `${(s.contextUsed / 1e3).toFixed(0)}k`;
+                                const maxK = s.contextMax >= 1e6 ? `${(s.contextMax / 1e6).toFixed(0)}m` : `${(s.contextMax / 1e3).toFixed(0)}k`;
+                                const segs = [{ v: s.cacheRead, c: "#3FB68B" }, { v: s.inputTokens, c: "#4A9EFF" }, { v: s.cacheCreate, c: "#E8A23B" }];
+                                const totalSeg = segs.reduce((sum, seg) => sum + seg.v, 0);
+                                return (
+                                    <div key={s.sessionId}>
+                                        <div className="flex items-center justify-between mb-0.5">
+                                            <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.5)" }}>{label}</span>
+                                            <span style={{ fontSize: 9, fontWeight: 700, color }}>{pct.toFixed(0)}% <span style={{ color: "rgba(255,255,255,0.15)", fontWeight: 400 }}>{usedK}/{maxK}</span></span>
+                                        </div>
+                                        <div style={{ height: 5, borderRadius: 3, background: "rgba(255,255,255,0.04)", overflow: "hidden" }}>
+                                            <div style={{ width: `${pct}%`, height: "100%", display: "flex", borderRadius: 3, overflow: "hidden" }}>
+                                                {segs.map((seg, i) => { const sp = totalSeg > 0 ? (seg.v / totalSeg) * 100 : 0; return sp > 0.5 ? <div key={i} style={{ width: `${sp}%`, height: "100%", background: seg.c, opacity: 0.7 }} /> : null; })}
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    ) : (
+                        <p style={{ fontSize: 10, color: "rgba(255,255,255,0.2)" }}>No active sessions</p>
+                    )}
+                </div>
             </div>
 
             {/* Activity Heatmap + Stats */}
             {dailyData.length > 0 && (() => {
-                // Build GitHub-style heatmap — always 52 weeks, today in last column
+                // Build GitHub-style heatmap — always 26 weeks, today in last column
                 const today = new Date();
                 const dayMap = new Map(dailyData.map(d => [d.day, d.turns]));
                 const cells: { date: string; turns: number; weekIndex: number; dayOfWeek: number }[] = [];
 
                 // Start from the Sunday that is ~51 weeks ago
                 const startDate = new Date(today);
-                startDate.setDate(startDate.getDate() - 52 * 7 + 1);
+                startDate.setDate(startDate.getDate() - 26 * 7 + 1);
                 startDate.setDate(startDate.getDate() - startDate.getDay()); // snap to Sunday
 
                 for (let i = 0; ; i++) {
@@ -349,29 +426,14 @@ export default function OverviewSection() {
                     return "rgba(249,115,22,0.9)";
                 }
 
-                // Quota helpers (inline, uses `windows` from outer scope)
-                function fmtResetQ(iso: string) {
-                    return new Date(iso).toLocaleString("en-US", { hour: "numeric", minute: "2-digit", month: "short", day: "numeric", timeZoneName: "short" });
-                }
-                const quotaCols = windows ? [
-                    { label: "Session", sub: "5h", data: windows.five_hour, reset: windows.resets.five_hour_at, accent: "#f97316", pct: windows.quota.five_hour_pct },
-                    { label: "Week", sub: "7d", data: windows.seven_day, reset: windows.resets.seven_day_at, accent: "#00d9ff", pct: windows.quota.seven_day_pct },
-                ] : [];
 
                 return (
                     <div className="flex gap-3 flex-col lg:flex-row">
 
                         {/* ── LEFT 60% — Activity heatmap (all time) ── */}
                         <div style={{ flex: "0 0 60%", padding: "20px 24px", borderRadius: 14, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", minWidth: 0 }}>
-                            <div className="flex items-center justify-between mb-3">
-                                <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.3)", margin: 0 }}>Activity — Last 12 Months</p>
-                                <div className="flex items-center gap-1">
-                                    <span style={{ fontSize: 9, color: "rgba(255,255,255,0.25)" }}>Less</span>
-                                    {[0, 0.2, 0.4, 0.65, 0.9].map((o, i) => (
-                                        <span key={i} style={{ width: 10, height: 10, borderRadius: 2, background: o === 0 ? "rgba(255,255,255,0.04)" : `rgba(249,115,22,${o})`, display: "inline-block" }} />
-                                    ))}
-                                    <span style={{ fontSize: 9, color: "rgba(255,255,255,0.25)" }}>More</span>
-                                </div>
+                            <div className="mb-3">
+                                <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.3)", margin: 0 }}>Activity — Last 6 Months</p>
                             </div>
 
                             {/* All-time heatmap grid — scrollable, columns = weeks */}
@@ -432,8 +494,8 @@ export default function OverviewSection() {
                                 );
                             })()}
 
-                            {/* Stats row */}
-                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-4 pt-3" style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+                            {/* Stats - inline right of heatmap */}
+                            <div className="flex gap-4 mt-3 pt-3 flex-wrap" style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
                                 {[
                                     { label: "Active days",    value: `${activeDays}/${totalDays}`, color: "#4ade80" },
                                     { label: "Longest streak", value: `${longestStreak}d`,           color: "#f472b6" },
@@ -442,9 +504,9 @@ export default function OverviewSection() {
                                     { label: "Total tokens",   value: totalTokensAll >= 1e6 ? `${(totalTokensAll/1e6).toFixed(1)}m` : `${(totalTokensAll/1e3).toFixed(0)}k`, color: "#4A9EFF" },
                                     { label: "Top model",      value: favoriteModel || "—",          color: "#f97316" },
                                 ].map(s => (
-                                    <div key={s.label}>
-                                        <span style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{s.label}</span>
-                                        <div style={{ fontSize: 13, fontWeight: 700, color: s.color, marginTop: 2 }}>{s.value}</div>
+                                    <div key={s.label} style={{ minWidth: 70 }}>
+                                        <span style={{ fontSize: 8, color: "rgba(255,255,255,0.2)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{s.label}</span>
+                                        <div style={{ fontSize: 12, fontWeight: 700, color: s.color, marginTop: 1 }}>{s.value}</div>
                                     </div>
                                 ))}
                             </div>
@@ -452,9 +514,9 @@ export default function OverviewSection() {
 
                         {/* ── RIGHT 40% — Usage breakdown ── */}
                         {(() => {
-                            const todayStr = new Date().toISOString().slice(0, 10);
                             const now = new Date();
-                            const weekStart = new Date(now); weekStart.setDate(now.getDate() - 6); const weekStr = weekStart.toISOString().slice(0, 10);
+                            const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+                            const weekStart = new Date(now); weekStart.setDate(now.getDate() - 6); const weekStr = `${weekStart.getFullYear()}-${String(weekStart.getMonth()+1).padStart(2,"0")}-${String(weekStart.getDate()).padStart(2,"0")}`;
                             const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
                             const periodDays = dailyData.filter(d =>
@@ -474,11 +536,13 @@ export default function OverviewSection() {
                             function ft(n: number) { return n >= 1_000_000 ? `${(n/1_000_000).toFixed(1)}M` : n >= 1_000 ? `${(n/1_000).toFixed(1)}k` : String(n); }
 
                             // Bar chart rows — daily (week/month) or single row (today)
-                            const barRows = usagePeriod === "today" ? [] : periodDays.slice().sort((a, b) => a.day.localeCompare(b.day));
+                            const barRowsRaw = periodDays.slice().sort((a, b) => b.day.localeCompare(a.day));
+                            // Ensure today is always in the list
+                            if (usagePeriod !== "today" && !barRowsRaw.find(d => d.day === todayStr)) {
+                                barRowsRaw.unshift({ day: todayStr, turns: 0, input: 0, output: 0, cache_read: 0, cache_creation: 0, sessions: 0 });
+                            }
+                            const barRows = usagePeriod === "today" ? [] : barRowsRaw;
                             const barMax = Math.max(...barRows.map(d => d.turns), 1);
-
-                            // Quota bars
-                            const qCols = quotaCols;
 
                             return (
                                 <div style={{ flex: "0 0 40%", padding: "20px 24px", borderRadius: 14, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", display: "flex", flexDirection: "column", gap: 14 }}>
@@ -510,8 +574,8 @@ export default function OverviewSection() {
                                             {barRows.map(d => {
                                                 const pct = Math.max((d.turns / barMax) * 100, d.turns > 0 ? 2 : 0);
                                                 const label = usagePeriod === "week"
-                                                    ? new Date(d.day).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })
-                                                    : new Date(d.day).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                                                    ? new Date(d.day + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })
+                                                    : new Date(d.day + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
                                                 const isToday = d.day === todayStr;
                                                 return (
                                                     <div key={d.day} className="flex items-center gap-2">
@@ -526,36 +590,6 @@ export default function OverviewSection() {
                                         </div>
                                     )}
 
-                                    {/* Quota bars */}
-                                    {qCols.length > 0 && (
-                                        <div className="flex flex-col gap-2 mt-auto pt-3" style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
-                                            {qCols.map(({ label, sub, reset, accent, pct }) => {
-                                                const hasPct = pct !== null && pct !== undefined;
-                                                const barColor = hasPct && pct! > 80 ? "#ef4444" : hasPct && pct! > 60 ? "#f59e0b" : accent;
-                                                return (
-                                                    <div key={label}>
-                                                        <div className="flex items-center justify-between mb-1">
-                                                            <span style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "rgba(255,255,255,0.3)" }}>
-                                                                {label} <span style={{ color: "rgba(255,255,255,0.18)", fontWeight: 400 }}>{sub}</span>
-                                                            </span>
-                                                            <span style={{ fontSize: 12, fontWeight: 800, color: hasPct ? barColor : "rgba(255,255,255,0.2)" }}>
-                                                                {hasPct ? `${pct}% used` : "— %"}
-                                                            </span>
-                                                        </div>
-                                                        <div style={{ height: 5, borderRadius: 3, background: "rgba(255,255,255,0.06)", overflow: "hidden", marginBottom: 3 }}>
-                                                            <div style={{
-                                                                width: hasPct ? `${Math.min(pct!, 100)}%` : "0%",
-                                                                height: "100%", borderRadius: 3, background: barColor,
-                                                                boxShadow: hasPct ? `0 0 8px ${barColor}50` : "none",
-                                                                transition: "width 1.2s cubic-bezier(0.4,0,0.2,1)",
-                                                            }} />
-                                                        </div>
-                                                        <p style={{ fontSize: 8, color: "rgba(255,255,255,0.15)" }}>resets {fmtResetQ(reset)}</p>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    )}
                                 </div>
                             );
                         })()}
@@ -564,208 +598,6 @@ export default function OverviewSection() {
                 );
             })()}
 
-            {/* Context Window Visualizer */}
-            {ctxSessions.length > 0 && (
-                <div style={{ padding: "20px 24px", borderRadius: 14, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                    <div className="flex items-center justify-between mb-3">
-                        <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.3)", margin: 0 }}>
-                            Context Window - Active Sessions
-                        </p>
-                        <span style={{ fontSize: 9, color: "rgba(255,255,255,0.15)" }}>auto-refreshes every 30s</span>
-                    </div>
-                    <div className="space-y-3">
-                        {ctxSessions.map(s => {
-                            const pct = Math.min((s.contextUsed / s.contextMax) * 100, 100);
-                            const color = pct > 80 ? "#ef4444" : pct > 50 ? "#f59e0b" : "#4ade80";
-                            const label = s.customTitle || s.project;
-                            const modelShort = s.model.replace("claude-", "").replace(/-\d.*/, "");
-                            const freeTokens = s.contextMax - s.contextUsed;
-                            const freeK = freeTokens >= 1e6 ? `${(freeTokens / 1e6).toFixed(1)}m` : `${(freeTokens / 1e3).toFixed(0)}k`;
-                            const usedK = s.contextUsed >= 1e6 ? `${(s.contextUsed / 1e6).toFixed(1)}m` : `${(s.contextUsed / 1e3).toFixed(0)}k`;
-                            const maxK = s.contextMax >= 1e6 ? `${(s.contextMax / 1e6).toFixed(0)}m` : `${(s.contextMax / 1e3).toFixed(0)}k`;
-
-                            // Breakdown segments
-                            const segments = [
-                                { label: "Cache read", value: s.cacheRead, color: "#3FB68B" },
-                                { label: "Input", value: s.inputTokens, color: "#4A9EFF" },
-                                { label: "Cache create", value: s.cacheCreate, color: "#E8A23B" },
-                            ];
-                            const totalSeg = segments.reduce((sum, seg) => sum + seg.value, 0);
-
-                            return (
-                                <a key={s.sessionId} href={`/${s.sessionId}`} target="_blank" rel="noopener noreferrer"
-                                    className="block hover:bg-white/[0.02] rounded-lg transition-colors" style={{ textDecoration: "none", padding: "8px 10px", margin: "-4px -10px" }}>
-                                    <div className="flex items-center justify-between mb-1.5">
-                                        <div className="flex items-center gap-2">
-                                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                                            <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.7)" }}>{label}</span>
-                                            <span style={{ fontSize: 9, color: "rgba(255,255,255,0.2)", background: "rgba(255,255,255,0.04)", padding: "1px 6px", borderRadius: 4 }}>{modelShort}</span>
-                                        </div>
-                                        <div className="flex items-center gap-3">
-                                            <span style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>{s.turns} turns</span>
-                                            <span style={{ fontSize: 11, fontWeight: 700, color }}>{pct.toFixed(1)}%</span>
-                                        </div>
-                                    </div>
-                                    {/* Main progress bar */}
-                                    <div style={{ height: 8, borderRadius: 4, background: "rgba(255,255,255,0.04)", overflow: "hidden", position: "relative" }}>
-                                        {/* Segmented fill */}
-                                        <div style={{ width: `${pct}%`, height: "100%", display: "flex", borderRadius: 4, overflow: "hidden", transition: "width 0.8s" }}>
-                                            {segments.map((seg, i) => {
-                                                const segPct = totalSeg > 0 ? (seg.value / totalSeg) * 100 : 0;
-                                                if (segPct < 0.5) return null;
-                                                return <div key={i} style={{ width: `${segPct}%`, height: "100%", background: seg.color, opacity: 0.7 }} />;
-                                            })}
-                                        </div>
-                                    </div>
-                                    {/* Labels row */}
-                                    <div className="flex items-center justify-between mt-1">
-                                        <div className="flex gap-3">
-                                            {segments.filter(seg => seg.value > 0).map(seg => (
-                                                <div key={seg.label} className="flex items-center gap-1">
-                                                    <span className="w-1.5 h-1.5 rounded-sm" style={{ background: seg.color }} />
-                                                    <span style={{ fontSize: 8, color: "rgba(255,255,255,0.25)" }}>{seg.label}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                        <span style={{ fontSize: 9, color: "rgba(255,255,255,0.2)" }}>
-                                            {usedK} / {maxK} <span style={{ color: "rgba(255,255,255,0.12)" }}>({freeK} free)</span>
-                                        </span>
-                                    </div>
-                                </a>
-                            );
-                        })}
-                    </div>
-                </div>
-            )}
-
-            {/* Bottom row - charts */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {/* Config donut */}
-                <div style={{
-                    padding: "20px 24px", borderRadius: 14,
-                    background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)",
-                }}>
-                    <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.3)", marginBottom: 14 }}>
-                        Configuration Breakdown
-                    </p>
-                    <DonutChart segments={configSegments} />
-                </div>
-
-                {/* Quick stats */}
-                <div style={{
-                    padding: "20px 24px", borderRadius: 14,
-                    background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)",
-                }}>
-                    <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.3)", marginBottom: 14 }}>
-                        System
-                    </p>
-                    <div className="space-y-3">
-                        {[
-                            { label: "CLAUDE.md files", value: stats.claudeMd, icon: BookOpen, color: "#8b5cf6" },
-                            { label: "Memory files", value: stats.memory, icon: Brain, color: "#eab308" },
-                            { label: "Global rules", value: stats.rules, icon: ShieldCheck, color: "#14b8a6" },
-                            { label: "Active sessions", value: stats.activeSessions, icon: Activity, color: "#22c55e" },
-                        ].map(row => (
-                            <div key={row.label} className="flex items-center gap-3">
-                                <row.icon size={14} style={{ color: row.color, flexShrink: 0 }} />
-                                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", flex: 1 }}>{row.label}</span>
-                                <span style={{ fontSize: 14, fontWeight: 800, color: row.color }}>
-                                    <AnimatedNumber value={row.value} />
-                                </span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </div>
-
-            {/* Token charts */}
-            {tokensBySession.length > 0 && (<>
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                    {/* Top sessions by token usage */}
-                    <div style={{ padding: "20px 24px", borderRadius: 14, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                        <h3 style={{ fontSize: 9, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.3)", marginBottom: 14 }}>Top Sessions by Tokens</h3>
-                        <div className="space-y-2">
-                            {tokensBySession.slice(0, 8).map((t: any, i: number) => {
-                                const total = t.input_tokens + t.output_tokens;
-                                const maxTotal = tokensBySession[0] ? tokensBySession[0].input_tokens + tokensBySession[0].output_tokens : 1;
-                                const pct = Math.min((total / maxTotal) * 100, 100);
-                                const project = t.project?.split("/").pop() || "unknown";
-                                const color = OV_COLORS[i % OV_COLORS.length];
-                                return (
-                                    <a key={t.session_id || i} href={`/${t.session_id}`} target="_blank" rel="noopener noreferrer"
-                                        className="block transition hover:bg-white/[0.03] cursor-pointer" style={{ textDecoration: "none" }}>
-                                        <div className="flex items-center justify-between mb-1">
-                                            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>{project}</span>
-                                            <span style={{ fontSize: 10, fontWeight: 700, color }}>{(total / 1000).toFixed(0)}K</span>
-                                        </div>
-                                        <div style={{ height: 4, borderRadius: 2, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
-                                            <div style={{ width: `${pct}%`, height: "100%", borderRadius: 2, background: color, transition: "width 0.8s", transitionDelay: `${i * 0.05}s` }} />
-                                        </div>
-                                    </a>
-                                );
-                            })}
-                        </div>
-                    </div>
-
-                    {/* Sessions per app */}
-                    <div style={{ padding: "20px 24px", borderRadius: 14, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                        <h3 style={{ fontSize: 9, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.3)", marginBottom: 14 }}>Sessions per App</h3>
-                        <div className="space-y-2">
-                            {(() => {
-                                const grouped = new Map<string, number>();
-                                for (const p of sessionProjects) {
-                                    const name = p.project?.replace(/-/g, "/").split("/").pop() || "unknown";
-                                    grouped.set(name, (grouped.get(name) ?? 0) + (p.sessions?.length ?? 0));
-                                }
-                                const sorted = [...grouped.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);
-                                const maxCount = sorted[0]?.[1] ?? 1;
-                                return sorted.map(([name, count], i) => {
-                                    const color = OV_COLORS[i % OV_COLORS.length];
-                                    return (
-                                    <div key={name}>
-                                        <div className="flex items-center justify-between mb-1">
-                                            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>{name}</span>
-                                            <span style={{ fontSize: 10, fontWeight: 700, color }}>{count}</span>
-                                        </div>
-                                        <div style={{ height: 4, borderRadius: 2, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
-                                            <div style={{ width: `${Math.min((count / maxCount) * 100, 100)}%`, height: "100%", borderRadius: 2, background: color, transition: "width 0.8s", transitionDelay: `${i * 0.05}s` }} />
-                                        </div>
-                                    </div>
-                                )});
-                            })()}
-                        </div>
-                    </div>
-
-                    {/* Token cost by app */}
-                    <div style={{ padding: "20px 24px", borderRadius: 14, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                        <h3 style={{ fontSize: 9, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.3)", marginBottom: 14 }}>Cost by App</h3>
-                        <div className="space-y-2">
-                            {tokensByProject.slice(0, 8).map((p: any, i: number) => {
-                                const name = p.project || "unknown";
-                                const maxCost = tokensByProject[0]?.cost ?? 1;
-                                const pct = Math.min(((p.cost ?? 0) / maxCost) * 100, 100);
-                                const color = OV_COLORS[i % OV_COLORS.length];
-                                return (
-                                    <div key={name}>
-                                        <div className="flex items-center justify-between mb-1">
-                                            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>{name}</span>
-                                            <span style={{ fontSize: 10, fontWeight: 700, color }}>${(p.cost ?? 0).toFixed(2)}</span>
-                                        </div>
-                                        <div style={{ height: 4, borderRadius: 2, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
-                                            <div style={{ width: `${pct}%`, height: "100%", borderRadius: 2, background: color, transition: "width 0.8s", transitionDelay: `${i * 0.05}s` }} />
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                        {tokensByProject.length > 0 && (
-                            <div className="mt-3 pt-3" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-                                <span style={{ fontSize: 11, fontWeight: 800, color: "#f97316" }}>Total: ${tokensByProject.reduce((s: number, p: any) => s + (p.cost ?? 0), 0).toFixed(2)}</span>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </>)}
         </div>
     );
 }
