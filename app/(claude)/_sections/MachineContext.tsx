@@ -23,6 +23,9 @@ export function MachineProvider({ children }: { children: ReactNode }) {
             .then(d => {
                 const list: MachineInfo[] = d.machines ?? [];
                 setMachines(list);
+                // Default to local machine
+                const local = list.find(m => m.isLocal);
+                if (local) setMachine(prev => prev ?? local.id);
                 // Assign colors dynamically
                 const colors: Record<string, string> = {};
                 list.forEach((m, i) => {

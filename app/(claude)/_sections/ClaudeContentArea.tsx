@@ -90,18 +90,6 @@ export default function ClaudeContentArea({ children }: { children: React.ReactN
                                 background: "#14151a", border: "1px solid rgba(255,255,255,0.1)",
                                 borderRadius: 8, padding: 3, minWidth: 160, boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
                             }}>
-                                <button
-                                    onClick={() => { setMachine(null); setDdOpen(false); }}
-                                    className="flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-left text-[10px] font-semibold transition-colors cursor-pointer"
-                                    style={{
-                                        background: machine === null ? `${ACCENT}15` : "transparent",
-                                        color: machine === null ? ACCENT : "rgba(255,255,255,0.5)",
-                                    }}
-                                >
-                                    <span style={{ width: 6, height: 6, borderRadius: "50%", background: ACCENT, flexShrink: 0 }} />
-                                    <span style={{ flex: 1 }}>All</span>
-                                    {machine === null && <span style={{ fontSize: 9 }}>✓</span>}
-                                </button>
                                 {machines.map(m => {
                                     const active = machine === m.id;
                                     const color = machineColors[m.id] ?? ACCENT;
