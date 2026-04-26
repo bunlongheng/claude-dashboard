@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import {
     FolderOpen, Sparkles, Terminal, Webhook, Server, BookOpen,
-    Brain, ShieldCheck, Puzzle, Coins, Activity, Zap, Settings,
+    Brain, ShieldCheck, Puzzle, Coins, Activity,
 } from "lucide-react";
 import { useMachine } from "./MachineContext";
 
@@ -117,14 +117,11 @@ export default function OverviewSection() {
     const [loading, setLoading] = useState(true);
     const [allTokens, setAllTokens] = useState<any[]>([]);
     const [allSessionProjects, setAllSessionProjects] = useState<any[]>([]);
-    const [chartPeriod, setChartPeriod] = useState<"today" | "7d" | "30d" | "all">("today");
-
     // Daily activity data
     interface DayBucket { day: string; turns: number; input: number; output: number; cache_read: number; cache_creation: number; sessions: number; }
     const [dailyData, setDailyData] = useState<DayBucket[]>([]);
     const [favoriteModel, setFavoriteModel] = useState("");
     const [totalTokensAll, setTotalTokensAll] = useState(0);
-    const [usagePeriod, setUsagePeriod] = useState<"today" | "week" | "month">("week");
 
     // Context window data
     interface CtxSession { sessionId: string; project: string; model: string; contextUsed: number; contextMax: number; inputTokens: number; cacheRead: number; cacheCreate: number; outputTokens: number; turns: number; lastActive: string; customTitle: string | null }
@@ -196,57 +193,12 @@ export default function OverviewSection() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [machine, apiBase]);
 
-    // Filter data by time period
-    const periodCutoff = useMemo(() => {
-        if (chartPeriod === "today") return Date.now() - 24 * 60 * 60 * 1000;
-        if (chartPeriod === "7d") return Date.now() - 7 * 24 * 60 * 60 * 1000;
-        if (chartPeriod === "30d") return Date.now() - 30 * 24 * 60 * 60 * 1000;
-        return 0;
-    }, [chartPeriod]);
-
-    // Build a set of session IDs within the time period
-    const periodSessionIds = useMemo(() => {
-        if (periodCutoff === 0) return null; // null = no filter
-        const ids = new Set<string>();
-        for (const p of allSessionProjects) {
-            for (const s of p.sessions ?? []) {
-                if (new Date(s.updatedAt).getTime() > periodCutoff) ids.add(s.id);
-            }
-        }
-        return ids;
-    }, [allSessionProjects, periodCutoff]);
-
-    const filteredTokens = useMemo(() => {
-        if (!periodSessionIds) return allTokens;
-        return allTokens.filter((t: any) => periodSessionIds.has(t.session_id));
-    }, [allTokens, periodSessionIds]);
-
+    // Top sessions by token usage
     const tokensBySession = useMemo(() => {
-        return filteredTokens
+        return [...allTokens]
             .sort((a: any, b: any) => (b.input_tokens + b.output_tokens) - (a.input_tokens + a.output_tokens))
             .slice(0, 10);
-    }, [filteredTokens]);
-
-    const sessionProjects = useMemo(() => {
-        if (periodCutoff === 0) return allSessionProjects;
-        return allSessionProjects.map((p: any) => ({
-            ...p,
-            sessions: (p.sessions ?? []).filter((s: any) => new Date(s.updatedAt).getTime() > periodCutoff),
-        })).filter((p: any) => p.sessions.length > 0);
-    }, [allSessionProjects, periodCutoff]);
-
-    const tokensByProject = useMemo(() => {
-        const grouped = new Map<string, { total: number; cost: number }>();
-        for (const t of filteredTokens) {
-            const name = t.project?.split("/").pop() || "unknown";
-            const prev = grouped.get(name) ?? { total: 0, cost: 0 };
-            const cost = ((t.input_tokens ?? 0) / 1_000_000 * 3) + ((t.output_tokens ?? 0) / 1_000_000 * 15);
-            grouped.set(name, { total: prev.total + (t.input_tokens ?? 0) + (t.output_tokens ?? 0), cost: prev.cost + cost });
-        }
-        return [...grouped.entries()]
-            .map(([project, data]) => ({ project, ...data }))
-            .sort((a, b) => b.cost - a.cost);
-    }, [filteredTokens]);
+    }, [allTokens]);
 
     if (loading || !stats) return <p className="text-white/30 text-center py-16">Loading dashboard...</p>;
 
@@ -361,14 +313,14 @@ export default function OverviewSection() {
 
             {/* Activity Heatmap + Stats */}
             {dailyData.length > 0 && (() => {
-                // Build GitHub-style heatmap — always 26 weeks, today in last column
+                // Build GitHub-style heatmap — always 13 weeks (3 months), today in last column
                 const today = new Date();
                 const dayMap = new Map(dailyData.map(d => [d.day, d.turns]));
                 const cells: { date: string; turns: number; weekIndex: number; dayOfWeek: number }[] = [];
 
                 // Start from the Sunday that is ~51 weeks ago
                 const startDate = new Date(today);
-                startDate.setDate(startDate.getDate() - 26 * 7 + 1);
+                startDate.setDate(startDate.getDate() - 13 * 7 + 1);
                 startDate.setDate(startDate.getDate() - startDate.getDay()); // snap to Sunday
 
                 for (let i = 0; ; i++) {
@@ -433,7 +385,7 @@ export default function OverviewSection() {
                         {/* ── LEFT 60% — Activity heatmap (all time) ── */}
                         <div style={{ flex: "0 0 60%", padding: "20px 24px", borderRadius: 14, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", minWidth: 0 }}>
                             <div className="mb-3">
-                                <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.3)", margin: 0 }}>Activity — Last 6 Months</p>
+                                <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.3)", margin: 0 }}>Activity — Last 3 Months</p>
                             </div>
 
                             {/* All-time heatmap grid — scrollable, columns = weeks */}
@@ -520,8 +472,7 @@ export default function OverviewSection() {
                             const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
                             const periodDays = dailyData.filter(d =>
-                                usagePeriod === "today"  ? d.day === todayStr :
-                                usagePeriod === "week"   ? d.day >= weekStr :
+                                d.day >= weekStr ? true :
                                 d.day.startsWith(monthStr)
                             );
 
@@ -538,10 +489,10 @@ export default function OverviewSection() {
                             // Bar chart rows — daily (week/month) or single row (today)
                             const barRowsRaw = periodDays.slice().sort((a, b) => b.day.localeCompare(a.day));
                             // Ensure today is always in the list
-                            if (usagePeriod !== "today" && !barRowsRaw.find(d => d.day === todayStr)) {
+                            if (!barRowsRaw.find(d => d.day === todayStr)) {
                                 barRowsRaw.unshift({ day: todayStr, turns: 0, input: 0, output: 0, cache_read: 0, cache_creation: 0, sessions: 0 });
                             }
-                            const barRows = usagePeriod === "today" ? [] : barRowsRaw;
+                            const barRows = barRowsRaw;
                             const barMax = Math.max(...barRows.map(d => d.turns), 1);
 
                             return (
@@ -573,7 +524,7 @@ export default function OverviewSection() {
                                         <div className="space-y-1.5">
                                             {barRows.map(d => {
                                                 const pct = Math.max((d.turns / barMax) * 100, d.turns > 0 ? 2 : 0);
-                                                const label = usagePeriod === "week"
+                                                const label = true
                                                     ? new Date(d.day + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })
                                                     : new Date(d.day + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
                                                 const isToday = d.day === todayStr;
