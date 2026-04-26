@@ -127,7 +127,7 @@ export default function ClaudeContentArea({ children }: { children: React.ReactN
                         {activeSessions.slice(0, 8).map(s => {
                             const shortId = s.id.slice(-3).toUpperCase();
                             const projectName = s.project?.replace(/-/g, "/").split("/").pop() || "";
-                            const label = s.customTitle || s.title?.slice(0, 20) || projectName || shortId;
+                            const label = s.customTitle || projectName || shortId;
                             const ago = timeAgo(new Date(s.updatedAt).getTime());
                             const isSelected = currentSessionId === s.id;
                             return (
