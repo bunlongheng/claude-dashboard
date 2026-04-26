@@ -9,8 +9,8 @@
 </p>
 
 <p align="center">
-  Browse sessions, memory, skills, hooks, MCP servers, commands, and settings<br/>
-  - all from one beautiful, local-first dashboard.
+  Monitor sessions, tokens, context windows, memory, rules, skills, hooks, MCP servers, and more<br/>
+  from one local-first dashboard with multi-machine support.
 </p>
 
 <p align="center">
@@ -22,7 +22,6 @@
 
 <br/>
 
-
 <p align="center">
   <img src="public/screenshot.png" width="700" alt="Claude Dashboard" style="border-radius: 12px;" />
 </p>
@@ -32,8 +31,8 @@
 ## Get Started
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/bunlongheng/claude-dashboard/main/install.sh | bash
-cd claude-dashboard && npm run dev
+git clone https://github.com/bunlongheng/claude-dashboard.git
+cd claude-dashboard && npm install && npm run dev
 ```
 
 Open **http://localhost:3000** - done. No config, no database, no account.
@@ -42,54 +41,45 @@ Open **http://localhost:3000** - done. No config, no database, no account.
 
 <br/>
 
-## What You Get
+## Features
 
-<table>
-<tr>
-<td width="50%">
-
-### Overview
-See all your projects, session counts, memory stats, and system health at a glance.
-
-### Memory
-Browse every memory file across all projects - user preferences, feedback, project decisions.
-
-### Sessions
-Full session history. See what Claude worked on, when, and in which project.
-
-</td>
-<td width="50%">
-
-### Skills & Commands
-View all custom skills and slash commands Claude has access to.
-
-### MCP Servers
-Every configured MCP server, its tools, and connection status.
-
-### Hooks
-Event hooks running on tool calls, file edits, and notifications.
-
-</td>
-</tr>
-</table>
+| Feature | Description |
+|---------|-------------|
+| **Overview Dashboard** | 12 stat cards, configuration donut, top sessions, context window visualizer |
+| **Activity Heatmap** | GitHub-style contribution calendar with streaks and stats |
+| **Token Analytics** | Daily charts, per-model pricing (Opus/Sonnet/Haiku), plan-aware cost (API/Pro/Max/Max 20x) |
+| **Context Window** | Live per-session context usage bars with cache/input/create breakdown |
+| **Multi-Machine** | Switch between machines (Mac, Pi, VPS) - data proxied from remote dashboards |
+| **Session Monitor** | Live session viewer with thinking state, tool calls, and SSE streaming |
+| **Memory Browser** | All memory files across projects - user, feedback, project, reference |
+| **Rules Database** | Global rules with categories, search, and per-project filtering |
+| **MCP Servers** | Connection status, tools list, and configuration viewer |
+| **Skills & Commands** | Browse all custom skills and slash commands |
+| **Hooks** | Event-driven automation hooks viewer |
+| **Settings** | Global and local Claude Code settings editor |
+| **Timeline** | Memory timeline across all projects |
+| **Health Check** | Project health scores based on Claude setup quality |
 
 <br/>
 
 ## All Pages
 
-| | Page | Description |
-|:---:|------|-------------|
-| :bar_chart: | **Overview** | Project count, session stats, memory health |
-| :book: | **CLAUDE.md** | Global instructions Claude reads on every startup |
-| :brain: | **Memory** | What Claude remembers about you and your projects |
-| :shield: | **Rules** | Per-project rules and instruction files |
-| :electric_plug: | **MCP** | Model Context Protocol server configs |
-| :package: | **Plugins** | Installed plugin directories |
-| :sparkles: | **Skills** | Reusable prompts and workflows |
-| :keyboard: | **Commands** | Slash commands across all projects |
-| :hook: | **Hooks** | Event-driven automation hooks |
-| :file_folder: | **Sessions** | Complete session history and transcripts |
-| :gear: | **Settings** | Global and local Claude Code settings |
+| Page | What it shows |
+|------|--------------|
+| **Overview** | Stat cards, config donut, top sessions, context window, activity heatmap, 7-day breakdown |
+| **CLAUDE.md** | Global instructions Claude reads on every startup |
+| **Memory** | What Claude remembers about you and your projects |
+| **Rules** | Per-project rules and instruction files |
+| **MCP** | Model Context Protocol server configs and tools |
+| **Plugins** | Installed plugin directories |
+| **Skills** | Reusable prompts and workflows |
+| **Commands** | Slash commands across all projects |
+| **Hooks** | Event-driven automation hooks |
+| **Sessions** | Complete session history with live monitoring |
+| **Tokens** | Daily charts, cost by model/project, plan comparison, glossary |
+| **Settings** | Global and local Claude Code settings |
+| **Health** | Project health scores and setup quality |
+| **Timeline** | Memory events across all projects |
 
 <br/>
 
@@ -109,42 +99,39 @@ The dashboard reads these files directly. **Nothing is uploaded. Nothing leaves 
 
 <br/>
 
-## Optional: Connect a Database
+## Multi-Machine Setup
 
-The dashboard works fully without a database. But if you connect one, you unlock:
+Connect multiple machines running Claude Dashboard to view all your sessions from one place.
 
-| Feature | What you gain |
-|---------|--------------|
-| **Token tracking** | See API usage (input/output tokens, cost) across all sessions |
-| **Remote access** | Access your dashboard from your phone with login protection |
-| **Global rules** | Create and manage custom instruction rules |
-| **Real-time sync** | Live updates when new sessions or token data arrives |
+```bash
+# On each remote machine
+git clone https://github.com/bunlongheng/claude-dashboard.git
+cd claude-dashboard && npm install && npm run build
+PORT=3003 npm start
+```
 
-**SQLite** is included by default - auto-created at `~/.claude/dashboard.db`. No setup needed. All features work with any supported database.
+On your main machine, add to `.env.local`:
 
-| Backend | Setup | Status |
-|---------|-------|--------|
-| **SQLite** (default) | Automatic - zero config | Built-in |
-| **PostgreSQL** | Planned | Coming soon |
-| **Custom** | Implement `DbAdapter` in `lib/db/` | DIY |
+```
+MODE=admin
+MACHINES=10.0.0.57:3003,10.0.0.97:3003
+```
+
+Remote machines appear in the dropdown - all data fetched from their dashboards.
 
 <br/>
 
 ## Built With
 
-[Next.js 16](https://nextjs.org/) | [Tailwind CSS](https://tailwindcss.com/) | [Lucide Icons](https://lucide.dev/) | [Framer Motion](https://www.framer.com/motion/)
+[Next.js 16](https://nextjs.org/) | [Tailwind CSS](https://tailwindcss.com/) | [Lucide Icons](https://lucide.dev/)
 
 <br/>
 
 ## Contributing
 
-We welcome contributions! Here's how:
-
 ```bash
 git clone https://github.com/bunlongheng/claude-dashboard.git
-cd claude-dashboard
-npm install
-npm run dev
+cd claude-dashboard && npm install && npm run dev
 ```
 
 1. Fork the repo
@@ -156,7 +143,7 @@ npm run dev
 
 ## License
 
-[MIT](LICENSE) - use it however you want.
+[MIT](LICENSE)
 
 ---
 
