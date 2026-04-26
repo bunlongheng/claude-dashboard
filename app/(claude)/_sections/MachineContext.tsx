@@ -9,8 +9,9 @@ type MachineCtx = {
     setMachine: (v: string | null) => void;
     machines: MachineInfo[];
     machineColors: Record<string, string>;
+    apiBase: (path: string) => string;
 };
-const Ctx = createContext<MachineCtx>({ machine: null, setMachine: () => {}, machines: [], machineColors: {} });
+const Ctx = createContext<MachineCtx>({ machine: null, setMachine: () => {}, machines: [], machineColors: {}, apiBase: (p) => p });
 
 export function MachineProvider({ children }: { children: ReactNode }) {
     const [machine, setMachine] = useState<string | null>(null);
@@ -36,7 +37,14 @@ export function MachineProvider({ children }: { children: ReactNode }) {
             .catch(() => {});
     }, []);
 
-    return <Ctx.Provider value={{ machine, setMachine, machines, machineColors }}>{children}</Ctx.Provider>;
+    // Build API base URL for the selected machine
+    const apiBase = (path: string): string => {
+        const selected = machines.find(m => m.id === machine);
+        if (!selected || selected.isLocal) return path; // local = same origin
+        return `http://${selected.ip}:${selected.port}${path}`;
+    };
+
+    return <Ctx.Provider value={{ machine, setMachine, machines, machineColors, apiBase }}>{children}</Ctx.Provider>;
 }
 
 export function useMachine() { return useContext(Ctx); }

@@ -112,7 +112,7 @@ function DonutChart({ segments, size = 120 }: { segments: { value: number; color
 const OV_COLORS = ["#ff3b5c", "#ff6347", "#f97316", "#ffb800", "#cddc39", "#00c853", "#00bfa5", "#4fc3f7", "#2962ff", "#5c4db1", "#ab47bc", "#ff1667"];
 
 export default function OverviewSection() {
-    const { machine } = useMachine();
+    const { machine, apiBase } = useMachine();
     const [stats, setStats] = useState<Stats | null>(null);
     const [loading, setLoading] = useState(true);
     const [allTokens, setAllTokens] = useState<any[]>([]);
@@ -125,6 +125,10 @@ export default function OverviewSection() {
     const [favoriteModel, setFavoriteModel] = useState("");
     const [totalTokensAll, setTotalTokensAll] = useState(0);
     const [usagePeriod, setUsagePeriod] = useState<"today" | "week" | "month">("week");
+
+    // Context window data
+    interface CtxSession { sessionId: string; project: string; model: string; contextUsed: number; contextMax: number; inputTokens: number; cacheRead: number; cacheCreate: number; outputTokens: number; turns: number; lastActive: string; customTitle: string | null }
+    const [ctxSessions, setCtxSessions] = useState<CtxSession[]>([]);
 
     // Usage windows (5h / 7d)
     interface WindowBucket { messages: number; input: number; output: number; cache_read: number; cache_creation: number; cost: number; }
@@ -141,7 +145,7 @@ export default function OverviewSection() {
     }, []);
 
     useEffect(() => {
-        fetch("/api/claude/token-stats/daily").then(r => r.json()).then(d => {
+        fetch(apiBase("/api/claude/token-stats/daily")).then(r => r.json()).then(d => {
             setDailyData(d.daily ?? []);
             setTotalTokensAll((d.daily ?? []).reduce((s: number, b: { input: number; output: number }) => s + b.input + b.output, 0));
             const models = d.byModel ?? [];
@@ -151,16 +155,22 @@ export default function OverviewSection() {
                 setFavoriteModel(name.charAt(0).toUpperCase() + name.slice(1));
             }
         }).catch(() => {});
-    }, []);
+        // Context window data - refresh every 30s
+        const fetchCtx = () => fetch(apiBase("/api/claude/context")).then(r => r.json()).then(d => setCtxSessions(d.sessions ?? [])).catch(() => {});
+        fetchCtx();
+        const ctxTimer = setInterval(fetchCtx, 30_000);
+        return () => clearInterval(ctxTimer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [apiBase]);
 
     useEffect(() => {
         setLoading(true);
         const q = machine ? `?machine=${machine}` : "";
         Promise.all([
-            fetch(`/api/claude/sessions${q}`).then(r => r.json()).catch(() => ({ projects: [] })),
-            fetch(`/api/claude/skills${q}`).then(r => r.json()).catch(() => ({ summary: {} })),
-            fetch("/api/claude/brain").then(r => r.json()).catch(() => ({ memoryFiles: [], globalRules: [] })),
-            fetch("/api/claude/token-stats").then(r => r.json()).catch(() => ({ tokens: [], byProject: [], byModel: [], totals: {} })),
+            fetch(apiBase(`/api/claude/sessions${q}`)).then(r => r.json()).catch(() => ({ projects: [] })),
+            fetch(apiBase(`/api/claude/skills${q}`)).then(r => r.json()).catch(() => ({ summary: {} })),
+            fetch(apiBase("/api/claude/brain")).then(r => r.json()).catch(() => ({ memoryFiles: [], globalRules: [] })),
+            fetch(apiBase("/api/claude/token-stats")).then(r => r.json()).catch(() => ({ tokens: [], byProject: [], byModel: [], totals: {} })),
         ]).then(([sessions, skills, brain, tokenData]) => {
             try {
                 const allSessions = (sessions.projects ?? []).flatMap((p: { sessions: { updatedAt: string }[] }) => p.sessions ?? []);
@@ -189,7 +199,8 @@ export default function OverviewSection() {
             } catch { /* prevent crash */ }
             setLoading(false);
         }).catch(() => setLoading(false));
-    }, [machine]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [machine, apiBase]);
 
     // Filter data by time period
     const periodCutoff = useMemo(() => {
@@ -384,13 +395,13 @@ export default function OverviewSection() {
                                 return (
                                     <div style={{ overflowX: "auto", paddingBottom: 4 }}>
                                         {/* Month labels */}
-                                        <div style={{ display: "flex", marginLeft: 22, marginBottom: 2, position: "relative", height: 14 }}>
+                                        <div style={{ display: "flex", marginLeft: 26, marginBottom: 2, position: "relative", height: 14 }}>
                                             {months.map((m, i) => (
                                                 <span key={i} style={{ position: "absolute", left: m.weekIndex * (cellSize + gap), fontSize: 9, color: "rgba(255,255,255,0.2)", whiteSpace: "nowrap" }}>{m.label}</span>
                                             ))}
                                         </div>
                                         <div style={{ display: "flex", gap: 0 }}>
-                                            <div style={{ display: "flex", flexDirection: "column", gap, width: 22, flexShrink: 0 }}>
+                                            <div style={{ display: "flex", flexDirection: "column", gap, width: 26, flexShrink: 0 }}>
                                                 {dayLabels.map((d, i) => (
                                                     <span key={i} style={{ height: cellSize, fontSize: 8, color: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center" }}>{d}</span>
                                                 ))}
@@ -552,6 +563,80 @@ export default function OverviewSection() {
                     </div>
                 );
             })()}
+
+            {/* Context Window Visualizer */}
+            {ctxSessions.length > 0 && (
+                <div style={{ padding: "20px 24px", borderRadius: 14, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                    <div className="flex items-center justify-between mb-3">
+                        <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.3)", margin: 0 }}>
+                            Context Window - Active Sessions
+                        </p>
+                        <span style={{ fontSize: 9, color: "rgba(255,255,255,0.15)" }}>auto-refreshes every 30s</span>
+                    </div>
+                    <div className="space-y-3">
+                        {ctxSessions.map(s => {
+                            const pct = Math.min((s.contextUsed / s.contextMax) * 100, 100);
+                            const color = pct > 80 ? "#ef4444" : pct > 50 ? "#f59e0b" : "#4ade80";
+                            const label = s.customTitle || s.project;
+                            const modelShort = s.model.replace("claude-", "").replace(/-\d.*/, "");
+                            const freeTokens = s.contextMax - s.contextUsed;
+                            const freeK = freeTokens >= 1e6 ? `${(freeTokens / 1e6).toFixed(1)}m` : `${(freeTokens / 1e3).toFixed(0)}k`;
+                            const usedK = s.contextUsed >= 1e6 ? `${(s.contextUsed / 1e6).toFixed(1)}m` : `${(s.contextUsed / 1e3).toFixed(0)}k`;
+                            const maxK = s.contextMax >= 1e6 ? `${(s.contextMax / 1e6).toFixed(0)}m` : `${(s.contextMax / 1e3).toFixed(0)}k`;
+
+                            // Breakdown segments
+                            const segments = [
+                                { label: "Cache read", value: s.cacheRead, color: "#3FB68B" },
+                                { label: "Input", value: s.inputTokens, color: "#4A9EFF" },
+                                { label: "Cache create", value: s.cacheCreate, color: "#E8A23B" },
+                            ];
+                            const totalSeg = segments.reduce((sum, seg) => sum + seg.value, 0);
+
+                            return (
+                                <a key={s.sessionId} href={`/${s.sessionId}`} target="_blank" rel="noopener noreferrer"
+                                    className="block hover:bg-white/[0.02] rounded-lg transition-colors" style={{ textDecoration: "none", padding: "8px 10px", margin: "-4px -10px" }}>
+                                    <div className="flex items-center justify-between mb-1.5">
+                                        <div className="flex items-center gap-2">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                            <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.7)" }}>{label}</span>
+                                            <span style={{ fontSize: 9, color: "rgba(255,255,255,0.2)", background: "rgba(255,255,255,0.04)", padding: "1px 6px", borderRadius: 4 }}>{modelShort}</span>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <span style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>{s.turns} turns</span>
+                                            <span style={{ fontSize: 11, fontWeight: 700, color }}>{pct.toFixed(1)}%</span>
+                                        </div>
+                                    </div>
+                                    {/* Main progress bar */}
+                                    <div style={{ height: 8, borderRadius: 4, background: "rgba(255,255,255,0.04)", overflow: "hidden", position: "relative" }}>
+                                        {/* Segmented fill */}
+                                        <div style={{ width: `${pct}%`, height: "100%", display: "flex", borderRadius: 4, overflow: "hidden", transition: "width 0.8s" }}>
+                                            {segments.map((seg, i) => {
+                                                const segPct = totalSeg > 0 ? (seg.value / totalSeg) * 100 : 0;
+                                                if (segPct < 0.5) return null;
+                                                return <div key={i} style={{ width: `${segPct}%`, height: "100%", background: seg.color, opacity: 0.7 }} />;
+                                            })}
+                                        </div>
+                                    </div>
+                                    {/* Labels row */}
+                                    <div className="flex items-center justify-between mt-1">
+                                        <div className="flex gap-3">
+                                            {segments.filter(seg => seg.value > 0).map(seg => (
+                                                <div key={seg.label} className="flex items-center gap-1">
+                                                    <span className="w-1.5 h-1.5 rounded-sm" style={{ background: seg.color }} />
+                                                    <span style={{ fontSize: 8, color: "rgba(255,255,255,0.25)" }}>{seg.label}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <span style={{ fontSize: 9, color: "rgba(255,255,255,0.2)" }}>
+                                            {usedK} / {maxK} <span style={{ color: "rgba(255,255,255,0.12)" }}>({freeK} free)</span>
+                                        </span>
+                                    </div>
+                                </a>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
 
             {/* Bottom row - charts */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
