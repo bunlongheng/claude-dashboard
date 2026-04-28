@@ -154,7 +154,7 @@ export default function LandingPage() {
                 borderTop: "1px solid rgba(255,255,255,0.05)",
                 fontSize: 11, color: "rgba(255,255,255,0.2)",
             }}>
-                Built by <a href="https://www.bunlongheng.com" style={{ color: "rgba(255,255,255,0.3)" }}>Bunlong Heng</a> &bull; MIT License &bull; <a href="https://github.com/bunlongheng/claude-dashboard" style={{ color: "rgba(255,255,255,0.3)" }}>GitHub</a>
+                Built by <a href="https://www.bunlongheng.com" target="_blank" rel="noopener" style={{ color: "rgba(255,255,255,0.3)" }}>www.bunlongheng.com</a> &bull; MIT License &bull; <a href="https://github.com/bunlongheng/claude-dashboard" style={{ color: "rgba(255,255,255,0.3)" }}>GitHub</a>
             </footer>
         </div>
     );
