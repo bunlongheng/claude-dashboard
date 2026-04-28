@@ -84,9 +84,7 @@ export default function LandingPage() {
                 }}>
                     <span style={{ color: "rgba(255,255,255,0.3)" }}>$ </span>
                     <span style={{ color: "#22c55e" }}>git clone</span>
-                    {" "}https://github.com/bunlongheng/claude-dashboard.git<br/>
-                    <span style={{ color: "rgba(255,255,255,0.3)" }}>$ </span>
-                    <span style={{ color: "#22c55e" }}>cd</span>{" "}claude-dashboard && <span style={{ color: "#22c55e" }}>npm install</span> && <span style={{ color: "#22c55e" }}>npm run dev</span>
+                    {" "}https://github.com/bunlongheng/claude-dashboard.git && <span style={{ color: "#22c55e" }}>cd</span>{" "}claude-dashboard && <span style={{ color: "#22c55e" }}>npm i</span> && <span style={{ color: "#22c55e" }}>npm run dev</span>
                 </div>
                 <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 12 }}>
                     Zero config. No database. No account. Just your local files.
