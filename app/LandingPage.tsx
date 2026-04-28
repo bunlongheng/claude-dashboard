@@ -2,13 +2,13 @@
 
 const FEATURES = [
     { icon: "M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 0 0-1.883 2.542l.857 6a2.25 2.25 0 0 0 2.227 1.932H19.05a2.25 2.25 0 0 0 2.227-1.932l.857-6a2.25 2.25 0 0 0-1.883-2.542m-16.5 0V6A2.25 2.25 0 0 1 6 3.75h3.879a1.5 1.5 0 0 1 1.06.44l2.122 2.12a1.5 1.5 0 0 0 1.06.44H18A2.25 2.25 0 0 1 20.25 9v.776", title: "Sessions", desc: "Browse every session across all projects with live streaming" },
-    { icon: "M12 18v-5.25m0 0a6.01 6.01 0 0 0 1.5-.189m-1.5.189a6.01 6.01 0 0 1-1.5-.189m3.75 7.478a12.06 12.06 0 0 1-4.5 0m3.75 2.383a14.406 14.406 0 0 1-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 1 0-7.517 0c.85.493 1.509 1.333 1.509 2.316V18", title: "Memory", desc: "See what Claude remembers - with timeline view" },
-    { icon: "M21 21l-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z", title: "Global Search", desc: "Cmd+K to search across sessions, memory, skills, and settings" },
-    { icon: "M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h.008v.008H18V10.5Zm-12 0h.008v.008H6V10.5Z", title: "Token Cost", desc: "See API usage and cost per session - no database needed" },
-    { icon: "M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z", title: "Health Score", desc: "Project health score 0-100 - find gaps in your setup" },
-    { icon: "M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 0 0-2.455 2.456Z", title: "Generator", desc: "CLAUDE.md wizard with framework templates" },
-    { icon: "M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z", title: "Export", desc: "Export any session as clean Markdown - one click" },
-    { icon: "M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z", title: "Replay", desc: "Watch sessions play back with realistic timing" },
+    { icon: "M12 18v-5.25m0 0a6.01 6.01 0 0 0 1.5-.189m-1.5.189a6.01 6.01 0 0 1-1.5-.189m3.75 7.478a12.06 12.06 0 0 1-4.5 0m3.75 2.383a14.406 14.406 0 0 1-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 1 0-7.517 0c.85.493 1.509 1.333 1.509 2.316V18", title: "Memory", desc: "See what Claude remembers - user, feedback, project, reference" },
+    { icon: "M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h.008v.008H18V10.5Zm-12 0h.008v.008H6V10.5Z", title: "Token Analytics", desc: "Daily charts, per-model pricing, plan-aware cost (API/Pro/Max)" },
+    { icon: "M3.75 3v11.25A2.25 2.25 0 0 0 6 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0 1 18 16.5h-2.25m-7.5 0h7.5m-7.5 0-1 3m8.5-3 1 3m0 0 .5 1.5m-.5-1.5h-9.5m0 0-.5 1.5M9 11.25v1.5M12 9v3.75m3-6v6", title: "Context Window", desc: "Live per-session context usage with cache/input/create breakdown" },
+    { icon: "M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z", title: "Health Check", desc: "Project health scores based on Claude setup quality" },
+    { icon: "M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z", title: "Export", desc: "Export any session as clean Markdown" },
+    { icon: "M6 13.5V3.75m0 9.75a1.5 1.5 0 0 1 0 3m0-3a1.5 1.5 0 0 0 0 3m0 3.75V16.5m12-3V3.75m0 9.75a1.5 1.5 0 0 1 0 3m0-3a1.5 1.5 0 0 0 0 3m0 3.75V16.5m-6-9V3.75m0 3.75a1.5 1.5 0 0 1 0 3m0-3a1.5 1.5 0 0 0 0 3m0 9.75V10.5", title: "Multi-Machine", desc: "Switch between Mac, Pi, VPS - all data proxied from remote dashboards" },
+    { icon: "M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z", title: "Activity Heatmap", desc: "GitHub-style contribution calendar with streaks and stats" },
 ];
 
 const PAGES = [
@@ -24,7 +24,8 @@ const PAGES = [
     { name: "Sessions", color: "#22c55e" },
     { name: "Tokens", color: "#f59e0b" },
     { name: "Settings", color: "#6b7280" },
-    { name: "Generator", color: "#f472b6" },
+    { name: "Health", color: "#ef4444" },
+    { name: "Timeline", color: "#3b82f6" },
 ];
 
 export default function LandingPage() {
@@ -57,7 +58,7 @@ export default function LandingPage() {
                     <span style={{ color: "#f97316" }}>Claude Code</span> knows
                 </h1>
                 <p className="text-sm sm:text-base" style={{ color: "rgba(255,255,255,0.5)", lineHeight: 1.6, maxWidth: 480, margin: "0 auto 28px" }}>
-                    A visual dashboard for your Claude Code data. Browse sessions, memory, skills, hooks, MCP servers, and settings - all from one place.
+                    Monitor sessions, tokens, context windows, memory, and more from one local-first dashboard with multi-machine support.
                 </p>
                 <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
                     <a href="https://github.com/bunlongheng/claude-dashboard" target="_blank" rel="noopener" style={{
@@ -84,8 +85,10 @@ export default function LandingPage() {
                     whiteSpace: "nowrap",
                 }}>
                     <span style={{ color: "rgba(255,255,255,0.3)" }}>$ </span>
-                    <span style={{ color: "#22c55e" }}>curl -fsSL</span>
-                    {" "}https://raw.githubusercontent.com/bunlongheng/claude-dashboard/main/install.sh | bash
+                    <span style={{ color: "#22c55e" }}>git clone</span>
+                    {" "}https://github.com/bunlongheng/claude-dashboard.git<br/>
+                    <span style={{ color: "rgba(255,255,255,0.3)" }}>$ </span>
+                    <span style={{ color: "#22c55e" }}>cd</span>{" "}claude-dashboard && <span style={{ color: "#22c55e" }}>npm install</span> && <span style={{ color: "#22c55e" }}>npm run dev</span>
                 </div>
                 <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 12 }}>
                     Zero config. No database. No account. Just your local files.
@@ -95,7 +98,7 @@ export default function LandingPage() {
             {/* Pages pills */}
             <section style={{ textAlign: "center", padding: "20px 24px 60px" }}>
                 <h2 style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.15em", color: "rgba(255,255,255,0.3)", textTransform: "uppercase", marginBottom: 20 }}>
-                    11 pages, all from ~/.claude/
+                    14 pages, all from ~/.claude/
                 </h2>
                 <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap", maxWidth: 600, margin: "0 auto" }}>
                     {PAGES.map(p => (
@@ -125,52 +128,6 @@ export default function LandingPage() {
                 </div>
             </section>
 
-            {/* Feature tiers */}
-            <section style={{ padding: "32px 16px 32px", maxWidth: 700, margin: "0 auto" }}>
-                <h2 style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.15em", color: "rgba(255,255,255,0.3)", textTransform: "uppercase", marginBottom: 24, textAlign: "center" }}>
-                    Works instantly. Grows with you.
-                </h2>
-
-                {/* Tier 1: Free / No config */}
-                <div style={{ marginBottom: 16, padding: 20, borderRadius: 12, background: "rgba(34,197,94,0.04)", border: "1px solid rgba(34,197,94,0.15)" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                        <span style={{ fontSize: 9, fontWeight: 800, padding: "2px 8px", borderRadius: 6, background: "rgba(34,197,94,0.15)", color: "#22c55e", letterSpacing: "0.05em" }}>ZERO CONFIG</span>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>Local files only</span>
-                    </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "4px 20px", fontSize: 12, color: "rgba(255,255,255,0.5)" }}>
-                        <div>Browse all sessions</div>
-                        <div>View memory files</div>
-                        <div>Skills &amp; commands</div>
-                        <div>MCP server configs</div>
-                        <div>Hooks &amp; plugins</div>
-                        <div>Settings &amp; rules</div>
-                        <div>CLAUDE.md editor</div>
-                        <div>Live session streaming</div>
-                        <div>QR code LAN access</div>
-                        <div>Mobile responsive</div>
-                    </div>
-                </div>
-
-                {/* Tier 2: Database */}
-                <div style={{ padding: 20, borderRadius: 12, background: "rgba(249,115,22,0.04)", border: "1px solid rgba(249,115,22,0.15)" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                        <span style={{ fontSize: 9, fontWeight: 800, padding: "2px 8px", borderRadius: 6, background: "rgba(249,115,22,0.15)", color: "#f97316", letterSpacing: "0.05em" }}>+ DATABASE</span>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>SQLite (automatic)</span>
-                    </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "4px 20px", fontSize: 12, color: "rgba(255,255,255,0.5)" }}>
-                        <div>Token usage tracking</div>
-                        <div>Cost analysis per session</div>
-                        <div>Global instruction rules</div>
-                        <div>Searchable history</div>
-                        <div>Remote access with login</div>
-                        <div>Real-time sync</div>
-                        <div>Multi-machine support</div>
-                        <div>Cloud backup</div>
-                    </div>
-                    <p style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", marginTop: 8, marginBottom: 0 }}>SQLite auto-creates at ~/.claude/dashboard.db - no setup needed. Or bring your own database.</p>
-                </div>
-            </section>
-
             {/* How it works */}
             <section style={{ textAlign: "center", padding: "32px 16px 60px", maxWidth: 600, margin: "0 auto" }}>
                 <h2 style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.15em", color: "rgba(255,255,255,0.3)", textTransform: "uppercase", marginBottom: 20 }}>
@@ -191,7 +148,7 @@ export default function LandingPage() {
                     <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*.jsonl&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style={{ color: "#22c55e" }}># Session transcripts</span></div>
                 </div>
                 <p style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", marginTop: 16 }}>
-                    The dashboard reads these files. No data leaves your machine.
+                    The dashboard reads these files. Nothing is uploaded. Nothing leaves your machine.
                 </p>
             </section>
 
