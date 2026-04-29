@@ -1,0 +1,2344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Claude Skills</title>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #f5f5f5; color: #1a1a1a;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      width: 100vw; height: 100vh; overflow: hidden; position: relative;
+    }
+
+    /* ── Intro overlay ── */
+
+    /* ── Animations ── */
+    @keyframes glow-breathe { 0%,100%,50% {} }
+    @keyframes spin-cw { to { transform: rotate(360deg); } }
+    @keyframes pulse-ring {
+      0%   { transform: translate(-50%,-50%) scale(1); opacity: 0.7; }
+      100% { transform: translate(-50%,-50%) scale(2.6); opacity: 0; }
+    }
+    @keyframes float {
+      0%,100% { transform: translate(-50%,-50%) translateY(0px); }
+      50%      { transform: translate(-50%,-50%) translateY(-8px); }
+    }
+    @keyframes card-spin-in {
+      from { opacity: 0; transform: translate(-50%,-50%) rotate(-90deg) scale(0.12); }
+      to   { opacity: 1; transform: translate(-50%,-50%) rotate(0deg) scale(1); }
+    }
+    .card.spin-in { animation: card-spin-in 0.72s cubic-bezier(.34,1.56,.64,1) both !important; }
+
+    /* ── Tagline ── */
+    .tagline {
+      position: fixed; left: 50%; top: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center; pointer-events: none; z-index: 0;
+      transition: opacity 0.25s;
+    }
+    .tagline-main {
+      font-size: 0.85rem; font-weight: 400; color: #555;
+      line-height: 1.8; letter-spacing: 0.08em; text-transform: uppercase;
+      transition: opacity 0.2s, transform 0.2s;
+    }
+    .tagline-cmd {
+      font-size: 2.6rem; font-weight: 800; color: rgba(0,0,0,0.04);
+      letter-spacing: -0.04em; line-height: 1;
+      opacity: 0; transform: scale(0.94);
+      transition: opacity 0.25s, transform 0.25s, color 0.25s;
+      position: absolute; left: 50%; top: 50%;
+      translate: -50% -50%;
+      white-space: nowrap; pointer-events: none;
+    }
+    .tagline-cmd.visible {
+      opacity: 1; transform: scale(1); color: rgba(0,0,0,0.82);
+    }
+    .tagline-main.dimmed { opacity: 0; }
+
+    /* ── Card ── */
+    .card {
+      position: fixed; transform: translate(-50%,-50%);
+      display: flex; flex-direction: column; align-items: center; gap: 9px;
+      cursor: pointer; z-index: 1;
+      transition: opacity 0.4s ease, transform 0.4s cubic-bezier(.34,1.56,.64,1);
+    }
+    .card.hidden-card { opacity: 0; pointer-events: none; transform: translate(-50%,-50%) scale(0.6); }
+    .card:hover { animation: none !important; transform: translate(-50%,-50%) scale(1.02); }
+
+    /* ── Circle ── */
+    .circle {
+      width: 80px; height: 80px; border-radius: 50% !important;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; position: relative; overflow: hidden; isolation: isolate;
+      transition: box-shadow 0.3s;
+    }
+    .circle::before {
+      content: ''; position: absolute; inset: -30%; border-radius: 50%;
+      background: inherit; animation: spin-cw 10s linear infinite;
+    }
+    .circle svg {
+      position: relative; z-index: 1; width: 28px; height: 28px;
+      stroke: rgba(255,255,255,0.92); stroke-width: 1.5; fill: none;
+      filter: drop-shadow(0 1px 4px rgba(0,0,0,0.3));
+    }
+    .circle::after {
+      content: ''; position: absolute; left: 50%; top: 50%;
+      width: 100%; height: 100%; border-radius: 50%;
+      background: var(--glow); transform: translate(-50%,-50%) scale(1);
+      opacity: 0; pointer-events: none;
+    }
+    .card:hover .circle::after { animation: pulse-ring 0.65s ease-out forwards; }
+    .card:nth-child(3n+1) .circle { animation-duration: 3.2s; }
+    .card:nth-child(3n+2) .circle { animation-duration: 2.7s; animation-delay: -1.3s; }
+    .card:nth-child(3n)   .circle { animation-duration: 3.8s; animation-delay: -2s; }
+
+    /* ── Card label ── */
+    .card-label {
+      font-size: 0.62rem; font-weight: 500; color: #666;
+      white-space: nowrap; text-align: center;
+      opacity: 0; transform: translateY(4px);
+      transition: opacity 0.2s, transform 0.2s, color 0.2s; pointer-events: none;
+    }
+    .card:hover .card-label { opacity: 1; color: #222; transform: translateY(0); }
+
+    /* ── Colors ── */
+    .c-orange { background: linear-gradient(135deg,#ff6b00,#ff9f43); --glow: rgba(255,107,0,.55); }
+    .c-purple  { background: linear-gradient(135deg,#7c3aed,#a78bfa); --glow: rgba(124,58,237,.55); }
+    .c-blue    { background: linear-gradient(135deg,#2563eb,#60a5fa); --glow: rgba(37,99,235,.55); }
+    .c-green   { background: linear-gradient(135deg,#16a34a,#4ade80); --glow: rgba(22,163,74,.55); }
+    .c-pink    { background: linear-gradient(135deg,#db2777,#f472b6); --glow: rgba(219,39,119,.55); }
+    .c-cyan    { background: linear-gradient(135deg,#0891b2,#22d3ee); --glow: rgba(8,145,178,.55); }
+    .c-red     { background: linear-gradient(135deg,#dc2626,#f87171); --glow: rgba(220,38,38,.55); }
+    .c-yellow  { background: linear-gradient(135deg,#d97706,#fbbf24); --glow: rgba(217,119,6,.55); }
+    .c-teal    { background: linear-gradient(135deg,#0d9488,#2dd4bf); --glow: rgba(13,148,136,.55); }
+    .c-indigo  { background: linear-gradient(135deg,#4338ca,#818cf8); --glow: rgba(67,56,202,.55); }
+    .c-rose    { background: linear-gradient(135deg,#e11d48,#fb7185); --glow: rgba(225,29,72,.55); }
+    .c-lime    { background: linear-gradient(135deg,#65a30d,#a3e635); --glow: rgba(101,163,13,.55); }
+
+    /* ── Zoom burst ── */
+    @keyframes zoom-s1 { from { transform: translate(-50%,-50%) scale(1); } to { transform: translate(-50%,-50%) scale(1.7); } }
+    @keyframes zoom-s2 { from { transform: translate(-50%,-50%) scale(1.7); border-radius: 50%; } to { transform: translate(-50%,-50%) scale(55); border-radius: 0%; opacity: 0; } }
+    .zoom-clone { position: fixed; border-radius: 50%; z-index: 500; pointer-events: none; }
+    .zoom-clone.s1 { animation: zoom-s1 0.16s cubic-bezier(.4,0,.2,1) forwards; }
+    .zoom-clone.s2 { animation: zoom-s2 0.42s cubic-bezier(.4,0,.6,1) forwards; }
+
+
+    /* ── Home title ── */
+    .home-title {
+      position: fixed; top: 0; left: 0;
+      font-size: 50px; font-weight: 900; color: #1a1a1a; letter-spacing: -0.06em;
+      z-index: 500; line-height: 0.85; user-select: none; white-space: nowrap;
+      cursor: pointer; pointer-events: auto;
+    }
+
+    /* ── Filter menu (top-right) ── */
+    /* ── Filter menu (offmenu-style dot-grid + dropdown) ── */
+    .nav-wrap {
+      position: fixed; top: 16px; right: 20px;
+      z-index: 500; display: flex; align-items: center;
+    }
+    .nav-toggle {
+      width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
+      background: none; border: none; cursor: pointer; color: #1a1a1a;
+      position: relative; z-index: 2;
+    }
+    .nav-toggle svg { display: block; }
+    .nav-panel {
+      position: absolute; top: 0; right: 0;
+      background: #111; border-radius: 14px;
+      min-width: 180px; overflow: hidden;
+      display: grid; grid-template-rows: 0fr;
+      transition: grid-template-rows 0.28s ease, opacity 0.22s ease;
+      opacity: 0; pointer-events: none;
+    }
+    .nav-panel.open {
+      grid-template-rows: 1fr; opacity: 1; pointer-events: auto;
+    }
+    .nav-panel-inner {
+      overflow: hidden; padding: 52px 20px 16px;
+      display: flex; flex-direction: column; gap: 2px;
+    }
+    .nav-link {
+      font-size: 1.6rem; font-weight: 500; line-height: 1.2;
+      color: #fff; background: none; border: none; cursor: pointer;
+      text-align: left; padding: 4px 0; letter-spacing: -0.02em;
+      transition: opacity 0.15s; display: block; width: 100%;
+    }
+    .nav-link.active { opacity: 0.4; }
+    .nav-panel-inner:hover .nav-link { opacity: 0.35; }
+    .nav-panel-inner:hover .nav-link:hover { opacity: 1; }
+
+    /* ── Modal Stage 1 (info card) ── */
+    #modal-wrap {
+      display: none; position: fixed; inset: 0; z-index: 300;
+      background: rgba(0,0,0,0); backdrop-filter: blur(0px);
+      transition: background 0.4s, backdrop-filter 0.4s;
+    }
+    #modal-wrap.open { display: block; background: rgba(0,0,0,0.45); backdrop-filter: blur(14px); }
+    @keyframes popIn {
+      from { transform: translate(-50%,-50%) scale(0.82); opacity: 0; }
+      to   { transform: translate(-50%,-50%) scale(1); opacity: 1; }
+    }
+    #ms1 {
+      position: absolute; left: 50%; top: 50%;
+      transform: translate(-50%,-50%);
+      background: #fff; border: 1px solid #e5e5e5;
+      border-radius: 28px; padding: 36px;
+      width: 440px; max-width: 90vw;
+      animation: popIn 0.28s cubic-bezier(.34,1.56,.64,1) forwards;
+    }
+    #ms1.hidden { display: none; }
+    .ms1-close {
+      position: absolute; top: 16px; right: 16px;
+      background: #f0f0f0; border: 1px solid #ddd; color: #999;
+      width: 28px; height: 28px; border-radius: 50%; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.15s; font-size: 0.8rem;
+    }
+    .ms1-close:hover { background: #e0e0e0; color: #333; }
+    .ms1-top { display: flex; align-items: center; gap: 18px; margin-bottom: 20px; }
+    .ms1-blob {
+      width: 64px; height: 64px; border-radius: 50%; flex-shrink: 0;
+      position: relative; overflow: hidden; isolation: isolate;
+    }
+    .ms1-blob::before { content: ''; position: absolute; inset: -30%; border-radius: 50%; background: inherit; animation: spin-cw 10s linear infinite; }
+    .ms1-blob svg { position: relative; z-index: 1; width: 26px; height: 26px; stroke: rgba(255,255,255,0.92); stroke-width: 1.5; fill: none; }
+    .ms1-name { font-size: 1.2rem; font-weight: 700; color: #1a1a1a; margin-bottom: 4px; }
+    .ms1-cmd  { font-size: 0.78rem; color: #999; font-family: 'SF Mono','Fira Code',monospace; }
+    .ms1-desc { font-size: 0.86rem; color: #666; line-height: 1.75; margin-bottom: 22px; }
+    .ms1-bar  { height: 2px; background: #e5e5e5; border-radius: 2px; overflow: hidden; }
+    .ms1-progress { height: 100%; width: 0%; border-radius: 2px; transition: width 2s linear; }
+
+    /* ── Modal Stage 2 (full screen) ── */
+    #ms2 {
+      position: absolute; inset: 0; overflow: hidden;
+      display: flex; flex-direction: column;
+    }
+    #ms2.hidden { display: none; }
+    #ms2-flood {
+      position: absolute; inset: 0; z-index: 0;
+      transform: scale(0); border-radius: 50%;
+      transition: transform 0.6s cubic-bezier(.4,0,.2,1), border-radius 0.6s;
+    }
+    #ms2-flood.expanded { transform: scale(4); border-radius: 0%; }
+    #ms2-inner {
+      position: relative; z-index: 1; height: 100%;
+      display: flex; flex-direction: column; opacity: 0;
+      background: #fff;
+      transition: opacity 0.4s ease 0.4s;
+    }
+    #ms2-inner.visible { opacity: 1; }
+    .ms2-header {
+      display: flex; align-items: center; justify-content: space-between; gap: 16px;
+      padding: 80px 48px 28px;
+      border-bottom: 1px solid #e8e8e8;
+      flex-shrink: 0;
+    }
+    .ms2-header-left { display: flex; align-items: center; gap: 12px; }
+    .ms2-blob {
+      width: 72px; height: 72px; border-radius: 50%; flex-shrink: 0;
+      position: relative; overflow: hidden; isolation: isolate;
+      background: rgba(255,255,255,0.15);
+    }
+    .ms2-blob::before { content: ''; position: absolute; inset: -30%; border-radius: 50%; background: rgba(255,255,255,0.2); animation: spin-cw 8s linear infinite; }
+    .ms2-blob svg { position: relative; z-index: 1; width: 32px; height: 32px; stroke: rgba(255,255,255,0.95); stroke-width: 1.5; fill: none; }
+    .ms2-icon { width: 25px; height: 25px; flex-shrink: 0; stroke: #444; stroke-width: 1.8; fill: none; }
+    .ms2-title { font-size: 1.3rem; font-weight: 700; color: #1a1a1a; letter-spacing: -0.01em; line-height: 1; }
+    .ms2-body {
+      flex: 1; overflow-y: auto; padding: 32px 48px 48px;
+      scrollbar-width: thin; scrollbar-color: #ddd transparent;
+    }
+    .ms2-code {
+      font-family: 'SF Mono','Fira Code','Cascadia Code',monospace; font-size: 0.8rem;
+      line-height: 1.7; color: #d4d4d4;
+      white-space: pre-wrap; word-break: break-word;
+      background: #1e1e1e; border-radius: 8px;
+      padding: 24px 28px; margin-bottom: 28px;
+      border: 1px solid #333;
+    }
+    .ms2-toolbar { display: flex; align-items: center; gap: 8px; }
+    .ms2-tabs { display: flex; gap: 4px; background: #f0f0f0; border-radius: 10px; padding: 3px; }
+    .ms2-tab {
+      width: 34px; height: 34px; border-radius: 8px; border: none;
+      background: transparent; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s;
+    }
+    .ms2-tab svg { width: 15px; height: 15px; stroke: #999; stroke-width: 2; fill: none; }
+    .ms2-tab.active { background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .ms2-tab.active svg { stroke: #1a1a1a; }
+    .ms2-tab:hover svg { stroke: #555; }
+    .ms2-actions { display: flex; gap: 8px; }
+    .ms2-preview {
+      font-size: 0.84rem; line-height: 1.75; color: #444;
+    }
+    .ms2-preview h1,.ms2-preview h2,.ms2-preview h3 { color: #1a1a1a; font-weight: 700; margin: 1.2em 0 0.5em; }
+    .ms2-preview h1 { font-size: 1.4rem; }
+    .ms2-preview h2 { font-size: 1.1rem; border-bottom: 1px solid #eee; padding-bottom: 6px; }
+    .ms2-preview h3 { font-size: 0.95rem; }
+    .ms2-preview p { margin-bottom: 0.8em; }
+    .ms2-preview ul,.ms2-preview ol { padding-left: 1.4em; margin-bottom: 0.8em; }
+    .ms2-preview li { margin-bottom: 0.2em; }
+    .ms2-preview code { background: #f0f0f0; border-radius: 4px; padding: 1px 5px; font-family: 'SF Mono','Fira Code',monospace; font-size: 0.8em; color: #1a1a1a; }
+    .ms2-preview pre { background: #f6f6f6; border-radius: 8px; padding: 14px 16px; margin-bottom: 1em; overflow-x: auto; border: 1px solid #eee; }
+    .ms2-preview pre code { background: none; padding: 0; font-size: 0.78rem; color: #333; }
+    .ms2-preview table { width: 100%; border-collapse: collapse; margin-bottom: 1em; font-size: 0.8rem; }
+    .ms2-preview th,.ms2-preview td { padding: 6px 10px; border: 1px solid #ddd; }
+    .ms2-preview th { background: #f5f5f5; color: #1a1a1a; }
+    .ms2-preview a { color: #1a1a1a; text-decoration: underline; }
+    .hidden { display: none !important; }
+    .ms2-btn {
+      width: 38px; height: 38px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; border: none; transition: all 0.18s;
+    }
+    .ms2-btn svg { width: 16px; height: 16px; stroke-width: 2; }
+    .ms2-btn-copy { background: #1a1a1a; color: #fff; }
+    .ms2-btn-copy:hover { background: #333; }
+    .ms2-btn-dl { background: #fff; color: #555; border: 1px solid #ddd; }
+    .ms2-btn-dl:hover { background: #f5f5f5; color: #1a1a1a; }
+
+  </style>
+</head>
+<body>
+
+
+
+<!-- Center tagline -->
+<div class="tagline" id="tagline">
+  <div class="tagline-main" id="tagline-main">AI Skills<br>Claude Code</div>
+  <div class="tagline-cmd" id="tagline-cmd"></div>
+</div>
+
+<!-- Cards — positioned by JS -->
+<div class="card" onclick="click_zoom(this)" data-tag="ops" data-color="c-yellow" data-glow="255,159,51" data-px="18" data-py="20">
+  <div class="circle c-yellow"><i data-lucide="sticky-note"></i></div><div class="card-label">Stickies</div>
+  <span class="modal-data" hidden data-name="Stickies" data-cmd="/stickies · /note · /sticky" data-desc="Post a sticky note to the Stickies app on M4. Any skill output can be piped here using &gt; stickies." data-color="c-yellow" data-icon="sticky-note"></span>
+</div>
+<div class="card" onclick="click_zoom(this)" data-tag="ops" data-color="c-indigo" data-glow="129,140,248" data-px="52" data-py="14">
+  <div class="circle c-indigo"><i data-lucide="layout-panel-top"></i></div><div class="card-label">Deck</div>
+  <span class="modal-data" hidden data-name="Deck" data-cmd="/deck" data-desc="Generate a self-contained dark-mode HTML report/deck and open it in the browser." data-color="c-indigo" data-icon="layout-panel-top"></span>
+</div>
+<div class="card" onclick="click_zoom(this)" data-tag="ops" data-color="c-cyan" data-glow="34,211,238" data-px="78" data-py="22">
+  <div class="circle c-cyan"><i data-lucide="git-branch"></i></div><div class="card-label">Diagram</div>
+  <span class="modal-data" hidden data-name="Diagram" data-cmd="/diagram" data-desc="Create and post a Mermaid diagram to diagrams-bheng.vercel.app via AI API." data-color="c-cyan" data-icon="git-branch"></span>
+</div>
+<div class="card" onclick="click_zoom(this)" data-tag="ssh" data-color="c-blue" data-glow="96,165,250" data-px="12" data-py="55">
+  <div class="circle c-blue"><i data-lucide="monitor"></i></div><div class="card-label">SSH — M4</div>
+  <span class="modal-data" hidden data-name="SSH — M4 Mac" data-cmd="/sshM4" data-desc="Run any command on the M4 Mac (bheng@10.0.0.218) over SSH." data-color="c-blue" data-icon="monitor"></span>
+</div>
+<div class="card" onclick="click_zoom(this)" data-tag="ssh" data-color="c-green" data-glow="74,222,128" data-px="38" data-py="60">
+  <div class="circle c-green"><i data-lucide="server"></i></div><div class="card-label">SSH — Prod</div>
+  <span class="modal-data" hidden data-name="SSH — Linode Prod" data-cmd="/sshProd" data-desc="Run any command on the Linode production VM (66.228.61.170, port 8200)." data-color="c-green" data-icon="server"></span>
+</div>
+<div class="card" onclick="click_zoom(this)" data-tag="ssh" data-color="c-teal" data-glow="45,212,191" data-px="65" data-py="55">
+  <div class="circle c-teal"><i data-lucide="hard-drive"></i></div><div class="card-label">SSH — PM2026</div>
+  <span class="modal-data" hidden data-name="SSH — PM2026" data-cmd="/sshPM2026" data-desc="Run any command on the PM2026 server (66.228.61.79)." data-color="c-teal" data-icon="hard-drive"></span>
+</div>
+<div class="card" onclick="click_zoom(this)" data-tag="ssh" data-color="c-pink" data-glow="244,114,182" data-px="84" data-py="62">
+  <div class="circle c-pink"><i data-lucide="cpu"></i></div><div class="card-label">SSH — Pi 5</div>
+  <span class="modal-data" hidden data-name="SSH — Raspberry Pi 5" data-cmd="/sshPi5" data-desc="Run any command on the Raspberry Pi 5 over SSH." data-color="c-pink" data-icon="cpu"></span>
+</div>
+<div class="card" onclick="click_zoom(this)" data-tag="ops" data-color="c-orange" data-glow="255,159,67" data-px="28" data-py="82">
+  <div class="circle c-orange"><i data-lucide="app-window"></i></div><div class="card-label">Local Apps</div>
+  <span class="modal-data" hidden data-name="Local Apps" data-cmd="/local-apps" data-desc="Start all local apps, detect failures, diagnose errors, and fix them via process manager on port 9876." data-color="c-orange" data-icon="app-window"></span>
+</div>
+<div class="card" onclick="click_zoom(this)" data-tag="ops" data-color="c-lime" data-glow="163,230,53" data-px="70" data-py="85">
+  <div class="circle c-lime"><i data-lucide="rocket"></i></div><div class="card-label">Onboard</div>
+  <span class="modal-data" hidden data-name="Onboard" data-cmd="/onboard" data-desc="Full 12-phase onboarding sequence for a newly cloned or created app." data-color="c-lime" data-icon="rocket"></span>
+</div>
+<!-- ZETA skills -->
+<div class="card" onclick="click_zoom(this)" data-tag="zeta" data-color="c-purple" data-glow="167,139,250" data-px="22" data-py="30">
+  <div class="circle c-purple"><i data-lucide="layout-grid"></i></div><div class="card-label">Sprint Snapshot</div>
+  <span class="modal-data" hidden data-name="Sprint Snapshot" data-cmd="/sprint-snapshot" data-desc="Concise table-grid of the current Zeta sprint: status, assignee workload, issue type mix, and points summary." data-color="c-purple" data-icon="layout-grid"></span>
+</div>
+<div class="card" onclick="click_zoom(this)" data-tag="zeta" data-color="c-indigo" data-glow="129,140,248" data-px="62" data-py="22">
+  <div class="circle c-indigo"><i data-lucide="bar-chart-3"></i></div><div class="card-label">Zeta Metrics</div>
+  <span class="modal-data" hidden data-name="Zeta Metrics" data-cmd="/zeta-metrics" data-desc="CLI-style sprint report from live 3pi metrics API." data-color="c-indigo" data-icon="bar-chart-3"></span>
+</div>
+<div class="card" onclick="click_zoom(this)" data-tag="zeta" data-color="c-rose" data-glow="251,113,133" data-px="54" data-py="42">
+  <div class="circle c-rose"><i data-lucide="lightbulb"></i></div><div class="card-label">LOE Insight</div>
+  <span class="modal-data" hidden data-name="LOE Insight" data-cmd="/loe-insight" data-desc="AI-powered effort estimation for all Zeta board tickets. Assigns LOE scores end-to-end." data-color="c-rose" data-icon="lightbulb"></span>
+</div>
+<div class="card" onclick="click_zoom(this)" data-tag="zeta" data-color="c-red" data-glow="248,113,113" data-px="18" data-py="68">
+  <div class="circle c-red"><i data-lucide="shield-alert"></i></div><div class="card-label">Jira Block Audit</div>
+  <span class="modal-data" hidden data-name="Jira Block Audit" data-cmd="/jira-block-audit" data-desc="Audit blocked tickets in a Jira project, identify blockers, and generate a markdown report." data-color="c-red" data-icon="shield-alert"></span>
+</div>
+<div class="card" onclick="click_zoom(this)" data-tag="zeta" data-color="c-green" data-glow="74,222,128" data-px="72" data-py="70">
+  <div class="circle c-green"><i data-lucide="flask-conical"></i></div><div class="card-label">QE Zeta</div>
+  <span class="modal-data" hidden data-name="QE Zeta" data-cmd="/qe-zeta" data-desc="Integration service stage verification against 3pi. QE checks for Zeta sprint tickets." data-color="c-green" data-icon="flask-conical"></span>
+</div>
+<div class="card" onclick="click_zoom(this)" data-tag="zeta" data-color="c-yellow" data-glow="251,191,36" data-px="38" data-py="58">
+  <div class="circle c-yellow"><i data-lucide="clipboard-list"></i></div><div class="card-label">Zeta Chores</div>
+  <span class="modal-data" hidden data-name="Zeta Chores" data-cmd="/zeta-chores" data-desc="Show current Zeta sprint chores: Oncall, Deploy Captain, Quality Primary &amp; Backup. Sourced from team-chores.firebaseapp.com." data-color="c-amber" data-icon="clipboard-list"></span>
+</div>
+<div class="card" onclick="click_zoom(this)" data-tag="ops" data-color="c-yellow" data-glow="251,191,36" data-px="48" data-py="78">
+  <div class="circle c-yellow"><i data-lucide="bot"></i></div><div class="card-label">AI Ticket Flow</div>
+  <span class="modal-data" hidden data-name="AI Ticket Flow" data-cmd="/ai-ticket-flow" data-desc="End-to-end AI-driven ticket implementation workflow — from Jira ticket to deployed code." data-color="c-yellow" data-icon="bot"></span>
+</div>
+<div class="card" onclick="click_zoom(this)" data-tag="ops" data-color="c-blue" data-glow="96,165,250" data-px="85" data-py="40">
+  <div class="circle c-blue"><i data-lucide="message-square"></i></div><div class="card-label">Slack Read</div>
+  <span class="modal-data" hidden data-name="Slack Read" data-cmd="/slack-read" data-desc="Read messages from Slack channels, threads, and search across workspaces. Read-only." data-color="c-blue" data-icon="message-square"></span>
+</div>
+
+<!-- Home title (hidden during intro) -->
+<div class="home-title" id="home-title" onclick="close_modal()">ZETA</div>
+
+<!-- Filter menu -->
+<div class="nav-wrap" id="nav-wrap">
+  <div class="nav-panel" id="nav-panel">
+    <div class="nav-panel-inner">
+      <button class="nav-link" onclick="nav_filter('all',this)">All</button>
+      <button class="nav-link" onclick="nav_filter('zeta',this)">Zeta</button>
+      <button class="nav-link" onclick="nav_filter('ssh',this)">SSH</button>
+      <button class="nav-link" onclick="nav_filter('ops',this)">Ops</button>
+    </div>
+  </div>
+  <button class="nav-toggle" id="nav-toggle" onclick="toggle_nav()">
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+      <circle cx="4"  cy="4"  r="2"/><circle cx="10" cy="4"  r="2"/><circle cx="16" cy="4"  r="2"/>
+      <circle cx="4"  cy="10" r="2"/><circle cx="10" cy="10" r="2"/><circle cx="16" cy="10" r="2"/>
+      <circle cx="4"  cy="16" r="2"/><circle cx="10" cy="16" r="2"/><circle cx="16" cy="16" r="2"/>
+    </svg>
+  </button>
+</div>
+
+
+
+<!-- Modal -->
+<div id="modal-wrap">
+  <div id="ms1">
+    <button class="ms1-close" onclick="close_modal()">✕</button>
+    <div class="ms1-top">
+      <div class="ms1-blob" id="ms1-blob"></div>
+      <div>
+        <div class="ms1-name" id="ms1-name"></div>
+        <div class="ms1-cmd"  id="ms1-cmd"></div>
+      </div>
+    </div>
+    <div class="ms1-desc" id="ms1-desc"></div>
+    <div class="ms1-bar"><div class="ms1-progress" id="ms1-progress"></div></div>
+  </div>
+  <div id="ms2" class="hidden">
+    <div id="ms2-flood"></div>
+    <div id="ms2-inner">
+      <div class="ms2-header">
+        <div class="ms2-header-left">
+          <i id="ms2-icon" class="ms2-icon"></i>
+          <div class="ms2-title" id="ms2-title"></div>
+        </div>
+        <div class="ms2-toolbar">
+          <div class="ms2-tabs">
+            <button class="ms2-tab" id="tab-code" onclick="switch_tab('code')"><i data-lucide="code-2"></i></button>
+            <button class="ms2-tab active" id="tab-preview" onclick="switch_tab('preview')"><i data-lucide="eye"></i></button>
+          </div>
+          <div class="ms2-actions">
+            <button class="ms2-btn ms2-btn-copy" onclick="copy_skill()" title="Copy for AI Prompt"><i data-lucide="copy"></i></button>
+            <button class="ms2-btn ms2-btn-dl" onclick="download_skill()" title="Download .md"><i data-lucide="download"></i></button>
+          </div>
+        </div>
+      </div>
+      <div class="ms2-body">
+        <pre class="ms2-code" id="ms2-code"></pre>
+        <div class="ms2-preview hidden" id="ms2-preview"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  lucide.createIcons();
+
+const SKILLS_MD = {
+  'Stickies': `# Stickies — Post a sticky note to the Stickies app on M4
+
+Posts a sticky note to the Stickies app running on M4 (\`http://10.0.0.218:4444\`) via the external API.
+
+## Usage
+\`\`\`
+/stickies Sprint Retro — add retro notes for today
+/stickies Quick idea: refactor the auth flow
+/stickies "Meeting notes from standup" in folder Today/PM2026
+/stickies                    ← no args: summarize the conversation above into a sticky
+\`\`\`
+
+## API
+- **Endpoint:** \`POST http://10.0.0.218:4444/api/stickies/ext\`
+- **Auth:** \`Bearer sk_ext_72a5c2daa2602a7ccecddafb04a26e963fd138a2940db174a1c66ac3de5816f9\`
+- **Default folder:** \`Today\`
+- **Default type:** \`markdown\`
+
+## How to run
+
+When this skill is invoked, Claude must:
+1. Parse the args to extract:
+   - \`title\` — a short, precise, descriptive title (3-6 words max). Auto-generate from context if not provided. Never use generic titles like "Notes" or "Summary".
+   - \`content\` — the full body in markdown. If no args provided, summarize the conversation message immediately above the /stickies call into clean, structured markdown.
+   - \`folder_name\` — if mentioned (e.g. "in folder X"), otherwise default to \`"Today"\`
+   - \`type\` — always \`"markdown"\`
+2. Run this curl command:
+\`\`\`bash
+curl -s -X POST \\
+  http://10.0.0.218:4444/api/stickies/ext \\
+  -H "Authorization: Bearer sk_ext_72a5c2daa2602a7ccecddafb04a26e963fd138a2940db174a1c66ac3de5816f9" \\
+  -H "Content-Type: application/json" \\
+  -d '{"title":"<title>","content":"<content>","type":"markdown","folder_name":"<folder>"}'
+\`\`\`
+3. Show the user the response (sticky ID or confirmation)
+
+## Rules
+- **No icons or emoji in the title** — plain text only, clean and precise
+- Default \`folder_name\` is \`"Today"\` unless the user specifies otherwise
+- Keep content as clean markdown
+- Use the Bash tool to run the curl command
+- If no args: read the last assistant message in the conversation and turn it into a well-structured sticky
+`,
+  'Deck': `# deck — HTML Deck Generator
+
+Generate a self-contained dark-mode HTML report/deck and open it in the browser.
+Uses the same GitHub-dark visual style as the QE Zeta reports.
+
+## Script
+\`\`\`
+node ~/.claude/scripts/deck-gen.mjs --input=/tmp/deck.json
+\`\`\`
+
+## Data schema
+
+\`\`\`json
+{
+  "title": "Report Title",
+  "subtitle": "Optional subtitle or date",
+  "footerLeft": "Left footer text",
+  "footerRight": "Right footer text",
+  "sections": [ ...sections ]
+}
+\`\`\`
+
+### Section types
+
+#### \`cards\` — stat cards row
+\`\`\`json
+{
+  "type": "cards",
+  "title": "Summary",
+  "cards": [
+    { "value": "12", "label": "Passed", "color": "pass" },
+    { "value": "3",  "label": "Failed", "color": "fail" },
+    { "value": "5",  "label": "Pending", "color": "warn" },
+    { "value": "42", "label": "Total" }
+  ]
+}
+\`\`\`
+Colors: \`pass\` (green) | \`fail\` (red) | \`warn\` (yellow) | \`manual\` (purple) | \`total\` (blue) | omit for white
+
+#### \`table\` — styled table
+\`\`\`json
+{
+  "type": "table",
+  "title": "Results",
+  "columns": ["Status", "Name", "Detail"],
+  "rows": [
+    { "cells": ["pass", "Login flow", "Works on all browsers"], "status": "pass" },
+    { "cells": ["fail", "Checkout",   "Broken on Safari"],      "status": "fail" },
+    ["", "Plain row", "No status color"]
+  ]
+}
+\`\`\`
+When \`status\` is set on a row, the first cell is replaced with a badge and the row is tinted.
+
+#### \`kv\` — key-value pairs
+\`\`\`json
+{
+  "type": "kv",
+  "title": "Config",
+  "pairs": [
+    { "key": "environment", "value": "stage" },
+    { "key": "db_host",     "value": "45.79.212.154" },
+    { "key": "status",      "value": "healthy", "status": "pass" }
+  ]
+}
+\`\`\`
+
+#### \`badges\` — pill tags
+\`\`\`json
+{
+  "type": "badges",
+  "title": "Tags",
+  "items": [
+    { "label": "PLAT-9735", "status": "pass" },
+    { "label": "PLAT-9737", "status": "warn" },
+    { "label": "v2-api",    "status": "accent" }
+  ]
+}
+\`\`\`
+
+#### \`text\` — plain text block
+\`\`\`json
+{
+  "type": "text",
+  "title": "Notes",
+  "content": "Multi-line\\ntext here.",
+  "pre": true
+}
+\`\`\`
+
+#### \`html\` — raw HTML (trusted content only)
+\`\`\`json
+{
+  "type": "html",
+  "content": "<p>Custom HTML here</p>"
+}
+\`\`\`
+
+#### \`diagram\` — sequence diagram (rendered via diagrams-bheng.vercel.app)
+
+**IMPORTANT**: Only \`sequenceDiagram\` type is supported — this is enforced by the diagrams app API.
+
+\`\`\`json
+{
+  "type": "diagram",
+  "title": "Audio Capture Flow",
+  "code": "---\\ntitle: Audio Capture Flow\\n---\\nsequenceDiagram\\n  participant U as 🎤 Mic\\n  participant P as ⚙️ Pipeline\\n  participant W as 🤖 Whisper\\n  U->>P: PCM frames\\n  P->>P: resample 16kHz\\n  P->>W: 5s chunk\\n  W-->>P: transcript segment\\n  P-->>U: caption displayed",
+  "dark": false
+}
+\`\`\`
+
+**What happens when deck-gen.mjs processes a \`diagram\` section:**
+1. POSTs the Mermaid \`code\` to \`diagrams-bheng.vercel.app/api/ai/diagrams\` → saves diagram, gets back \`{ id, url }\`
+2. GETs \`diagrams-bheng.vercel.app/api/diagrams/[id]/export\` → server-renders SVG via jsdom + mermaid
+3. Embeds the SVG **inline** in the deck (self-contained, no external dependencies needed at view time)
+4. Shows a reference pill below the diagram: \`Source diagram · diagrams-bheng.vercel.app · <id>… ↗\`
+5. Falls back to Mermaid CDN rendering if the export endpoint is unreachable
+
+**Code format** — always include frontmatter and \`sequenceDiagram\`:
+\`\`\`
+---
+title: My Flow
+---
+sequenceDiagram
+  participant A as 🧑 User
+  participant B as ⚙️ Server
+  A->>B: Request
+  B-->>A: Response
+  Note over A,B: JWT issued
+\`\`\`
+
+**Rules for diagram code:**
+- Must contain \`sequenceDiagram\` — other types (flowchart, ER, etc.) are rejected by the diagrams app API
+- Use emoji in participant labels to make diagrams visual
+- Keep diagrams focused — max ~12 participants/steps
+- \`dark: true\` renders with dark theme colors from diagrams app
+
+## How to invoke this skill
+
+When the user asks for a deck/report/visualization:
+
+1. Build the JSON data object
+2. For any sequence diagram to include, add a \`diagram\` section with \`code\` (Mermaid sequenceDiagram syntax)
+3. Write JSON to \`/tmp/deck-<timestamp>.json\` using the Write tool
+4. Run: \`node ~/.claude/scripts/deck-gen.mjs --input=/tmp/deck-<timestamp>.json\`
+5. The script posts diagrams to diagrams-bheng.vercel.app, fetches rendered SVGs, builds the deck, and opens it
+
+## Example invocation
+
+\`\`\`bash
+node ~/.claude/scripts/deck-gen.mjs --input=/tmp/deck-data.json
+\`\`\`
+
+## Output
+- File: \`~/Desktop/deck-<timestamp>.html\`
+- Self-contained — inline SVGs from diagrams app, no external diagram runtime needed
+- Opens automatically in default browser
+- Diagram sections show rendered SVG + reference link to diagrams-bheng.vercel.app
+`,
+  'Diagram': `# diagram — Post a Diagram to diagrams-bheng.vercel.app
+
+Creates and posts a Mermaid diagram to the diagrams app via the AI API.
+
+## Usage
+\`\`\`
+/diagram sequence showing user login flow
+/diagram flowchart of the onboarding process
+/diagram ER diagram for the stickies database
+/diagram <any description> — Claude generates the Mermaid code and posts it
+\`\`\`
+
+## API
+- **Endpoint:** \`POST https://diagrams-bheng.vercel.app/api/ai/diagrams\`
+- **Auth:** \`Bearer m+pbxP6pzbkan/kZpqxlviUMMC6cRJDdTHC1qQhAqb0=\`
+- **Content-Type:** \`application/json\`
+
+## Supported diagram types
+- \`sequence\` — sequence diagrams
+- \`flowchart\` — flowcharts (LR, TD, etc.)
+- \`er\` — entity relationship diagrams
+- \`classDiagram\` — class diagrams
+- \`gantt\` — gantt charts
+- \`pie\` — pie charts
+- \`gitgraph\` — git graphs
+- \`mindmap\` — mind maps
+
+## How to run
+
+When this skill is invoked, Claude must:
+1. Parse the user's description to determine:
+   - \`title\` — short descriptive title (3-6 words)
+   - \`diagramType\` — infer from description (default: \`flowchart\`)
+   - \`code\` — generate valid Mermaid syntax for the diagram
+2. Run:
+\`\`\`bash
+curl -s -X POST https://diagrams-bheng.vercel.app/api/ai/diagrams \\
+  -H "Authorization: Bearer m+pbxP6pzbkan/kZpqxlviUMMC6cRJDdTHC1qQhAqb0=" \\
+  -H "Content-Type: application/json" \\
+  -d '{"title":"<title>","diagramType":"<type>","code":"<mermaid code>"}'
+\`\`\`
+3. Show the user the response (diagram ID or URL if returned)
+4. Also print the Mermaid code used so the user can review it
+
+## Mermaid code format
+Always include the frontmatter and proper syntax:
+\`\`\`
+---
+title: My Diagram
+---
+sequenceDiagram
+  participant A as 🧑 User
+  ...
+\`\`\`
+
+## Rules
+- Generate clean, valid Mermaid syntax
+- Infer the best diagram type from the description
+- Use emojis in participant/node labels to make diagrams visual
+- Keep diagrams focused and not overly complex (max ~15 nodes)
+- Title should be plain text, no icons
+`,
+  'SSH — M4 Mac': `# sshM4 — Remote M4 Mac SSH Command Runner
+
+SSH into the M4 Mac (\`bheng@M4.local\`) and run commands on it.
+
+## Usage
+\`\`\`
+/sshM4                          # SSH in and show status (whoami, hostname, uptime)
+/sshM4 ls ~/Sites               # Run a specific command
+/sshM4 deploy stickies          # git pull + restart app on M4
+/sshM4 deploy <appname>         # deploy any app in ~/Sites/<appname>
+/sshM4 <any shell command>      # Run anything on M4
+\`\`\`
+
+## How to run
+
+When this skill is invoked, Claude must:
+1. Parse the args:
+   - No args → default to: \`whoami && hostname && uptime\`
+   - \`deploy <appname>\` → run the deploy sequence below
+   - Any other args → run as-is on M4
+2. Run the command on M4 via: \`ssh M4 "<command>"\`
+3. Show the output to the user
+4. If the command starts a server (dev/start/node), run it in the background with \`nohup ... > /tmp/<name>.log 2>&1 &\` and tail the log after 3 seconds to confirm startup
+
+## Deploy sequence (\`/sshM4 deploy <appname>\`)
+
+\`\`\`bash
+ssh M4 "cd ~/Sites/<appname> && git pull && pkill -f 'next.*<appname>' 2>/dev/null || true && nohup npm run prod > /tmp/<appname>.log 2>&1 &"
+sleep 5
+ssh M4 "tail -20 /tmp/<appname>.log"
+\`\`\`
+
+This: pulls latest from GitHub → kills the old process → restarts with \`npm run prod\` → shows startup log.
+
+## Machine Info
+
+- **IP:** 10.0.0.218 (local LAN)
+- **User:** bheng
+- **SSH alias:** \`M4\` (configured in \`~/.ssh/config\`)
+- **OS:** macOS
+
+## App Ports (M4)
+
+| App | Port |
+|-----|------|
+| stickies | 4444 |
+| safe | 6100 |
+| bheng | 3000 |
+| tools | 3001 |
+| diagrams | 3002 |
+| claude | 3003 |
+| mindmaps | 5173 |
+| local-apps | 9876 |
+
+## Rules
+- Always use \`ssh M4\` (the alias configured in \`~/.ssh/config\`)
+- For long-running processes, background them and show the log tail
+- If SSH fails, suggest checking that M4 is on the local network
+`,
+  'SSH — Linode Prod': `# sshProd — Linode Production VM SSH Runner
+
+SSH into the Linode production VM and run commands on it.
+
+## Connection
+
+\`\`\`
+ssh -p 8200 bheng@45.79.212.154
+\`\`\`
+
+- **IP:** 45.79.212.154
+- **User:** bheng
+- **Port:** 8200 (hardened, not 22)
+- **Auth:** SSH key only (password auth disabled)
+- **OS:** Ubuntu, hostname: pm2026
+
+## Usage
+
+\`\`\`
+/sshProd                        # SSH in and show status (whoami, hostname, uptime)
+/sshProd <any shell command>    # Run a command on the VM
+/sshProd logs                   # Tail the bheng app log
+/sshProd db                     # Connect to psql 2026 db
+/sshProd grafana                # Show Grafana/Loki/Prometheus status
+\`\`\`
+
+## How to run
+
+When this skill is invoked, Claude must:
+1. Parse the args:
+   - No args → default to: \`whoami && hostname && uptime && ss -tlnp | grep LISTEN\`
+   - \`logs\` → \`tail -50 /tmp/bheng.log\`
+   - \`db\` → \`psql -U bheng -d 2026 -c '\\dt'\`
+   - \`grafana\` → \`systemctl status grafana loki prometheus grafana-alloy --no-pager | head -40\`
+   - Any other args → run as-is on the VM
+2. Run the command via: \`ssh -p 8200 bheng@45.79.212.154 "<command>"\`
+3. Show the output to the user
+
+## VM Stack
+
+| Service | Port | Notes |
+|---------|------|-------|
+| bheng (Next.js) | 3000 | Production app |
+| Loki | 3100 | Log aggregation |
+| Grafana | 3200 | Dashboards (admin / bheng2026) |
+| Prometheus | 9090 | Metrics |
+| PostgreSQL | 5432 | DB: 2026, user: bheng, pass: qwertyuiop |
+| SSH | 8200 | Key-only, Fail2ban active |
+| nginx | 80/443 | Reverse proxy |
+
+## Database
+
+- **DB:** 2026
+- **User:** bheng / postgres (superuser for admin tasks)
+- **Password:** qwertyuiop
+- **Connection:** \`postgresql://bheng:qwertyuiop@45.79.212.154:5432/2026\`
+- **27 tables** migrated from Supabase (Supabase now auth-only)
+- **Backups:** nightly pg_dump at 3:10 AM UTC, 14-day retention in \`/var/backups/pg/\`
+
+## Security Setup
+
+- SSH port: 8200 (changed from 22)
+- SSH key-only auth (\`PasswordAuthentication no\`)
+- Fail2ban: 3 failed attempts = 7-day IP ban (DROP mode)
+- iptables rate limit: 4 connections per 60s per IP
+- UFW: default DROP, only 8200/80/443 open
+- Office IP (165.225.38.211) whitelisted in iptables
+
+## Grafana Dashboards
+
+- **SSH Security** (\`/d/e3e13d42-6480-4fea-b064-707c59aa6d79/ssh-security\`): Failed attempts, banned IPs, attacker table, bot probe paths
+- **Linode Logs** (\`/d/linode-logs\`): nginx access logs
+- **Server Stats** (\`/d/server-stats\`): CPU/RAM/disk metrics
+- Loki log labels: \`job\` values are \`ssh\`, \`fail2ban\`, \`nginx\`, \`firewall\`, \`system\`
+
+## Grafana Alloy Config
+
+- Location: \`/etc/grafana-alloy/config.alloy\`
+- Ships: \`/var/log/auth.log\` (job=ssh), \`/var/log/fail2ban.log\` (job=fail2ban), nginx logs (job=nginx), UFW (job=firewall)
+
+## Backup Script (cron)
+
+\`\`\`bash
+# /etc/cron.d/pg-backup  (runs as postgres superuser)
+10 3 * * * postgres /usr/lib/postgresql/17/bin/pg_dump -U postgres -d 2026 | gzip > /var/backups/pg/2026-$(date +\\%Y\\%m\\%d).sql.gz
+# cleanup older than 14 days
+15 3 * * * postgres find /var/backups/pg -name "*.sql.gz" -mtime +14 -delete
+\`\`\`
+
+## Rules
+
+- Always use \`ssh -p 8200 bheng@45.79.212.154\` (no SSH alias configured for this host)
+- For Grafana API calls use port 3200 and auth \`admin:bheng2026\`
+- For Loki API calls use port 3100
+- Do NOT change SSH port, UFW rules, or Fail2ban config without explicit user request
+- If SSH times out, VM may be rebooting or iptables rate-limited — wait 60s and retry
+`,
+  'SSH — PM2026': `# sshPM2026 — Remote PM2026 Server SSH Runner
+
+SSH into the PM2026 server and run commands on it.
+
+## Connection
+
+\`\`\`
+ssh -p 8200 bheng@66.228.61.79
+\`\`\`
+
+- **IP:** 66.228.61.79
+- **User:** bheng (sudo NOPASSWD), root also works
+- **Port:** 8200 (hardened - was 22)
+- **Auth:** SSH key only (password auth disabled)
+- **OS:** Ubuntu 24.04, hostname: iggy26
+
+## Usage
+
+\`\`\`
+/sshPM2026                        # SSH in and show status (whoami, hostname, uptime)
+/sshPM2026 <any shell command>    # Run a command on the server
+\`\`\`
+
+## How to run
+
+When this skill is invoked, Claude must:
+1. Parse the args:
+   - No args → default to: \`whoami && hostname && uptime && ss -tlnp | grep LISTEN\`
+   - Any other args → run as-is on the server
+2. Run the command via: \`ssh -p 8200 bheng@66.228.61.79 "<command>"\`
+3. Show the output to the user
+
+## Security Setup (already hardened)
+
+- SSH port: 8200 (changed from 22, via systemd socket override)
+- SSH key-only auth (\`PasswordAuthentication no\`)
+- Fail2ban: 3 failed attempts = 7-day IP ban (DROP mode) - already banned 15 bots on setup
+- iptables rate limit: 4 connections per 60s per IP
+- Office IP 165.225.38.211 whitelisted in iptables
+- UFW: 8200/80/443 open, all else dropped
+
+## Hardening steps (for reference / other servers)
+
+See \`/sshProd\` skill or ask Claude to repeat the hardening sequence which covers:
+1. Copy SSH key
+2. Create bheng user with sudo NOPASSWD
+3. Disable password auth in sshd_config
+4. Change port to 8200 via \`/etc/systemd/system/ssh.socket.d/override.conf\`
+5. UFW firewall (deny incoming, allow 8200/80/443)
+6. iptables rate limit + whitelist office IP + netfilter-persistent save
+7. Fail2ban with 7d ban, DROP mode, port 8200
+
+## Rules
+
+- Always use \`ssh -p 8200 bheng@66.228.61.79\`
+- If SSH times out, iptables may have rate-limited - wait 60s and retry
+- If locked out, use Linode Lish console to recover
+`,
+  'SSH — Raspberry Pi 5': `# sshPi5 — Remote Raspberry Pi 5 SSH Command Runner
+
+SSH into the Pi 5 (\`pi@pi5.local\`) and run commands on it.
+
+## Usage
+\`\`\`
+/sshPi5                               # SSH in and show status (whoami, hostname, uptime)
+/sshPi5 ls ~/                         # Run a specific command
+/sshPi5 tail -50 /tmp/leak-scan.log   # Check scan logs
+/sshPi5 <any shell command>           # Run anything on Pi5
+\`\`\`
+
+## How to run
+
+When this skill is invoked, Claude must:
+1. Parse the args — if no command given, default to: \`whoami && hostname && uptime && df -h /\`
+2. Run the command on Pi5 via: \`ssh pi5 "<command>"\`
+3. Show the output to the user
+4. If the command starts a server or long process, run it in the background with \`nohup ... > /tmp/<name>.log 2>&1 &\` and tail the log after 3 seconds
+
+## Machine Info
+
+- **Hostname:** pi5.local
+- **User:** pi
+- **SSH alias:** \`pi5\` (configured in \`~/.ssh/config\`)
+- **IP:** 10.0.0.x (same LAN as M4)
+- **OS:** Raspberry Pi OS (Debian 12)
+
+## Rules
+- Always use \`ssh pi5\` (the alias configured in \`~/.ssh/config\`)
+- Pi5 is on the local LAN (10.0.0.x) — must be on same network to connect
+- For long-running processes, background them and show the log tail
+- If SSH fails, suggest checking that Pi5 is on the local network
+`,
+  'Local Apps': `# local-apps — Start All Apps and Fix Red Ones
+
+Manages the local-apps process manager running at \`http://localhost:9876\`.
+Starts all apps, detects failures, diagnoses errors, and attempts to fix them.
+
+## Usage
+\`\`\`
+/local-apps                  # Default: start all apps, fix anything red
+/local-apps start-all        # Same as above
+/local-apps status           # Show current status of all apps
+/local-apps start <id>       # Start a specific app
+/local-apps fix <id>         # Diagnose and fix a specific down app
+\`\`\`
+
+## Default behavior (no argument)
+When invoked as \`/local-apps\` with no argument, immediately execute the \`start-all\` flow below.
+
+## How to run: start-all
+
+When invoked with \`start-all\`, Claude must:
+
+### Step 1 — Trigger start for all apps
+\`\`\`bash
+curl -s http://localhost:9876/api/apps
+\`\`\`
+Get all app IDs, then for each one:
+\`\`\`bash
+curl -s -X POST http://localhost:9876/api/start/<id>
+\`\`\`
+
+### Step 2 — Wait and check status
+Wait 8 seconds, then:
+\`\`\`bash
+curl -s http://localhost:9876/api/status
+\`\`\`
+Parse \`status\` field for each app: \`"up"\` = green ✅, anything else = red ❌
+
+### Step 3 — For each red app, diagnose and fix
+
+**A. Check the log:**
+\`\`\`bash
+tail -30 /tmp/<id>.log
+\`\`\`
+
+**B. Diagnose by error type and fix:**
+
+| Error in log | Fix |
+|---|---|
+| \`EADDRINUSE\` | Port already in use — kill the process: \`lsof -ti :<port> \\| xargs kill -9\` then restart |
+| \`Cannot find module\` / \`MODULE_NOT_FOUND\` | Run \`npm install\` in \`localPath\`, then restart |
+| \`ENOENT\` / missing file | Check if \`localPath\` exists: \`ls <localPath>\` |
+| \`password authentication failed\` | DB credentials wrong — check \`.env.local\` |
+| \`next: command not found\` / \`npm: command not found\` | Use full path: \`source ~/.nvm/nvm.sh && nvm use 20\` |
+| \`ECONNREFUSED\` on DB | DB server down or wrong host/port |
+| No log output at all | LaunchAgent may not be configured — start manually via nvm |
+
+**C. Manual start fallback** (if launchAgent is null):
+\`\`\`bash
+source ~/.nvm/nvm.sh && nvm use 20 && cd <localPath> && nohup npm run dev > /tmp/<id>.log 2>&1 &
+\`\`\`
+
+### Step 4 — Re-check after fixes
+Wait 5 seconds, re-run status check. Report final results.
+
+## Output format
+Show a table after each round:
+\`\`\`
+✅ up     bheng          http://localhost:3000
+✅ up     tools          http://localhost:3001
+❌ down   safe           http://localhost:6100  → fixing...
+\`\`\`
+
+## Rules
+- Always use \`http://localhost:9876\` (local-apps API)
+- If \`target\` is M4, use \`ssh M4 "..."\` for all commands
+- Never modify app source code — only env files, npm install, process restarts
+- Skip apps with no \`localPath\` or that are intentionally excluded
+- If an app stays red after 2 fix attempts, report it as "needs manual attention"
+`,
+  'Onboard': `# Onboard — New App Onboarding Checklist
+
+Run the full onboarding sequence for a newly cloned or created app.
+Smart, parallel, skips what's already done.
+
+## Usage
+\`\`\`
+/onboard                        ← onboard the app in the current directory
+/onboard ~/Sites/my-app         ← onboard a specific app path
+\`\`\`
+
+---
+
+## How to run
+
+### Step 0 — Auto-detect app context
+Before doing anything, extract from the project in parallel:
+\`\`\`bash
+# Run all of these simultaneously
+cat package.json                          # name, version, scripts, dependencies
+ls .vercel/ 2>/dev/null                   # vercel already linked?
+git remote -v                             # github remote url
+cat .env.local 2>/dev/null | head -3      # env exists?
+ls .husky/ 2>/dev/null                    # husky installed?
+cat next.config.ts 2>/dev/null            # security headers?
+grep -r "supabase\\|signIn\\|useUser\\|getUser\\|next-auth\\|middleware" --include="*.ts" -l 2>/dev/null
+grep -r "jfrog\\|infusionsoft" package-lock.json 2>/dev/null | head -1
+ssh M4 "cat ~/Sites/<id>/.env.local" 2>/dev/null  # env on M4?
+curl -s http://localhost:9876/api/apps | python3 -c "import json,sys; apps=json.load(sys.stdin); print(next((a['id'] for a in apps if a['id']=='<id>'), 'NOT_REGISTERED'))"
+\`\`\`
+
+Derive automatically (never ask user):
+- \`id\` — from \`package.json\` \`name\` field (kebab-case)
+- \`port\` — from \`dev\` script (e.g. \`PORT=3005\`)
+- \`hasAuth\` — true if auth signals found in grep above
+- \`hasVercel\` — true if \`.vercel/project.json\` exists
+- \`hasHusky\` — true if \`.husky/\` exists
+- \`hasEnv\` — true if \`.env.local\` exists
+- \`isRegistered\` — true if id found in local-apps API
+- \`hasJfrog\` — true if \`package-lock.json\` contains \`infusionsoft.jfrog.io\`
+- \`stack\` — infer from deps: Next.js, TypeScript, Tailwind, Supabase, etc.
+
+### Step 1 — Pre-flight summary
+Print a single status table before doing any work:
+\`\`\`
+PRE-FLIGHT SCAN: my-app
+─────────────────────────────────────────
+✅ scaffold       Next.js app router found
+✅ git            remote: github.com/bunlongheng/my-app
+❌ local-apps     not registered
+❌ vercel         not linked
+✅ env            .env.local exists
+❌ husky          not installed
+N/A auth          no login detected — Phase 7 skipped
+❌ jfrog          package-lock.json has JFrog URLs — will fix
+✅ security       headers present
+─────────────────────────────────────────
+Will fix: local-apps, vercel, husky, jfrog
+Skipping: auth (no login), lighthouse (no prod URL yet)
+\`\`\`
+
+### Step 2 — Run only what's red, in parallel where possible
+
+**Batch A (run in parallel):**
+- Fix JFrog lock file: \`rm package-lock.json && npm install\`
+- Copy \`.env.local\` from M4 if missing: \`ssh M4 "cat ~/Sites/<id>/.env.local" > .env.local\`
+- Register in local-apps if not registered:
+  \`\`\`bash
+  curl -X POST http://localhost:9876/api/apps \\
+    -H "Content-Type: application/json" \\
+    -d '{"id":"<id>","name":"<name>","localPath":"<path>"}'
+  \`\`\`
+
+**Batch B (after A completes):**
+- Add security headers to \`next.config.ts\` if missing
+- Install Husky: \`npx husky init\` + write \`.husky/pre-push\`
+- Add commit conventions note to README
+
+**Batch C (sequential — depends on app running):**
+- Vercel: \`vercel link && vercel --prod\`
+- Generate favicon: \`curl -X POST http://localhost:9876/api/generate-icons/<id>\`
+- Capture screenshot: \`curl -X POST http://localhost:9876/api/screenshots/<id>\`
+
+**Batch D (final):**
+- Generate README.md with: name, one-liner, tech stack badges, setup instructions, env vars table, prod URL, screenshot
+- Generate logo prompt:
+  \`\`\`
+  A minimal, modern app icon for "<App Name>".
+  <2-3 sentence description of what the app does and its vibe>.
+  Clean flat design, bold single color on dark background,
+  suitable for a macOS app icon. No text.
+  \`\`\`
+- Add shell alias entry to \`~/.claude-tabs.sh\`
+
+### Step 3 — Final report
+Always print a full table with every phase, no exceptions:
+
+## 🚀 ONBOARD COMPLETE — my-app
+
+| # | Phase | Status | Details |
+|---|-------|:------:|---------|
+| 1 | Scaffold | ✅ | Next.js App Router, all scripts ok |
+| 2 | Git + GitHub | ✅ | github.com/bunlongheng/my-app |
+| 3 | Local Apps | ⚡ | Port 3005, caddy: my-app.localhost |
+| 4 | Vercel | ⚡ | https://my-app.vercel.app |
+| 5 | Shell Alias | ⚡ | Added to ~/.claude-tabs.sh |
+| 6 | Security | ⚡ | Headers added to next.config.ts |
+| 7 | Auth | 🚫 | No login detected — skipped |
+| 8 | Performance | 🚫 | No prod URL yet — skipped |
+| 9 | Pre-push Hook | ⚡ | Husky installed + typecheck hook |
+| 10 | Conventions | ✅ | Already in README |
+| 11 | README + Logo | ⚡ | README generated, prompt below |
+| 12 | Verify | ✅ | Tests pass, audit clean |
+
+> ✅ already done &nbsp; ⚡ fixed now &nbsp; 🚫 skipped &nbsp; ❌ needs attention
+
+🎨 **Logo prompt:**
+> A minimal, modern app icon for "My App". [description]. Clean flat design,
+> bold single color on dark background, suitable for a macOS app icon. No text.
+
+---
+
+## Phase reference (what each phase checks/does)
+
+### Phase 1 — Scaffold
+- Next.js App Router, \`package.json\` scripts: \`dev\`, \`build\`, \`test\`, \`typecheck\`, \`lint\`
+
+### Phase 2 — Git + GitHub
+- Git init, pushed to \`github.com/bunlongheng/<id>\`, description set, topics added, Dependabot removed
+
+### Phase 3 — Local Apps
+- Registered via \`POST http://localhost:9876/api/apps\`
+- Port assigned, Caddy proxy created, LaunchAgent \`.plist\` created
+- Favicon + baseline screenshot captured
+
+### Phase 4 — Vercel *(skip if local-only)*
+- \`vercel link\`, \`vercel --prod\`, GitHub homepage set, \`vercel.json\` ignoreCommand for \`chore:\` commits
+
+### Phase 5 — Shell Alias
+- Entry in \`~/.claude-tabs.sh\`: \`cd\`, iTerm2 title/badge/color, \`claude --dangerously-skip-permissions --resume\`
+
+### Phase 6 — Security
+- \`next.config.ts\` headers: \`X-Frame-Options\`, \`X-Content-Type-Options\`, \`Referrer-Policy\`, \`Permissions-Policy\`
+- \`npm audit\` clean, secrets in \`.env.local\`, \`.env.example\` committed
+
+### Phase 7 — Auth *(skip if no auth signals)*
+- Auth signals: \`supabase\`, \`next-auth\`, \`signIn\`, \`useUser\`, \`getUser\`, \`middleware.ts\`
+- If found: production auth enforced + localhost bypass via \`lib/is-local.ts\`
+
+### Phase 8 — Performance *(skip if no prod URL)*
+- \`next/image\` for all images, \`Promise.all\` for parallel fetches, Lighthouse 99+
+
+### Phase 9 — Pre-push Hook
+- Husky installed, \`.husky/pre-push\` runs \`npm run typecheck\` only
+
+### Phase 10 — Commit Conventions
+- README note on: \`feat:\`, \`fix:\`, \`chore:\`, \`docs:\`, \`refactor:\`
+
+### Phase 11 — README + Logo
+- Auto-generated README with badges, setup, env table, prod URL, screenshot
+- Logo prompt printed for Midjourney / DALL-E
+
+### Phase 12 — Verify
+- Prod URL loads, \`npm test\` passes, \`npm audit\` clean, all env vars in \`.env.example\`
+
+---
+
+## Rules
+- Never edit files in ThryvLabs or infusionsoft repos (pull-only)
+- Don't commit or push unless the user explicitly asks
+- Keep all secrets out of committed files
+- Never ask the user for info that can be auto-detected
+- If a phase is already done → ✅ skip silently, don't redo it
+- If not applicable → N/A with one-word reason
+`,
+  'Sprint Snapshot': `# Sprint Snapshot — Zeta Board Cycle + Sprint Grid
+
+Generates a concise table-grid snapshot of the current Zeta sprint: status breakdown, assignee workload, issue type mix, and points summary — all in one glanceable output.
+
+## What this skill does
+1. Detects the active sprint from Zeta Scrum board (3148)
+2. Fetches all issues in the sprint
+3. Renders a multi-table snapshot grid:
+   - **Header**: sprint name, dates, total tickets, total points
+   - **Status grid**: ticket count + points per status column
+   - **Assignee table**: per-person breakdown (In Progress / Ready / Review / Done / other)
+   - **Type breakdown**: Story / Task / Sub-task / Bug / Research Spike / Security
+   - **Progress bar**: % done (Done + Deployed + Cancelled / total)
+4. Optionally posts to Stickies
+
+## Usage
+\`\`\`
+/sprint-snapshot                        (default: current active sprint)
+/sprint-snapshot --board=3148           (explicit board ID, default is Zeta)
+/sprint-snapshot --output=stickies      (also post to Stickies on M4)
+\`\`\`
+
+## Credentials
+Read from \`/Users/hengb01/Sites/3pi/.env.local\`:
+- \`JIRA_USERNAME\`
+- \`JIRA_API_TOKEN\`
+
+Base URL: \`https://thryv.atlassian.net\`
+Board ID: \`3148\` (Zeta Scrum board)
+
+## Execution Steps
+
+### Step 1 — Detect active sprint
+\`\`\`
+GET https://thryv.atlassian.net/rest/agile/1.0/board/3148/sprint?state=active
+\`\`\`
+Extract: \`id\`, \`name\`, \`startDate\`, \`endDate\`, \`goal\`
+
+### Step 2 — Fetch all sprint issues
+\`\`\`
+GET https://thryv.atlassian.net/rest/agile/1.0/board/3148/sprint/{sprintId}/issue
+  ?fields=summary,status,priority,assignee,customfield_10112,issuetype
+  &maxResults=200
+\`\`\`
+Auth: Basic \`JIRA_USERNAME:JIRA_API_TOKEN\`
+
+### Step 3 — Aggregate data
+
+**Status groups** (for grid columns):
+| Group | Statuses included |
+|-------|-------------------|
+| To Do | Open, Backlog, To Do |
+| Ready | Ready |
+| In Progress | In Progress |
+| Review | Review, Internal Review |
+| Stage | Stage, Ready for Stage |
+| RFP | Ready for Production |
+| Done | Done, Deployed |
+| Cancelled | Cancelled |
+
+For each group, compute: ticket count + total story points.
+
+**Assignee breakdown** — for each unique assignee, count tickets per status group.
+
+**Issue type breakdown** — count per type: Story / Task / Sub-task / Bug / Research Spike / Security / other.
+
+**Progress** — \`(Done + Deployed + Cancelled) / total * 100\` → render as \`[████████░░] 78%\`
+
+### Step 4 — Render snapshot
+
+Output this exact format:
+
+\`\`\`markdown
+# Zeta Sprint Snapshot
+> **Zeta Cycle 3 2026 Sprint 2** · Apr 9 – May 6, 2026 · 77 tickets · 142 pts
+
+## Status Grid
+| Status | Tickets | Points |
+|--------|---------|--------|
+| To Do | 0 | 0 |
+| Ready | 12 | 22 |
+| In Progress | 7 | 18 |
+| Review | 4 | 9 |
+| Stage | 8 | 14 |
+| RFP | 10 | 18 |
+| Done | 30 | 52 |
+| Cancelled | 2 | 3 |
+| **Total** | **73** | **136** |
+
+**Sprint Progress:** [████████░░] 44% complete  (32 of 73 Done/Deployed/Cancelled)
+
+## Assignee Workload
+| Assignee | In Prog | Ready | Review | Stage | RFP | Done | Total | Pts |
+|----------|---------|-------|--------|-------|-----|------|-------|-----|
+| Bryan Diaz Cabrera | 1 | 4 | 1 | 0 | 2 | 3 | 11 | 14 |
+| ...      | ...     | ...   | ...    | ...   | ... | ...  | ...   | ... |
+| Unassigned | ... | ... | ... | ... | ... | ... | ... | ... |
+| **Total** | 7 | 12 | 4 | 8 | 10 | 30 | 73 | 136 |
+
+## Issue Type Breakdown
+| Type | Count | Points |
+|------|-------|--------|
+| Task | 58 | 110 |
+| Story | 5 | 14 |
+| Research Spike | 2 | 4 |
+| Security | 3 | 3 |
+| Sub-task | 5 | 5 |
+| **Total** | **73** | **136** |
+\`\`\`
+
+### Step 5 — Post to Stickies (if \`--output=stickies\`)
+\`\`\`
+POST http://10.0.0.218:4444/api/stickies
+Authorization: Bearer sk_stickies_d218dfa0abe37b82c5269f40bd478ddca7b567bbd1310efc
+{
+  "title": "⬡ Zeta Sprint Snapshot — [sprint name]",
+  "content": "<full markdown output>",
+  "folder": "Zeta",
+  "color": "blue"
+}
+\`\`\`
+
+## Rules
+- Always auto-detect the active sprint — never hardcode sprint ID
+- Board ID is always 3148 (Zeta)
+- Sort Assignee table by Total tickets descending
+- Points: use \`customfield_10112\`; treat null as 0
+- If no active sprint found, output an error message
+- Sub-tasks: include in counts but mark type as "Sub-task"
+- Progress bar: 20 chars wide, 1 \`█\` per 5%, fill with \`░\`
+- Always show both ticket count AND points in every table
+- All tables must be markdown (no ASCII box-drawing)
+`,
+  'Zeta Metrics': `# Zeta Metrics — CLI-Style Sprint Report
+
+Hits the live 3pi metrics API and renders a clean CLI-style plain text summary of the current Zeta sprint. No markdown tables — pure text output styled like a terminal tool.
+
+## What this skill does
+1. Calls \`http://localhost:3333/api/jira/metrics-data?team=Zeta\`
+2. Pulls key metric values (current + avg + delta)
+3. Renders as a CLI-style text block with sections, trend arrows, and spark bars
+4. Optionally posts to Stickies on M4
+
+## Usage
+\`\`\`
+/zeta-metrics                     (default: pull live data, render CLI text)
+/zeta-metrics --output=stickies   (also post to Stickies on M4)
+\`\`\`
+
+## Execution Steps
+
+### Step 1 — Fetch live data
+\`\`\`
+GET http://localhost:3333/api/jira/metrics-data?team=Zeta
+\`\`\`
+Extract from response:
+- \`sprints\` — find the one with \`active: true\` for sprint name + dates
+- \`metrics\` — all metric objects with \`.current.value\`, \`.current.delta\`, \`.overall.value\`
+
+### Step 2 — Compute trend arrows
+For each metric delta:
+- delta > 0  → \`↑\` (or \`↑↑\` if > 2x avg delta)
+- delta < 0  → \`↓\` (or \`↓↓\` if strongly negative)
+- delta == 0 or null → \`→\`
+
+For metrics where LOWER is better (leadTime, cycleTime, burnOut, wip, watchOut, bugRate, blockedItems, rework, unestimated, highPriority, scopeCreep):
+- a positive delta is BAD → show \`▲\` (red-ish signal)
+- a negative delta is GOOD → show \`▼\`
+
+For metrics where HIGHER is better (velocity, throughput, burnUp, teamCoverage, predictability, avgStorySize):
+- positive delta → \`▲\` (good)
+- negative delta → \`▼\` (bad)
+
+### Step 3 — Build progress bar
+Sprint burn-up % → 20-char bar: 1 block per 5%
+- \`[████████████░░░░░░░░]  62%\`
+- Use \`█\` and \`░\`
+
+### Step 4 — Render CLI output
+
+Render exactly this format (plain text, no markdown syntax, no tables):
+
+\`\`\`
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  ZETA METRICS  ·  [sprint short name]
+  [Sprint full name]
+  [startDate] – [endDate]  ·  [today's date]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+SPRINT PROGRESS
+  [████████████░░░░░░░░]  [burnUp]% done
+  Done:   [throughput.current] tickets  (avg [throughput.overall])
+  Remain: [burnDown.current] tickets
+
+VELOCITY
+  This sprint:  [velocity.current] pts   [arrow] [delta] from last  (avg [velocity.overall])
+  Throughput:   [throughput.current] done [arrow] [delta] from last  (avg [throughput.overall])
+
+FLOW
+  Lead Time:    [leadTime.current] days   [arrow]  (avg [leadTime.overall])
+  Cycle Time:   [cycleTime.current] days  [arrow]  (avg [cycleTime.overall])
+  Avg Size:     [avgStorySize.current] pts  (avg [avgStorySize.overall])
+  Scope Creep:  [scopeCreep.current] tickets added mid-sprint  (avg [scopeCreep.overall])
+  Unestimated:  [unestimatedTickets.current]%  (avg [unestimatedTickets.overall]%)
+
+HEALTH
+  WIP:          [wip.current] open  [arrow]  (avg [wip.overall])
+  Burn Out:     [burnOut.current]%  [arrow]  (avg [burnOut.overall]%)
+  Watch Out:    [watchOut.current] at-risk  [arrow]  (avg [watchOut.overall])
+  Predictable:  [sprintPredictability.current]%  (avg [sprintPredictability.overall]%)
+
+QUALITY
+  Bug Rate:     [bugRate.current]%  (avg [bugRate.overall]%)
+  Blocked:      [blockedItems.current]  (avg [blockedItems.overall])
+  Rework:       [reworkRate.current]  (avg [reworkRate.overall])
+  High Pri Open:[highPriorityOpen.current]  (avg [highPriorityOpen.overall])
+
+TEAM
+  Contributors: [teamCoverage.current] active  (avg [teamCoverage.overall])
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+\`\`\`
+
+Rules for the plain text output:
+- Column-align the labels with spaces (pad to ~14 chars)
+- Use \`·\` as separator in the header
+- No markdown — no \`**\`, no \`#\`, no \`|\`
+- Arrows: \`▲\` = going up (bad for lower-is-better metrics), \`▼\` = going down, \`→\` = flat
+- Use \`(avg X)\` for historical context on every line
+- If an API call to localhost:3333 fails, note "3pi not running — start with /local-apps"
+
+### Step 5 — Post to Stickies (if --output=stickies)
+\`\`\`
+POST http://10.0.0.218:4444/api/stickies/ext
+Authorization: Bearer sk_ext_72a5c2daa2602a7ccecddafb04a26e963fd138a2940db174a1c66ac3de5816f9
+{
+  "title": "⬡ Zeta Metrics · [sprint short]",
+  "content": "<the full plain text output>",
+  "folder": "Zeta",
+  "color": "purple"
+}
+\`\`\`
+
+## Rules
+- Source: always \`http://localhost:3333/api/jira/metrics-data?team=Zeta\` — local 3pi only
+- Plain text only — no markdown, no tables
+- Always show \`(avg X)\` beside each metric — context is everything
+- Lower-is-better metrics: leadTime, cycleTime, burnOut, wip, watchOut, bugRate, blockedItems, reworkRate, unestimatedTickets, highPriorityOpen, scopeCreep
+- Higher-is-better: velocity, throughput, burnUp, teamCoverage, sprintPredictability, avgStorySize
+- If delta is null, show \`→\` and skip the delta number
+- Round all floats to 1 decimal
+`,
+  'LOE Insight': `# LOE Insight — AI Effort Estimation for All Zeta Board Tickets
+
+Deploys agents to scan every open ticket on the Zeta Scrum board, generates an AI-powered summary per ticket, and assigns a Level of Effort (LOE) estimate based on what it would take for an AI agent to implement the ticket end-to-end (A to Z). Outputs a clean summary table.
+
+## What this skill does
+1. Fetches all open tickets from the Zeta Scrum board (board ID: 3148) via Jira REST API
+2. For each ticket: reads summary, description, acceptance criteria, story type, and current assignee
+3. Deploys parallel agents (or sequential batches) to analyze each ticket
+4. Each agent produces:
+   - A 1-2 sentence plain-English summary
+   - An LOE category (XS / S / M / L / XL) for AI-driven A-Z implementation
+   - An AI effort breakdown: plan + implement + test + PR + review
+   - Key risks or blockers an AI agent would face
+5. Renders a full table, sorted by LOE descending (largest first), then posts to Stickies
+
+## Usage
+\`\`\`
+/loe-insight                          (default: active sprint, In Progress + Ready + Backlog only)
+/loe-insight --all                    (include all statuses — Review, Stage, RFP, etc.)
+/loe-insight --ticket=PLAT-9448       (scan a specific ticket regardless of status)
+/loe-insight --output=stickies        (also posts results to Stickies)
+\`\`\`
+
+## LOE Category Definitions (AI Agent doing A-Z)
+
+Context baseline: **Claude Opus with 1M token context** — everything fits in one session unless truly massive.
+LOE is about **complexity and ambiguity**, not context limits.
+
+| LOE | Tokens | What it means |
+|-----|--------|---------------|
+| XS  | ~10K   | Single-file change, clear AC — agent reads ticket + 3-5 files, done in one pass |
+| S   | ~30K   | Small feature, 1-3 files — agent reads ticket + codebase context + adjacent patterns |
+| M   | ~80K   | Cross-service change — agent loads multiple modules, dependencies, history, writes plan + impl |
+| L   | ~200K  | Complex multi-service, schema change, unclear AC — agent needs full codebase scan + architecture reasoning |
+| XL  | ~500K+ | Truly large epic — requires parallel sub-agents by design, not context limit; or AC so missing it needs human first |
+
+Token breakdown format: \`80K (55K in / 25K out)\`
+- **Input tokens**: ticket + description + AC + relevant files + PR history + architecture context
+- **Output tokens**: plan + implementation code + tests + PR description + review response
+
+"A-Z" means: ticket review → architecture → implementation → tests → PR → review feedback → merge-ready.
+
+## Execution Steps
+
+### Step 1 — Auto-detect active sprint from board
+**Always do this first** — do NOT use JQL \`openSprints()\` with Team field (returns 0 results).
+
+\`\`\`
+GET https://thryv.atlassian.net/rest/agile/1.0/board/3148/sprint?state=active
+\`\`\`
+Extract: sprint \`id\` and \`name\` from the response.
+
+Then fetch all tickets in that sprint:
+\`\`\`
+GET https://thryv.atlassian.net/rest/agile/1.0/board/3148/sprint/{sprintId}/issue
+  ?fields=summary,description,status,priority,assignee,customfield_10112,issuetype,comment
+  &maxResults=100
+\`\`\`
+Auth: Basic — JIRA_USERNAME + JIRA_API_TOKEN from \`.env.local\`
+
+### Step 2 — For each ticket, extract
+- Key (PLAT-XXXX), summary, status, priority, story points, assignee
+- Description (plain text — strip Atlassian document format)
+- First comment or most recent comment (for context)
+- Issue type (Story / Bug / Task / Sub-task)
+
+### Step 3 — Agent analysis (run in parallel batches of 10)
+For each ticket, generate:
+- **Summary**: 1-2 sentence plain-English description of what needs to be done
+- **LOE**: XS / S / M / L / XL (use definitions table above)
+- **AI Tokens**: estimated token cost broken into phases:
+  - Input: ticket + files + context read by the agent
+  - Output: plan + code + tests + PR + review responses
+  - Format: \`80K (55K in / 25K out)\`
+- **AI Confidence**: High / Medium / Low — how confident the AI can complete this with no human help
+  - High: AC is clear, domain is understood, no external dependencies
+  - Medium: some ambiguity, needs clarification on 1-2 points
+  - Low: missing AC, external team dependency, or requires access agent doesn't have
+- **Blocker for AI**: 1-line note on what would stop an AI agent (e.g. "missing AC", "needs DB schema", "external API unknown")
+
+### Step 4 — Render table
+
+Output this markdown table:
+
+\`\`\`markdown
+# Zeta Board — AI LOE Scan
+> Sprint: [sprint name]  |  Date: [today]  |  Total tickets: N
+
+| Ticket | Summary | Type | Priority | LOE | Tokens | Confidence | Blocker |
+|--------|---------|------|----------|-----|--------|------------|---------|
+| [PLAT-XXXX](link) | ... | Story | P1 | L | 200K (140K in / 60K out) | Medium | Missing AC |
+...
+\`\`\`
+
+Then render a second breakdown table:
+
+\`\`\`markdown
+## LOE Distribution
+| LOE | Count | Tickets |
+|-----|-------|---------|
+| XL  | 2     | PLAT-xxx, PLAT-xxx |
+| L   | 4     | ... |
+| M   | 6     | ... |
+| S   | 3     | ... |
+| XS  | 1     | ... |
+| **Total** | **16** | |
+\`\`\`
+
+### Step 5 — Post to Stickies (if --output=stickies or explicitly requested)
+POST to http://localhost:4444/api/stickies
+\`\`\`json
+{
+  "title": "Zeta LOE Scan — [date]",
+  "content": "<the full markdown table>",
+  "folder": "Zeta",
+  "color": "blue"
+}
+\`\`\`
+Auth: \`Authorization: Bearer sk_stickies_d218dfa0abe37b82c5269f40bd478ddca7b567bbd1310efc\`
+
+## Rules
+- **Board ID**: 3148 (Zeta Scrum board) — always use agile board API to detect active sprint, never JQL Team field filter
+- **Default behavior**: no flags needed — always auto-detects the current active sprint
+- **Jira cloud**: thryv.atlassian.net
+- **LOE is for AI doing it A-Z** — not human estimate, not story points
+- **Status filter (default)**: only include tickets with status: \`In Progress\`, \`Ready\`, \`Open\`, \`Backlog\`, \`To Do\`
+  - EXCLUDE: Review, Internal Review, Stage, Ready for Stage, Ready for Production, Done, Deployed, Cancelled
+  - These excluded statuses mean the ticket is already in an environment pipeline or complete — not relevant for planning
+  - Use \`--all\` flag to include all statuses
+- Never expose Jira tokens client-side
+- Sort output table by LOE descending (XL first), then by priority within same LOE
+- If a ticket has no description, mark confidence = Low and note "no description"
+- Sub-tasks: include them, note parent ticket in Blocker column
+- Token format: \`80K (55K in / 25K out)\` = total (input context read / output generated)
+- If \`--ticket=\` flag is used, scan only those specific tickets
+- Always show total ticket count and sprint name in the header
+`,
+  'Jira Block Audit': `# Jira Block Audit
+
+Audit blocked tickets in a Jira project, identify who is causing blocks, and generate a markdown report on the Desktop.
+
+## What this skill does
+1. Searches for all \`Blocked\` tickets in the QTM project since a given date (default: 30 days ago)
+2. Fetches comments to identify root causes and responsible parties
+3. Separates blocks by team (MC vs 3PI/Zeta)
+4. Generates a \`mc-blocks.md\` report on the Desktop
+
+## Usage
+\`\`\`
+/jira-block-audit
+/jira-block-audit since:2026-03-24
+/jira-block-audit project:QTM since:2026-03-01
+\`\`\`
+
+## Rules
+- **Jira cloud:** \`thryv.atlassian.net\`
+- **Default project:** \`QTM\`
+- **Default since date:** 30 days ago from today
+- **Output file:** \`~/Desktop/mc-blocks.md\`
+- Always fetch comments for each blocked ticket to find root cause
+- Identify which team caused each block:
+  - **MC team (blockers):** Jacob Fuller, Eduardo Lobo, Boris Palacios, Steven Vores, Jens Larsen
+  - **3PI/Zeta team (being blocked):** Bunlong Heng, Ryan Watkins, Miguel Araujo/Tapia, Luis Ogando, Gabriel Peralta, Juan Pena, Isabel Jimenez
+
+## Steps
+
+### 1 — Search blocked tickets
+Use JQL:
+\`\`\`
+project = QTM AND status = Blocked AND updated >= "SINCE_DATE" ORDER BY updated DESC
+\`\`\`
+Fetch fields: \`summary, status, assignee, comment, updated, priority, reporter, created\`
+
+### 2 — For each ticket, extract
+- Key, summary, priority, status
+- Assignee (who owns it)
+- Reporter (who created it)
+- All comments — author, date, and body text
+- Whether the block is caused by MC or 3PI side
+
+### 3 — Classify each block
+Determine cause:
+- **MC causing block** = MC member is assignee and not progressing, OR MC dependency unresolved, OR MC PROD/infra issue
+- **3PI causing block** = 3PI member is assignee and not progressing
+
+### 4 — Generate mc-blocks.md
+Write to \`~/Desktop/mc-blocks.md\` with:
+- Summary table (total blocks, unique blockers, impacted team members)
+- Chronological block log (one entry per ticket)
+- Each entry includes: date, ticket link, MC blocker, why, impact, evidence quotes
+- Recurring patterns section
+- Key people table
+- Recommended actions
+
+## Output Format
+
+\`\`\`markdown
+# MC Team Blocking Log — 3PI / Zeta Team
+> Audit period: DATE_RANGE
+> Project: QTM
+
+## Summary
+| Metric | Count |
+...
+
+## Block Log (Chronological)
+
+### 🔴 BLOCK #N
+**Date:** ...
+**Ticket:** [QTM-XXX](link) — Summary
+**Priority:** Px | **Status:** Blocked
+**MC Blocker:** Name
+**What happened:** ...
+**Impact on 3PI team:** ...
+**Evidence comment:** > quote
+
+## Recurring Patterns
+...
+
+## Recommended Actions for Rod
+...
+\`\`\`
+
+## Notes
+- Slack search (\`quantum-leaps-and-bounds\` channel) may provide additional context if auth is available
+- If a ticket has no comments, note it as "no investigation documented"
+- Always check if the same root cause is blocking multiple tickets (e.g. QTM-1051 blocked 5 tickets at once)
+- Cross-reference with Confluence bi-weekly reports for additional context on 3PI team blockers
+`,
+  'QE Zeta': `# QE Zeta — Integration Service Stage Verification
+
+Reads Acceptance Criteria directly from Jira tickets, runs DB-verifiable checks against the integration service stage environment, and generates a modern HTML report with per-AC pass/fail/manual status.
+
+## What this skill does
+1. Fetches AC from each Jira ticket (PLAT-xxxx) — AC are hardcoded from Jira and classified by type
+2. Classifies each AC as: \`db-sample\` (auto-verify via DB), \`api\` (needs IS API URL), or \`manual\` (code/build concern)
+3. Runs DB checks via 3pi local API (\`/api/database?env=stage\`)
+4. Optionally hits IS REST API endpoints if \`--api-url\` is provided
+5. Generates a self-contained HTML report on \`~/Desktop/\` and opens it in the browser
+
+## Usage
+\`\`\`
+/qe-zeta
+/qe-zeta --tickets=PLAT-9737,PLAT-9735
+/qe-zeta --api-url=https://api.stage.keap.com/integration-service
+/qe-zeta --env=stage --base-url=http://localhost:3333 --tickets=PLAT-10268,PLAT-10270,PLAT-10271
+\`\`\`
+
+## How to run
+
+### Prerequisites
+- 3pi dev server running on port 3333: \`cd ~/Sites/3pi && npm run dev\`
+- GCP auth active: \`gcloud auth application-default login\`
+
+### Run all 9 stage tickets
+\`\`\`bash
+node ~/Sites/3pi/scripts/qe-api-test.mjs --base-url=http://localhost:3333 --env=stage
+\`\`\`
+
+### With IS API URL (unlocks api-type AC checks)
+\`\`\`bash
+node ~/Sites/3pi/scripts/qe-api-test.mjs \\
+  --base-url=http://localhost:3333 \\
+  --env=stage \\
+  --api-url=https://api.stage.keap.com/integration-service \\
+  --tickets=PLAT-9735,PLAT-9737,PLAT-9740,PLAT-10268,PLAT-10270,PLAT-10271,PLAT-10332,PLAT-10387,PLAT-10400
+\`\`\`
+
+## AC types
+- \`db-sample\` — auto-verified by fetching table rows and asserting on values (e.g. case-insensitivity checks)
+- \`api\` — verified by HTTP call to IS REST API (requires \`--api-url\`)
+- \`manual\` — cannot be auto-verified (code/build/deploy concern — human must check)
+
+## Rules
+- **Default env:** \`stage\`
+- **Default base URL:** \`http://localhost:3333\`
+- **Report location:** \`~/Desktop/qe-report-<timestamp>.html\`
+- **Error threshold:** flag if error rate > 5%
+- **Pending threshold:** flag if PENDING/IN_PROGRESS > 50
+
+## Execution steps
+When this skill is invoked, Claude must:
+1. Parse args (env, tickets, base-url, api-url)
+2. Run: \`node ~/Sites/3pi/scripts/qe-api-test.mjs [args]\` using the Bash tool
+3. Show the user AC results per ticket (pass/fail/manual counts)
+4. Confirm report opened in browser
+`,
+  'AI Ticket Flow': `# AI Ticket Flow — End-to-End AI-Driven Ticket Implementation Workflow
+
+A structured, repeatable 10-step workflow for implementing Jira tickets using AI agents from first read to merged PR. Built for the Zeta team. Designed to be consistent, professional, and shareable across the team.
+
+> Built by Bunlong Heng. Shared with the Zeta team. When we build this skill, we can deploy agents to handle multiple tickets in parallel when needed.
+
+## What this skill does
+Guides Claude through a full ticket implementation lifecycle using agents at every phase:
+1. Read and understand the ticket
+2. Identify gaps and clarify with Ryan or the creator
+3. Architect and plan using agents
+4. Implement the code using agents
+5. Review previous PRs for consistency
+6. Submit the PR
+7. Review bot and team suggestions
+8. Have agents address feedback
+9. Resubmit the PR
+10. Turn the workflow into a reusable skill
+
+## Usage
+\`\`\`
+/ai-ticket-flow PLAT-XXXX
+/ai-ticket-flow PLAT-9448
+/ai-ticket-flow PLAT-9526 --skip-clarify    (skip step 2 if AC is clear)
+/ai-ticket-flow PLAT-9448,PLAT-9526         (parallel — multiple tickets)
+\`\`\`
+
+## The 10-Step Workflow
+
+---
+
+### Step 1 — Review the Ticket
+Fetch full ticket from Jira:
+- Summary, description, acceptance criteria, story points
+- Status, priority, assignee, reporter, sprint
+- All comments (especially recent ones from Ryan or the reporter)
+- Linked issues (blocks / is-blocked-by / relates-to)
+
+Output a structured ticket brief:
+\`\`\`
+Ticket: PLAT-XXXX — [Summary]
+Type: Story | Priority: P2 | Points: 5
+Assignee: [name] | Reporter: [name]
+Sprint: [sprint name]
+
+WHAT NEEDS TO BE DONE:
+[plain-English 3-5 sentence description of the work]
+
+ACCEPTANCE CRITERIA:
+1. ...
+2. ...
+
+OPEN QUESTIONS (identified gaps):
+- ...
+\`\`\`
+
+---
+
+### Step 2 — Identify Missing Details, Clarify with Ryan or the Creator
+After reading the ticket, flag any ambiguities:
+- Missing acceptance criteria
+- Unclear scope boundaries
+- Dependencies not linked
+- Schema or API contract questions
+- Conflicting requirements
+
+Draft clarification questions as a numbered list ready to paste into Jira or Slack:
+\`\`\`
+Hi [reporter/Ryan],
+
+I'm picking up PLAT-XXXX. A few clarification questions before I start:
+
+1. [question]
+2. [question]
+3. [question]
+
+Happy to hop on a quick call if easier.
+\`\`\`
+
+If \`--skip-clarify\` is passed or AC is complete and clear, skip this step and note "AC sufficient — no clarification needed."
+
+---
+
+### Step 3 — Architect and Plan (Agent Phase)
+Deploy a Plan agent to design the implementation approach:
+- Which files need to change
+- What new files need to be created
+- Database schema changes (if any)
+- API contract changes (if any)
+- Sequence of changes (what to do first)
+- Risk surface (what could break)
+- Test plan (what to verify)
+
+Output a structured plan:
+\`\`\`markdown
+## Implementation Plan — PLAT-XXXX
+
+### Files to Change
+| File | Change Type | Why |
+|------|-------------|-----|
+| ... | modify | ... |
+
+### New Files
+- ...
+
+### DB Changes
+- None / [migration: ALTER TABLE ...]
+
+### Sequence
+1. ...
+2. ...
+
+### Test Plan
+- [ ] Unit test: ...
+- [ ] Integration test: ...
+- [ ] Manual verify: ...
+
+### Risks
+- ...
+\`\`\`
+
+---
+
+### Step 4 — Implement the Code (Agent Phase)
+Execute the implementation plan using agents:
+- Follow the sequence from Step 3 exactly
+- Make surgical changes only — touch only what the plan specifies
+- Match existing code style (indentation, naming, patterns)
+- No speculative features or "while I'm here" improvements
+- After each file change, verify it compiles / passes linter
+- Run existing tests after implementation: \`npm test\` or \`./gradlew test\`
+
+---
+
+### Step 5 — Review Previous PRs for Consistency with Team Standards
+Before submitting, search GitHub for recent merged PRs in integration-service:
+- Find 2-3 PRs from the last sprint merged by Zeta team members
+- Check: commit message format, PR title style, description template used
+- Verify the implementation matches team conventions:
+  - Naming conventions (camelCase, snake_case, etc.)
+  - Error handling patterns
+  - Logging patterns
+  - Test structure
+
+\`\`\`bash
+gh pr list --repo infusionsoft/integration-service --state merged --limit 10
+gh pr view <PR_NUMBER> --repo infusionsoft/integration-service
+\`\`\`
+
+---
+
+### Step 6 — Submit the PR
+Create the PR using GitHub CLI:
+\`\`\`bash
+gh pr create \\
+  --repo infusionsoft/integration-service \\
+  --title "PLAT-XXXX: [brief description]" \\
+  --body "$(cat <<'EOF'
+## Summary
+[1-3 bullet points of what changed]
+
+## Jira Ticket
+[PLAT-XXXX](https://thryv.atlassian.net/browse/PLAT-XXXX)
+
+## Test Plan
+- [ ] Unit tests pass
+- [ ] Integration tests pass
+- [ ] Manual verification: [what was tested]
+
+## Notes
+[anything reviewers should know]
+EOF
+)"
+\`\`\`
+
+PR title format: \`PLAT-XXXX: <imperative verb> <what>\`
+Example: \`PLAT-9448: Add retry logic to webhook dispatcher\`
+
+---
+
+### Step 7 — Review Bot and Team Suggestions
+After PR is submitted, monitor for:
+- GitHub Actions / CI checks (CircleCI)
+- Automated bot suggestions (CodeRabbit, Renovate, etc.)
+- Team member review comments
+
+Fetch review comments:
+\`\`\`bash
+gh pr view <PR_NUMBER> --repo infusionsoft/integration-service --comments
+gh api repos/infusionsoft/integration-service/pulls/<PR_NUMBER>/comments
+\`\`\`
+
+Categorize each comment:
+- **Must fix**: blocking review approval
+- **Should fix**: strong suggestion from reviewer
+- **Optional**: nitpick or style preference
+- **Question**: needs clarification, not a change
+
+---
+
+### Step 8 — Have Agents Address Feedback
+For each "Must fix" and "Should fix" comment:
+1. Re-read the original file to understand context
+2. Make the targeted change the reviewer requested
+3. Respond to the comment on GitHub confirming what was changed:
+   \`\`\`
+   Done — changed X to Y in [file:line]. Let me know if this looks right.
+   \`\`\`
+4. Do NOT address "Optional" comments without asking the user first
+
+Run tests again after all changes.
+
+---
+
+### Step 9 — Resubmit the PR
+Push the updated commits:
+\`\`\`bash
+git add [changed files]
+git commit -m "PLAT-XXXX: address review feedback — [brief description]"
+git push
+\`\`\`
+
+Re-request review from original reviewers:
+\`\`\`bash
+gh pr edit <PR_NUMBER> --repo infusionsoft/integration-service --add-reviewer [reviewer]
+\`\`\`
+
+Add a comment to the PR summarizing what was addressed:
+\`\`\`
+Addressed all feedback from the review:
+- [change 1]
+- [change 2]
+
+Ready for re-review.
+\`\`\`
+
+---
+
+### Step 10 — Turn the Workflow into a Reusable Skill
+After the PR is merged:
+1. Note any step in this workflow that was awkward, slow, or required deviation
+2. Capture team-specific patterns discovered (naming conventions, PR format quirks, test patterns)
+3. Update this skill file with the learnings
+
+This is how we improve the workflow over time — every ticket makes the next one faster.
+
+---
+
+## Rules
+- **Repo**: \`infusionsoft/integration-service\` (READ access only from 3pi context)
+- **Jira board**: 3148 (Zeta Scrum), project PLAT
+- **Never commit or push from 3pi** — always use the integration-service repo directly
+- **Never write to Jira or Slack** — paste text for the user to send themselves
+- **One ticket at a time** by default; use \`--parallel\` flag to run multiple tickets in parallel agents
+- Clarification questions (Step 2) are always drafted for the user to send — never auto-posted
+- Always check previous PRs (Step 5) before submitting — consistency matters
+- Steps 3 and 4 may loop if implementation reveals new unknowns — that is expected and normal
+- The goal is merge-ready quality, not just "it compiles"
+
+## Output per Step
+Each step outputs a clearly labeled section:
+\`\`\`
+## Step 1 — Ticket Review
+[output]
+
+## Step 2 — Clarification Questions
+[output or "AC sufficient — skipped"]
+
+## Step 3 — Architecture Plan
+[output]
+...
+\`\`\`
+`,
+  'Slack Read': `# slack-read — Read Slack Messages, Threads, and Search
+
+Read messages from Slack channels, threads, and search across workspaces using the claude.ai Slack MCP.
+
+## Usage
+
+\`\`\`
+/slack-read #channel-name              # Last 50 messages from a channel
+/slack-read thread <url-or-ts>         # Read a specific thread
+/slack-read search <query>             # Search public + private channels
+/slack-read user <name>                # Look up a user profile
+/slack-read                            # Show usage help
+\`\`\`
+
+## How to run
+
+When this skill is invoked, Claude must use the claude.ai Slack MCP tools (already loaded as deferred tools):
+
+### Channel read
+- Tool: \`mcp__claude_ai_Slack__slack_read_channel\`
+- Strip the \`#\` prefix from the channel name
+- Default limit: 50 messages
+- Show: timestamp, author, message text, thread reply count if any
+
+### Thread read
+- Tool: \`mcp__claude_ai_Slack__slack_read_thread\`
+- Accept a Slack message URL or channel+timestamp
+- Show full thread including all replies
+
+### Search
+- Tool: \`mcp__claude_ai_Slack__slack_search_public_and_private\`
+- Returns matching messages across all accessible channels
+- Show: channel, author, timestamp, snippet
+
+### User lookup
+- Tool: \`mcp__claude_ai_Slack__slack_search_users\` then \`mcp__claude_ai_Slack__slack_read_user_profile\`
+- Show: display name, title, email, timezone, status
+
+## Output format
+
+Always present results as a clean table or structured list:
+
+\`\`\`
+#channel-name — last 50 messages (Apr 23, 2026)
+─────────────────────────────────────────────
+10:32 AM  @bheng      message text here
+10:35 AM  @someone    reply or new message
+          └─ 3 replies in thread
+\`\`\`
+
+## CRITICAL Rules
+
+- **NEVER send messages** — read only. Any message sent via MCP appears as "Claude", not the user.
+- Never use \`slack_send_message\` or \`slack_schedule_message\`
+- If user wants to send something, give them the text to copy and send themselves
+- This is a read/search/summarize skill only
+`,
+  'Zeta Chores': `# Zeta Chores — Sprint Role Assignments
+
+Show the current Zeta sprint chores: who is on-call, deploy captain, primary and backup QA tester.
+
+## Usage
+\`\`\`
+/zeta-chores
+\`\`\`
+
+## Current Sprint: 4/28 – 5/6
+
+| Role | Chore | Person |
+|------|-------|--------|
+| Oncall | First responder for production alerts | Bunlong Heng |
+| Deploy Captain | Owns deploy train, merge queue, release sign-off | Ryan Watkins |
+| Quality - Primary | Leads QA verification for all sprint tickets | Julio Diaz |
+| Quality - Backup | Edge case coverage, regression checks | Rodrigo Souza |
+
+## Source
+- Team data: https://team-chores.firebaseapp.com/teams
+- Rotation logic: \`app/page.tsx\` (anchor: Mar 16 2026, weekly cadence)
+- **Zeta** (QA): Julio Diaz → Olavo Wilke Filho → Rodrigo Souza
+- **Zeta - Admins**: Ryan Watkins → Miguel Araujo → Bryan Diaz Cabrera → Bunlong Heng
+`,
+};
+
+
+  const COLOR_BG = {
+    'c-orange':'#ff6b00','c-purple':'#7c3aed','c-blue':'#2563eb',
+    'c-green':'#16a34a','c-pink':'#db2777','c-cyan':'#0891b2',
+    'c-red':'#dc2626','c-yellow':'#d97706','c-teal':'#0d9488',
+    'c-indigo':'#4338ca','c-rose':'#e11d48','c-lime':'#65a30d',
+  };
+
+  // ── Arrange visible cards in a circle ──
+  function layout() {
+    const cx = window.innerWidth / 2, cy = window.innerHeight / 2;
+    const r  = Math.min(window.innerWidth, window.innerHeight) * 0.34;
+    const cards = [...document.querySelectorAll('.card:not(.hidden-card)')];
+    const n = cards.length;
+    if (!n) return;
+    cards.forEach((card, i) => {
+      const angle = (2 * Math.PI * i / n) - Math.PI / 2;
+      card.style.left = (cx + r * Math.cos(angle)) + 'px';
+      card.style.top  = (cy + r * Math.sin(angle)) + 'px';
+    });
+  }
+
+  // ── Filter ──
+  let current_filter = 'zeta';
+  const title_map = { all: 'ALL', zeta: 'ZETA', ssh: 'SSH', ops: 'OPS' };
+
+  function toggle_nav() {
+    document.getElementById('nav-panel').classList.toggle('open');
+    document.getElementById('nav-toggle').style.color =
+      document.getElementById('nav-panel').classList.contains('open') ? '#fff' : '#1a1a1a';
+  }
+
+  function nav_filter(tag, el) {
+    set_filter(tag, el);
+    document.getElementById('nav-panel').classList.remove('open');
+    document.getElementById('nav-toggle').style.color = '#1a1a1a';
+  }
+
+  // close nav when clicking outside
+  document.addEventListener('click', e => {
+    const wrap = document.getElementById('nav-wrap');
+    if (wrap && !wrap.contains(e.target)) {
+      document.getElementById('nav-panel').classList.remove('open');
+      document.getElementById('nav-toggle').style.color = '#1a1a1a';
+    }
+  });
+
+  function set_filter(tag, el) {
+    current_filter = tag;
+    document.getElementById('home-title').textContent = title_map[tag] || tag.toUpperCase();
+    apply_filter();
+    setTimeout(spin_in, 30);
+  }
+
+  function apply_filter() {
+    document.querySelectorAll('.card').forEach(card => {
+      const show = current_filter === 'all' || card.dataset.tag === current_filter;
+      card.classList.toggle('hidden-card', !show);
+    });
+    layout();
+  }
+
+  // ── Door-knob spin on page load ──
+  function door_knob_spin() {
+    const cx = window.innerWidth / 2, cy = window.innerHeight / 2;
+    const a  = -72 * Math.PI / 180;
+    const cards = [...document.querySelectorAll('.card:not(.hidden-card)')];
+    cards.forEach(card => {
+      const fx = parseFloat(card.style.left) - cx;
+      const fy = parseFloat(card.style.top)  - cy;
+      card.style.transition = 'none';
+      card.style.opacity = '0';
+      card.style.left = (cx + fx * Math.cos(a) - fy * Math.sin(a)) + 'px';
+      card.style.top  = (cy + fx * Math.sin(a) + fy * Math.cos(a)) + 'px';
+    });
+    void document.body.offsetWidth;
+    cards.forEach(card => {
+      card.style.transition = 'left 0.85s cubic-bezier(.25,.46,.45,.94), top 0.85s cubic-bezier(.25,.46,.45,.94), opacity 0.35s ease';
+      card.style.opacity = '1';
+    });
+    layout();
+    setTimeout(() => {
+      cards.forEach(card => { card.style.transition = ''; });
+      init_hover_tagline();
+    }, 950);
+  }
+
+  // ── Per-card spin-in for filter changes ──
+  function spin_in() {
+    const cards = [...document.querySelectorAll('.card:not(.hidden-card)')];
+    cards.forEach((card, i) => {
+      card.classList.remove('spin-in');
+      void card.offsetWidth;
+      card.style.animationDelay = (i * 0.07) + 's';
+      card.classList.add('spin-in');
+      card.addEventListener('animationend', () => {
+        card.classList.remove('spin-in');
+        card.style.animationDelay = '';
+      }, { once: true });
+    });
+  }
+
+  // ── Intro: show for 2s then reveal ring ──
+
+  window.addEventListener('resize', () => { apply_filter(); });
+
+  function init_hover_tagline() {
+    document.querySelectorAll('.card').forEach(card => {
+      card.addEventListener('mouseenter', () => {
+        const cmd = card.querySelector('.modal-data')?.dataset.cmd || '';
+        document.getElementById('tagline-cmd').textContent = cmd.split(' · ')[0];
+        document.getElementById('tagline-cmd').classList.add('visible');
+        document.getElementById('tagline-main').classList.add('dimmed');
+      });
+      card.addEventListener('mouseleave', () => {
+        document.getElementById('tagline-cmd').classList.remove('visible');
+        document.getElementById('tagline-main').classList.remove('dimmed');
+      });
+    });
+  }
+
+  // ── Menu toggle ──
+
+
+  // ── Click → straight to modal ──
+  function click_zoom(card) {
+    open_modal_data(card.querySelector('.modal-data').dataset);
+  }
+
+  // ── Modal — Stage 1 then Stage 2 ──
+  let modal_skill = null;
+  let s2_timer = null;
+
+  function open_modal_data(d) {
+    modal_skill = d;
+    const wrap = document.getElementById('modal-wrap');
+    document.getElementById('ms1').classList.add('hidden');
+    wrap.classList.add('open');
+    advance_to_stage2(d);
+  }
+
+  function advance_to_stage2(d) {
+    const ms1 = document.getElementById('ms1');
+    const ms2 = document.getElementById('ms2');
+
+    ms1.classList.add('hidden');
+    ms2.classList.remove('hidden');
+
+    // Color flood background
+    const col = '#ffffff';
+    const flood = document.getElementById('ms2-flood');
+    flood.style.background = `radial-gradient(circle, ${col}dd 0%, ${col}99 50%, ${col}66 100%)`;
+    flood.style.transform = 'scale(0)';
+    flood.style.borderRadius = '50%';
+    void flood.offsetWidth;
+    flood.style.transition = 'transform 0.55s cubic-bezier(.4,0,.2,1), border-radius 0.55s';
+    flood.style.transform = 'scale(4)';
+    flood.style.borderRadius = '0%';
+
+    // Icon + title
+    const iconEl = document.getElementById('ms2-icon');
+    iconEl.setAttribute('data-lucide', d.icon);
+    lucide.createIcons({ nodes: [iconEl] });
+    document.getElementById('ms2-title').textContent = d.name;
+    const code = SKILLS_MD[d.name] || '(no SKILL.md content)';
+    document.getElementById('ms2-code').textContent = code;
+    document.getElementById('ms2-preview').innerHTML = marked.parse(code);
+    switch_tab('preview');
+    lucide.createIcons({ nodes: [document.querySelector('.ms2-header')] });
+
+    // Fade in inner content after flood
+    const inner = document.getElementById('ms2-inner');
+    inner.classList.remove('visible');
+    void inner.offsetWidth;
+    inner.classList.add('visible');
+  }
+
+  function switch_tab(tab) {
+    const isCode = tab === 'code';
+    document.getElementById('ms2-code').classList.toggle('hidden', !isCode);
+    document.getElementById('ms2-preview').classList.toggle('hidden', isCode);
+    document.getElementById('tab-code').classList.toggle('active', isCode);
+    document.getElementById('tab-preview').classList.toggle('active', !isCode);
+  }
+
+  function close_modal() {
+    clearTimeout(s2_timer);
+    document.getElementById('modal-wrap').classList.remove('open');
+    setTimeout(() => {
+      document.getElementById('ms1').classList.remove('hidden');
+      document.getElementById('ms2').classList.add('hidden');
+      document.getElementById('ms2-inner').classList.remove('visible');
+      document.getElementById('ms2-flood').style.transform = 'scale(0)';
+    }, 350);
+  }
+
+  function copy_skill() {
+    const name = modal_skill ? modal_skill.name : '';
+    const text = SKILLS_MD[name] || '';
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = document.querySelector('.ms2-btn-copy');
+      btn.innerHTML = '<i data-lucide="check"></i>';
+      lucide.createIcons({ nodes: [btn] });
+      setTimeout(() => {
+        btn.innerHTML = '<i data-lucide="copy"></i>';
+        lucide.createIcons({ nodes: [btn] });
+      }, 2000);
+    });
+  }
+
+  function download_skill() {
+    const name = modal_skill ? modal_skill.name : 'skill';
+    const text = SKILLS_MD[name] || '';
+    const a = document.createElement('a');
+    a.href = 'data:text/markdown;charset=utf-8,' + encodeURIComponent(text);
+    a.download = name.toLowerCase().replace(/[^a-z0-9]+/g,'-') + '.md';
+    a.click();
+  }
+
+  document.addEventListener('keydown', e => { if(e.key==='Escape') close_modal(); });
+
+  // ── Boot ──
+  apply_filter();
+  door_knob_spin();
+</script>
+</body>
+</html>
