@@ -296,7 +296,29 @@ export default function RagSection({ initialTab = "overview" }: { initialTab?: R
                                     <Donut data={typeEntries} colors={typeColors} label="BY TYPE" />
                                 </div>
                                 <div style={{ padding: "16px", borderRadius: 10, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}>
-                                    <Donut data={topProjects} colors={projColors} label="TOP PROJECTS" />
+                                    <div style={{ textAlign: "center", marginBottom: 8 }}>
+                                        <span style={{ fontSize: 8, fontWeight: 600, color: "rgba(255,255,255,0.35)", letterSpacing: "0.1em" }}>TOP PROJECTS</span>
+                                    </div>
+                                    <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "center", gap: 6, height: 120, padding: "0 8px" }}>
+                                        {topProjects.map(([name, count], i) => {
+                                            const maxCount = topProjects[0]?.[1] ?? 1;
+                                            const pct = (count / maxCount) * 100;
+                                            const color = projColors[i % projColors.length];
+                                            return (
+                                                <div key={name} style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1, gap: 4 }}>
+                                                    <span style={{ fontSize: 9, fontWeight: 700, color }}>{count}</span>
+                                                    <div style={{
+                                                        width: "100%", maxWidth: 28, borderRadius: "4px 4px 0 0",
+                                                        height: `${Math.max(pct, 8)}%`,
+                                                        background: `linear-gradient(to top, ${color}, ${color}90)`,
+                                                        boxShadow: `0 0 8px ${color}30`,
+                                                        transition: "height 0.6s ease",
+                                                    }} />
+                                                    <span style={{ fontSize: 7, color: "rgba(255,255,255,0.4)", textAlign: "center", lineHeight: 1.1, maxWidth: 40, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
                             </div>
                         );
