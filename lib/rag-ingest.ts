@@ -94,9 +94,10 @@ export async function discoverSources(): Promise<SourceFile[]> {
     sources.push({ path: globalPath, type: "global_rules" });
   }
 
-  // 2. Per-project CLAUDE.md files
+  // 2. Per-project CLAUDE.md files (configurable via RAG_PROJECTS_DIR)
   const home = process.env.HOME || require("os").homedir();
-  const projectClaudes = await glob(path.join(home, "Sites/*/CLAUDE.md"));
+  const projectsDir = process.env.RAG_PROJECTS_DIR || path.join(home, "Sites");
+  const projectClaudes = await glob(path.join(projectsDir, "*/CLAUDE.md"));
   for (const p of projectClaudes) {
     sources.push({ path: p, type: "claude_md" });
   }

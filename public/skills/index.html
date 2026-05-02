@@ -329,15 +329,15 @@
 </div>
 <div class="card" onclick="click_zoom(this)" data-tag="ssh" data-color="c-blue" data-glow="96,165,250" data-px="12" data-py="55">
   <div class="circle c-blue"><i data-lucide="monitor"></i></div><div class="card-label">SSH — M4</div>
-  <span class="modal-data" hidden data-name="SSH — M4 Mac" data-cmd="/sshM4" data-desc="Run any command on the M4 Mac (bheng@10.0.0.218) over SSH." data-color="c-blue" data-icon="monitor"></span>
+  <span class="modal-data" hidden data-name="SSH — M4 Mac" data-cmd="/) over SSH." data-color="c-blue" data-icon="monitor"></span>
 </div>
 <div class="card" onclick="click_zoom(this)" data-tag="ssh" data-color="c-green" data-glow="74,222,128" data-px="38" data-py="60">
   <div class="circle c-green"><i data-lucide="server"></i></div><div class="card-label">SSH — Prod</div>
-  <span class="modal-data" hidden data-name="SSH — Linode Prod" data-cmd="/sshProd" data-desc="Run any command on the Linode production VM (66.228.61.170, port 8200)." data-color="c-green" data-icon="server"></span>
+  <span class="modal-data" hidden data-name="SSH — Linode Prod" data-cmd="/sshProd" data-desc="Run any command on the Linode production VM (<REDACTED>, port 8200)." data-color="c-green" data-icon="server"></span>
 </div>
 <div class="card" onclick="click_zoom(this)" data-tag="ssh" data-color="c-teal" data-glow="45,212,191" data-px="65" data-py="55">
   <div class="circle c-teal"><i data-lucide="hard-drive"></i></div><div class="card-label">SSH — PM2026</div>
-  <span class="modal-data" hidden data-name="SSH — PM2026" data-cmd="/sshPM2026" data-desc="Run any command on the PM2026 server (66.228.61.79)." data-color="c-teal" data-icon="hard-drive"></span>
+  <span class="modal-data" hidden data-name="SSH — PM2026" data-cmd="/sshPM2026" data-desc="Run any command on the PM2026 server (<REDACTED>)." data-color="c-teal" data-icon="hard-drive"></span>
 </div>
 <div class="card" onclick="click_zoom(this)" data-tag="ssh" data-color="c-pink" data-glow="244,114,182" data-px="84" data-py="62">
   <div class="circle c-pink"><i data-lucide="cpu"></i></div><div class="card-label">SSH — Pi 5</div>
@@ -468,7 +468,7 @@ Posts a sticky note to the Stickies app running on M4 (\`http://10.0.0.218:4444\
 
 ## API
 - **Endpoint:** \`POST http://10.0.0.218:4444/api/stickies/ext\`
-- **Auth:** \`Bearer sk_ext_72a5c2daa2602a7ccecddafb04a26e963fd138a2940db174a1c66ac3de5816f9\`
+- **Auth:** \`Bearer <YOUR_API_KEY>\`
 - **Default folder:** \`Today\`
 - **Default type:** \`markdown\`
 
@@ -484,7 +484,7 @@ When this skill is invoked, Claude must:
 \`\`\`bash
 curl -s -X POST \\
   http://10.0.0.218:4444/api/stickies/ext \\
-  -H "Authorization: Bearer sk_ext_72a5c2daa2602a7ccecddafb04a26e963fd138a2940db174a1c66ac3de5816f9" \\
+  -H "Authorization: Bearer <YOUR_API_KEY>" \\
   -H "Content-Type: application/json" \\
   -d '{"title":"<title>","content":"<content>","type":"markdown","folder_name":"<folder>"}'
 \`\`\`
@@ -670,7 +670,7 @@ Creates and posts a Mermaid diagram to the diagrams app via the AI API.
 
 ## API
 - **Endpoint:** \`POST https://diagrams-bheng.vercel.app/api/ai/diagrams\`
-- **Auth:** \`Bearer m+pbxP6pzbkan/kZpqxlviUMMC6cRJDdTHC1qQhAqb0=\`
+- **Auth:** \`Bearer <YOUR_API_KEY>\`
 - **Content-Type:** \`application/json\`
 
 ## Supported diagram types
@@ -693,7 +693,7 @@ When this skill is invoked, Claude must:
 2. Run:
 \`\`\`bash
 curl -s -X POST https://diagrams-bheng.vercel.app/api/ai/diagrams \\
-  -H "Authorization: Bearer m+pbxP6pzbkan/kZpqxlviUMMC6cRJDdTHC1qQhAqb0=" \\
+  -H "Authorization: Bearer <YOUR_API_KEY>" \\
   -H "Content-Type: application/json" \\
   -d '{"title":"<title>","diagramType":"<type>","code":"<mermaid code>"}'
 \`\`\`
@@ -784,7 +784,7 @@ SSH into the Linode production VM and run commands on it.
 ## Connection
 
 \`\`\`
-ssh -p 8200 bheng@45.79.212.154
+
 \`\`\`
 
 - **IP:** 45.79.212.154
@@ -812,7 +812,7 @@ When this skill is invoked, Claude must:
    - \`db\` → \`psql -U bheng -d 2026 -c '\\dt'\`
    - \`grafana\` → \`systemctl status grafana loki prometheus grafana-alloy --no-pager | head -40\`
    - Any other args → run as-is on the VM
-2. Run the command via: \`ssh -p 8200 bheng@45.79.212.154 "<command>"\`
+2. Run the command via: \` "<command>"\`
 3. Show the output to the user
 
 ## VM Stack
@@ -868,7 +868,7 @@ When this skill is invoked, Claude must:
 
 ## Rules
 
-- Always use \`ssh -p 8200 bheng@45.79.212.154\` (no SSH alias configured for this host)
+- Always use \`\` (no SSH alias configured for this host)
 - For Grafana API calls use port 3200 and auth \`admin:bheng2026\`
 - For Loki API calls use port 3100
 - Do NOT change SSH port, UFW rules, or Fail2ban config without explicit user request
@@ -881,10 +881,10 @@ SSH into the PM2026 server and run commands on it.
 ## Connection
 
 \`\`\`
-ssh -p 8200 bheng@66.228.61.79
+<REDACTED>
 \`\`\`
 
-- **IP:** 66.228.61.79
+- **IP:** <REDACTED>
 - **User:** bheng (sudo NOPASSWD), root also works
 - **Port:** 8200 (hardened - was 22)
 - **Auth:** SSH key only (password auth disabled)
@@ -903,7 +903,7 @@ When this skill is invoked, Claude must:
 1. Parse the args:
    - No args → default to: \`whoami && hostname && uptime && ss -tlnp | grep LISTEN\`
    - Any other args → run as-is on the server
-2. Run the command via: \`ssh -p 8200 bheng@66.228.61.79 "<command>"\`
+2. Run the command via: \`<REDACTED> "<command>"\`
 3. Show the output to the user
 
 ## Security Setup (already hardened)
@@ -928,7 +928,7 @@ See \`/sshProd\` skill or ask Claude to repeat the hardening sequence which cove
 
 ## Rules
 
-- Always use \`ssh -p 8200 bheng@66.228.61.79\`
+- Always use \`<REDACTED>\`
 - If SSH times out, iptables may have rate-limited - wait 60s and retry
 - If locked out, use Linode Lish console to recover
 `,
@@ -1333,7 +1333,7 @@ Output this exact format:
 ### Step 5 — Post to Stickies (if \`--output=stickies\`)
 \`\`\`
 POST http://10.0.0.218:4444/api/stickies
-Authorization: Bearer sk_stickies_d218dfa0abe37b82c5269f40bd478ddca7b567bbd1310efc
+Authorization: Bearer <YOUR_API_KEY>
 {
   "title": "⬡ Zeta Sprint Snapshot — [sprint name]",
   "content": "<full markdown output>",
@@ -1454,7 +1454,7 @@ Rules for the plain text output:
 ### Step 5 — Post to Stickies (if --output=stickies)
 \`\`\`
 POST http://10.0.0.218:4444/api/stickies/ext
-Authorization: Bearer sk_ext_72a5c2daa2602a7ccecddafb04a26e963fd138a2940db174a1c66ac3de5816f9
+Authorization: Bearer <YOUR_API_KEY>
 {
   "title": "⬡ Zeta Metrics · [sprint short]",
   "content": "<the full plain text output>",
@@ -1590,7 +1590,7 @@ POST to http://localhost:4444/api/stickies
   "color": "blue"
 }
 \`\`\`
-Auth: \`Authorization: Bearer sk_stickies_d218dfa0abe37b82c5269f40bd478ddca7b567bbd1310efc\`
+Auth: \`Authorization: Bearer <YOUR_API_KEY>\`
 
 ## Rules
 - **Board ID**: 3148 (Zeta Scrum board) — always use agile board API to detect active sprint, never JQL Team field filter
