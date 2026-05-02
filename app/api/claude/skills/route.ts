@@ -142,6 +142,25 @@ function scanCommands(): CommandInfo[] {
 
 function scanMcp(): McpInfo[] {
     const servers: McpInfo[] = [];
+
+    // 1. Root .mcp.json (user's personal MCP servers)
+    const rootMcpPath = path.join(CLAUDE_DIR, ".mcp.json");
+    const rootData = safeJson(rootMcpPath);
+    if (rootData) {
+        const mcpServers = rootData.mcpServers ?? rootData;
+        for (const [name, cfg] of Object.entries(mcpServers) as [string, any][]) {
+            if (typeof cfg !== "object" || cfg === null) continue;
+            servers.push({
+                name,
+                type: cfg.command ? "command" : cfg.type === "sse" ? "sse" : cfg.url ? "http" : "unknown",
+                url: cfg.url,
+                command: cfg.command ? `${cfg.command} ${(cfg.args ?? []).join(" ")}`.trim() : undefined,
+                path: rootMcpPath,
+            });
+        }
+    }
+
+    // 2. Plugin .mcp.json files
     const dirs = [PLUGINS_DIR, EXTERNAL_DIR];
     for (const base of dirs) {
         if (!dirExists(base)) continue;
@@ -149,7 +168,6 @@ function scanMcp(): McpInfo[] {
             const mcpPath = path.join(base, plugin, ".mcp.json");
             const data = safeJson(mcpPath);
             if (!data) continue;
-            // Two formats: { mcpServers: { name: cfg } } or { name: cfg } (external)
             const mcpServers = data.mcpServers ?? data;
             for (const [name, cfg] of Object.entries(mcpServers) as [string, any][]) {
                 if (typeof cfg !== "object" || cfg === null) continue;

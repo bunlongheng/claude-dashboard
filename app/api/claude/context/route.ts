@@ -133,5 +133,5 @@ export async function GET() {
     // Sort by context usage descending
     sessions.sort((a, b) => b.contextUsed - a.contextUsed);
 
-    return NextResponse.json({ sessions });
+    return NextResponse.json({ sessions }, { headers: { "Cache-Control": "public, max-age=15" } });
 }

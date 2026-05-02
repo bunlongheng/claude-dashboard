@@ -214,5 +214,5 @@ export async function GET() {
         },
         byModel,
         byProject,
-    });
+    }, { headers: { "Cache-Control": "public, max-age=30" } });
 }

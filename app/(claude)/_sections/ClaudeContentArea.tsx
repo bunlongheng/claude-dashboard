@@ -17,7 +17,7 @@ export default function ClaudeContentArea({ children }: { children: React.ReactN
     const [sessionProjects, setSessionProjects] = useState<ProjectSessions[]>([]);
     const [profileOpen, setProfileOpen] = useState(false);
     const profileRef = useRef<HTMLDivElement>(null);
-    const [userEmail] = useState<string | null>(null);
+    const userEmail: string | null = null; // from auth when configured
 
     useEffect(() => {
         const handler = (e: MouseEvent) => {
@@ -31,7 +31,7 @@ export default function ClaudeContentArea({ children }: { children: React.ReactN
     const refreshSessions = useCallback(() => {
         const q = machine ? `?machine=${machine}` : "";
         fetch(`/api/claude/sessions${q}`)
-            .then(r => r.json())
+            .then(r => r.ok ? r.json() : { projects: [] })
             .then(d => setSessionProjects(d.projects ?? []))
             .catch(() => {});
     }, [machine]);

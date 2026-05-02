@@ -271,6 +271,15 @@ export function calcCost(t: Token) {
     );
 }
 export function fmtCost(usd: number) { return usd < 0.01 ? "<$0.01" : `$${usd.toFixed(2)}`; }
+
+/** Safe fetch - checks r.ok before parsing JSON, returns fallback on error */
+export async function safeFetch<T>(url: string, fallback: T): Promise<T> {
+    try {
+        const r = await fetch(url);
+        if (!r.ok) return fallback;
+        return await r.json();
+    } catch { return fallback; }
+}
 export function fmtNum(n: number)    { return n >= 1_000_000_000 ? `${(n/1_000_000_000).toFixed(1)}B` : n >= 1_000_000 ? `${(n/1_000_000).toFixed(1)}M` : n >= 1000 ? `${(n/1000).toFixed(1)}k` : String(n); }
 export function hexToRgba(hex: string, alpha: number) {
     const raw = hex.replace("#", "");

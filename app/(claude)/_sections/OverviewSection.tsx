@@ -6,6 +6,7 @@ import {
     Brain, ShieldCheck, Puzzle, Coins, Activity,
 } from "lucide-react";
 import { useMachine } from "./MachineContext";
+import { safeFetch } from "./shared";
 
 interface Stats {
     sessions: number;
@@ -129,7 +130,7 @@ export default function OverviewSection() {
 
     // Context window data - refresh every 30s (fast)
     useEffect(() => {
-        const fetchCtx = () => fetch(apiBase("/api/claude/context")).then(r => r.json()).then(d => setCtxSessions(d.sessions ?? [])).catch(() => {});
+        const fetchCtx = () => safeFetch<any>(apiBase("/api/claude/context"), { sessions: [] }).then(d => setCtxSessions(d.sessions ?? []));
         fetchCtx();
         const ctxTimer = setInterval(fetchCtx, 30_000);
         return () => clearInterval(ctxTimer);
@@ -139,7 +140,7 @@ export default function OverviewSection() {
     // Daily data - lazy load (slow endpoint, ~3s)
     useEffect(() => {
         const t = setTimeout(() => {
-            fetch(apiBase("/api/claude/token-stats/daily")).then(r => r.json()).then(d => {
+            safeFetch<any>(apiBase("/api/claude/token-stats/daily"), { daily: [], byModel: [], tools: [] }).then(d => {
                 setDailyData(d.daily ?? []);
                 setTotalTokensAll((d.daily ?? []).reduce((s: number, b: { input: number; output: number }) => s + b.input + b.output, 0));
                 const models = d.byModel ?? [];
@@ -158,10 +159,10 @@ export default function OverviewSection() {
         setLoading(true);
         const q = machine ? `?machine=${machine}` : "";
         Promise.all([
-            fetch(apiBase(`/api/claude/sessions${q}`)).then(r => r.json()).catch(() => ({ projects: [] })),
-            fetch(apiBase(`/api/claude/skills${q}`)).then(r => r.json()).catch(() => ({ summary: {} })),
-            fetch(apiBase("/api/claude/brain")).then(r => r.json()).catch(() => ({ memoryFiles: [], globalRules: [] })),
-            fetch(apiBase("/api/claude/token-stats")).then(r => r.json()).catch(() => ({ tokens: [], byProject: [], byModel: [], totals: {} })),
+            safeFetch<any>(apiBase(`/api/claude/sessions${q}`), { projects: [] }),
+            safeFetch<any>(apiBase(`/api/claude/skills${q}`), { summary: {} }),
+            safeFetch<any>(apiBase("/api/claude/brain"), { memoryFiles: [], globalRules: [], categoryCounts: {} }),
+            safeFetch<any>(apiBase("/api/claude/token-stats"), { tokens: [], byProject: [], byModel: [], totals: {} }),
         ]).then(([sessions, skills, brain, tokenData]) => {
             try {
                 const allSessions = (sessions.projects ?? []).flatMap((p: { sessions: { updatedAt: string }[] }) => p.sessions ?? []);
@@ -199,6 +200,61 @@ export default function OverviewSection() {
             .sort((a: any, b: any) => (b.input_tokens + b.output_tokens) - (a.input_tokens + a.output_tokens))
             .slice(0, 10);
     }, [allTokens]);
+
+    // Memoized heatmap computation
+    const heatmapData = useMemo(() => {
+        if (dailyData.length === 0) return null;
+        const today = new Date();
+        const dayMap = new Map(dailyData.map(d => [d.day, d.turns]));
+        const cells: { date: string; turns: number; weekIndex: number; dayOfWeek: number }[] = [];
+        const startDate = new Date(today);
+        startDate.setDate(startDate.getDate() - 13 * 7 + 1);
+        startDate.setDate(startDate.getDate() - startDate.getDay());
+        for (let i = 0; ; i++) {
+            const d = new Date(startDate);
+            d.setDate(d.getDate() + i);
+            if (d > today) break;
+            const iso = d.toISOString().slice(0, 10);
+            cells.push({ date: iso, turns: dayMap.get(iso) ?? 0, weekIndex: Math.floor(i / 7), dayOfWeek: d.getDay() });
+        }
+        const allCells = dailyData.map(d => ({ date: d.day, turns: d.turns }));
+        const activeDays = allCells.filter(c => c.turns > 0).length;
+        const totalDays = allCells.length;
+        const maxTurns = Math.max(...cells.map(c => c.turns), 1);
+        const mostActive = allCells.reduce((best, c) => c.turns > best.turns ? c : best, allCells[0] ?? { date: "", turns: 0 });
+        const mostActiveLabel = mostActive?.date ? new Date(mostActive.date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "-";
+        let longestStreak = 0, currentStreak = 0, tempStreak = 0;
+        const sortedDays = allCells.filter(c => c.turns > 0).map(c => c.date).sort();
+        for (let i = 0; i < sortedDays.length; i++) {
+            if (i === 0) tempStreak = 1;
+            else {
+                const diff = (new Date(sortedDays[i]).getTime() - new Date(sortedDays[i - 1]).getTime()) / 86400000;
+                tempStreak = diff === 1 ? tempStreak + 1 : 1;
+            }
+            longestStreak = Math.max(longestStreak, tempStreak);
+        }
+        const todayStr = today.toISOString().slice(0, 10);
+        const yesterdayDate = new Date(today); yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+        const yesterdayStr = yesterdayDate.toISOString().slice(0, 10);
+        const streakStart = dayMap.has(todayStr) ? todayStr : dayMap.has(yesterdayStr) ? yesterdayStr : null;
+        if (streakStart) {
+            currentStreak = 1;
+            const d = new Date(streakStart);
+            while (true) { d.setDate(d.getDate() - 1); if (dayMap.has(d.toISOString().slice(0, 10))) currentStreak++; else break; }
+        }
+        // Build cell lookup map for O(1) access in render
+        const cellMap = new Map<string, typeof cells[0]>();
+        for (const c of cells) cellMap.set(`${c.weekIndex}-${c.dayOfWeek}`, c);
+        const weeksCount = cells.length > 0 ? Math.max(...cells.map(c => c.weekIndex)) + 1 : 0;
+        // Month labels
+        const months: { label: string; weekIndex: number }[] = [];
+        let lastMonth = -1;
+        for (const c of cells) {
+            const m = new Date(c.date + "T12:00:00").getMonth();
+            if (m !== lastMonth) { months.push({ label: new Date(c.date + "T12:00:00").toLocaleDateString("en-US", { month: "short" }), weekIndex: c.weekIndex }); lastMonth = m; }
+        }
+        return { cells, cellMap, weeksCount, months, maxTurns, activeDays, totalDays, mostActiveLabel, longestStreak, currentStreak, dayMap };
+    }, [dailyData]);
 
     if (loading || !stats) return <p className="text-white/30 text-center py-16">Loading dashboard...</p>;
 
@@ -312,63 +368,9 @@ export default function OverviewSection() {
             </div>
 
             {/* Activity Heatmap + Stats */}
-            {dailyData.length > 0 && (() => {
-                // Build GitHub-style heatmap — always 13 weeks (3 months), today in last column
-                const today = new Date();
-                const dayMap = new Map(dailyData.map(d => [d.day, d.turns]));
-                const cells: { date: string; turns: number; weekIndex: number; dayOfWeek: number }[] = [];
-
-                // Start from the Sunday that is ~51 weeks ago
-                const startDate = new Date(today);
-                startDate.setDate(startDate.getDate() - 13 * 7 + 1);
-                startDate.setDate(startDate.getDate() - startDate.getDay()); // snap to Sunday
-
-                for (let i = 0; ; i++) {
-                    const d = new Date(startDate);
-                    d.setDate(d.getDate() + i);
-                    if (d > today) break;
-                    const iso = d.toISOString().slice(0, 10);
-                    cells.push({ date: iso, turns: dayMap.get(iso) ?? 0, weekIndex: Math.floor(i / 7), dayOfWeek: d.getDay() });
-                }
-
-                // Stats (all time)
-                const allCells = dailyData.map(d => ({ date: d.day, turns: d.turns }));
-                const activeDays = allCells.filter(c => c.turns > 0).length;
-                const totalDays = allCells.length;
-                const maxTurns = Math.max(...cells.map(c => c.turns), 1);
-
-                // Most active day (all time)
-                const mostActive = allCells.reduce((best, c) => c.turns > best.turns ? c : best, allCells[0] ?? { date: "", turns: 0 });
-                const mostActiveLabel = mostActive?.date ? new Date(mostActive.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "-";
-
-                // Streaks (all time)
-                let longestStreak = 0, currentStreak = 0, tempStreak = 0;
-                const sortedDays = allCells.filter(c => c.turns > 0).map(c => c.date).sort();
-                for (let i = 0; i < sortedDays.length; i++) {
-                    if (i === 0) { tempStreak = 1; }
-                    else {
-                        const prev = new Date(sortedDays[i - 1]);
-                        const curr = new Date(sortedDays[i]);
-                        const diffDays = (curr.getTime() - prev.getTime()) / 86400000;
-                        tempStreak = diffDays === 1 ? tempStreak + 1 : 1;
-                    }
-                    longestStreak = Math.max(longestStreak, tempStreak);
-                }
-                // Current streak (count backwards from today)
-                const todayStr = today.toISOString().slice(0, 10);
-                const yesterdayDate = new Date(today); yesterdayDate.setDate(yesterdayDate.getDate() - 1);
-                const yesterdayStr = yesterdayDate.toISOString().slice(0, 10);
-                let streakStart = dayMap.has(todayStr) ? todayStr : dayMap.has(yesterdayStr) ? yesterdayStr : null;
-                if (streakStart) {
-                    currentStreak = 1;
-                    const d = new Date(streakStart);
-                    while (true) {
-                        d.setDate(d.getDate() - 1);
-                        if (dayMap.has(d.toISOString().slice(0, 10))) currentStreak++;
-                        else break;
-                    }
-                }
-
+            {heatmapData && (() => {
+                const { cellMap, weeksCount, months, maxTurns, activeDays, totalDays, mostActiveLabel, longestStreak, currentStreak } = heatmapData;
+                const cellSize = 11, gap = 2;
                 function getColor(turns: number): string {
                     if (turns === 0) return "rgba(255,255,255,0.04)";
                     const intensity = Math.min(turns / (maxTurns * 0.6), 1);
@@ -377,8 +379,6 @@ export default function OverviewSection() {
                     if (intensity < 0.75) return "rgba(249,115,22,0.65)";
                     return "rgba(249,115,22,0.9)";
                 }
-
-
                 return (
                     <div className="flex gap-3 flex-col lg:flex-row">
 
@@ -388,63 +388,43 @@ export default function OverviewSection() {
                                 <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.3)", margin: 0 }}>Activity — Last 3 Months</p>
                             </div>
 
-                            {/* All-time heatmap grid — scrollable, columns = weeks */}
-                            {(() => {
-                                const weeksCount = Math.max(...cells.map(c => c.weekIndex)) + 1;
-                                const cellSize = 11;
-                                const gap = 2;
-                                const dayLabels = ["", "Mon", "", "Wed", "", "Fri", ""];
-
-                                // Month labels
-                                const months: { label: string; weekIndex: number }[] = [];
-                                let lastMonth = -1;
-                                for (const c of cells) {
-                                    const m = new Date(c.date).getMonth();
-                                    if (m !== lastMonth) {
-                                        months.push({ label: new Date(c.date).toLocaleDateString("en-US", { month: "short" }), weekIndex: c.weekIndex });
-                                        lastMonth = m;
-                                    }
-                                }
-
-                                return (
-                                    <div style={{ overflowX: "auto", paddingBottom: 4 }}>
-                                        {/* Month labels */}
-                                        <div style={{ display: "flex", marginLeft: 26, marginBottom: 2, position: "relative", height: 14 }}>
-                                            {months.map((m, i) => (
-                                                <span key={i} style={{ position: "absolute", left: m.weekIndex * (cellSize + gap), fontSize: 9, color: "rgba(255,255,255,0.2)", whiteSpace: "nowrap" }}>{m.label}</span>
-                                            ))}
-                                        </div>
-                                        <div style={{ display: "flex", gap: 0 }}>
-                                            <div style={{ display: "flex", flexDirection: "column", gap, width: 26, flexShrink: 0 }}>
-                                                {dayLabels.map((d, i) => (
-                                                    <span key={i} style={{ height: cellSize, fontSize: 8, color: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center" }}>{d}</span>
-                                                ))}
-                                            </div>
-                                            <div style={{ display: "flex", gap }}>
-                                                {Array.from({ length: weeksCount }, (_, wi) => (
-                                                    <div key={wi} style={{ display: "flex", flexDirection: "column", gap }}>
-                                                        {Array.from({ length: 7 }, (_, di) => {
-                                                            const cell = cells.find(c => c.weekIndex === wi && c.dayOfWeek === di);
-                                                            const isToday = cell?.date === todayStr;
-                                                            return (
-                                                                <div key={di}
-                                                                    title={cell ? `${cell.date}: ${cell.turns} turns` : ""}
-                                                                    style={{
-                                                                        width: cellSize, height: cellSize, borderRadius: 2,
-                                                                        background: cell ? (isToday && cell.turns > 0 ? "#f97316" : getColor(cell.turns)) : "transparent",
-                                                                        boxShadow: isToday && cell?.turns ? "0 0 6px rgba(249,115,22,0.5)" : "none",
-                                                                        outline: isToday ? "1px solid rgba(249,115,22,0.4)" : "none",
-                                                                    }}
-                                                                />
-                                                            );
-                                                        })}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
+                            {/* All-time heatmap grid */}
+                            <div style={{ overflowX: "auto", paddingBottom: 4 }}>
+                                <div style={{ display: "flex", marginLeft: 26, marginBottom: 2, position: "relative", height: 14 }}>
+                                    {months.map((m, i) => (
+                                        <span key={i} style={{ position: "absolute", left: m.weekIndex * (cellSize + gap), fontSize: 9, color: "rgba(255,255,255,0.2)", whiteSpace: "nowrap" }}>{m.label}</span>
+                                    ))}
+                                </div>
+                                <div style={{ display: "flex", gap: 0 }}>
+                                    <div style={{ display: "flex", flexDirection: "column", gap, width: 26, flexShrink: 0 }}>
+                                        {["", "Mon", "", "Wed", "", "Fri", ""].map((d, i) => (
+                                            <span key={i} style={{ height: cellSize, fontSize: 8, color: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center" }}>{d}</span>
+                                        ))}
                                     </div>
-                                );
-                            })()}
+                                    <div style={{ display: "flex", gap }}>
+                                        {Array.from({ length: weeksCount }, (_, wi) => (
+                                            <div key={wi} style={{ display: "flex", flexDirection: "column", gap }}>
+                                                {Array.from({ length: 7 }, (_, di) => {
+                                                    const cell = cellMap.get(`${wi}-${di}`);
+                                                    const todayStr = new Date().toISOString().slice(0, 10);
+                                                    const isToday = cell?.date === todayStr;
+                                                    return (
+                                                        <div key={di}
+                                                            title={cell ? `${cell.date}: ${cell.turns} turns` : ""}
+                                                            style={{
+                                                                width: cellSize, height: cellSize, borderRadius: 2,
+                                                                background: cell ? (isToday && cell.turns > 0 ? "#f97316" : getColor(cell.turns)) : "transparent",
+                                                                boxShadow: isToday && cell?.turns ? "0 0 6px rgba(249,115,22,0.5)" : "none",
+                                                                outline: isToday ? "1px solid rgba(249,115,22,0.4)" : "none",
+                                                            }}
+                                                        />
+                                                    );
+                                                })}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
 
                             {/* Stats - inline right of heatmap */}
                             <div className="flex gap-4 mt-3 pt-3 flex-wrap" style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>

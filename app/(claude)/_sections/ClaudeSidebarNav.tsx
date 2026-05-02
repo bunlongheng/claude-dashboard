@@ -5,11 +5,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
     LayoutDashboard, FolderOpen, Coins,
-    ShieldCheck, BookOpen, Settings,
+    BookOpen, Settings,
     Brain, Sparkles, Terminal, Webhook, Server, Puzzle,
     Menu, X, ChevronDown, Monitor, LogOut,
     Activity, Clock,
-    Search,
+    Search, DatabaseZap, FileText, SlidersHorizontal, Wand2,
 } from "lucide-react";
 import { MACHINES, MACHINE_COLORS, ACCENT } from "./shared";
 import { useMachine } from "./MachineContext";
@@ -17,25 +17,45 @@ import { signOut } from "@/app/actions";
 import QrLanModal from "./QrLanModal";
 import SearchModal from "./SearchModal";
 
-export const NAV_ITEMS = [
-    { href: "/dashboard", label: "Overview",  Icon: LayoutDashboard, exact: true,  color: "#f97316" },
-    // ── Load order: what Claude reads at startup ──
-    { href: "/global",   label: "CLAUDE.md", Icon: BookOpen,        exact: false, color: "#8b5cf6" },
-    { href: "/brain",    label: "Memory",    Icon: Brain,           exact: false, color: "#eab308" },
-    { href: "/rules",    label: "Rules",     Icon: ShieldCheck,     exact: false, color: "#14b8a6" },
-    { href: "/mcp",      label: "MCP",       Icon: Server,          exact: false, color: "#10b981" },
-    { href: "/plugins",  label: "Plugins",   Icon: Puzzle,          exact: false, color: "#8b5cf6" },
-    { href: "/skills",   label: "Skills",    Icon: Sparkles,        exact: false, color: "#06b6d4" },
-    { href: "/commands", label: "Commands",  Icon: Terminal,        exact: false, color: "#f472b6" },
-    { href: "/hooks",    label: "Hooks",     Icon: Webhook,         exact: false, color: "#a3e635" },
-    // ── Runtime ──
-    { href: "/sessions", label: "Sessions",  Icon: FolderOpen,      exact: false, color: "#22c55e" },
-    { href: "/tokens",   label: "Tokens",    Icon: Coins,           exact: false, color: "#f59e0b" },
-    { href: "/settings", label: "Settings",  Icon: Settings,        exact: false, color: "#6b7280" },
-    // ── Insights ──
-    { href: "/health",    label: "Health",    Icon: Activity,        exact: false, color: "#22c55e" },
-    { href: "/timeline",  label: "Timeline",  Icon: Clock,           exact: false, color: "#06b6d4" },
+type NavItem = {
+    href: string; label: string; Icon: React.ElementType;
+    exact: boolean; color: string;
+    children?: { href: string; label: string; Icon: React.ElementType; color: string }[];
+};
+type NavSection = { label: string; items: NavItem[] };
+
+export const NAV_SECTIONS: NavSection[] = [
+    { label: "", items: [
+        { href: "/dashboard", label: "Overview",  Icon: LayoutDashboard, exact: true,  color: "#f97316" },
+    ]},
+    { label: "Knowledge", items: [
+        { href: "/rag",       label: "RAG",       Icon: DatabaseZap,     exact: true,  color: "#dc143c", children: [
+            { href: "/rag/documents",   label: "Documents",   Icon: FileText,           color: "#dc143c" },
+            { href: "/rag/search",      label: "Search",      Icon: Search,             color: "#dc143c" },
+            { href: "/rag/preferences", label: "Preferences", Icon: SlidersHorizontal,  color: "#dc143c" },
+            { href: "/rag/context",     label: "Context",     Icon: Wand2,              color: "#dc143c" },
+        ]},
+        { href: "/brain",    label: "Memory",    Icon: Brain,           exact: false, color: "#eab308" },
+        { href: "/global",   label: "CLAUDE.md", Icon: BookOpen,        exact: false, color: "#8b5cf6" },
+    ]},
+    { label: "Config", items: [
+        { href: "/mcp",      label: "MCP",       Icon: Server,          exact: false, color: "#10b981" },
+        { href: "/skills",   label: "Skills",    Icon: Sparkles,        exact: false, color: "#06b6d4" },
+        { href: "/commands", label: "Commands",  Icon: Terminal,        exact: false, color: "#f472b6" },
+        { href: "/plugins",  label: "Plugins",   Icon: Puzzle,          exact: false, color: "#8b5cf6" },
+        { href: "/hooks",    label: "Hooks",     Icon: Webhook,         exact: false, color: "#a3e635" },
+        { href: "/settings", label: "Settings",  Icon: Settings,        exact: false, color: "#6b7280" },
+    ]},
+    { label: "Activity", items: [
+        { href: "/sessions", label: "Sessions",  Icon: FolderOpen,      exact: false, color: "#22c55e" },
+        { href: "/tokens",   label: "Tokens",    Icon: Coins,           exact: false, color: "#f59e0b" },
+        { href: "/health",   label: "Health",    Icon: Activity,        exact: false, color: "#22c55e" },
+        { href: "/timeline", label: "Timeline",  Icon: Clock,           exact: false, color: "#06b6d4" },
+    ]},
 ];
+
+// Flat list for badge lookups
+export const NAV_ITEMS = NAV_SECTIONS.flatMap(s => s.items);
 
 function NavItem({ href, label, Icon, exact, color, pathname, onClose, badge }: {
     href: string; label: string; Icon: React.ElementType;
@@ -109,10 +129,48 @@ function SidebarContent({ pathname, onClose, badges, onSearchClick }: {
                 </div>
             </div>
 
-            {/* Nav - all items at same level */}
+            {/* Nav */}
             <nav style={{ padding: "8px 8px", flex: 1, overflowY: "auto" }}>
-                {NAV_ITEMS.map(item => (
-                    <NavItem key={item.href} {...item} pathname={pathname} onClose={onClose} badge={badges[item.href]} />
+                {NAV_SECTIONS.map((section, si) => (
+                    <div key={si}>
+                        {section.label && (
+                            <div style={{
+                                fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em",
+                                color: "rgba(255,255,255,0.2)", padding: "10px 10px 4px",
+                                marginTop: si > 0 ? 4 : 0,
+                            }}>{section.label}</div>
+                        )}
+                        {section.items.map(item => {
+                            const hasChildren = !!item.children;
+                            const isRagActive = hasChildren && pathname.startsWith(item.href);
+                            return (
+                                <div key={item.href}>
+                                    <NavItem {...item} pathname={pathname} onClose={hasChildren ? undefined : onClose} badge={badges[item.href]} />
+                                    {hasChildren && (isRagActive || pathname === item.href) && (
+                                        <div style={{ paddingLeft: 20, marginBottom: 4 }}>
+                                            {item.children!.map((child) => {
+                                                const childActive = pathname === child.href;
+                                                return (
+                                                    <Link key={child.href} href={child.href} onClick={onClose}
+                                                        style={{
+                                                            display: "flex", alignItems: "center", gap: 7,
+                                                            padding: "5px 10px", borderRadius: 6, marginBottom: 1,
+                                                            fontSize: 11, fontWeight: childActive ? 600 : 400,
+                                                            color: childActive ? "#ffffff" : "rgba(255,255,255,0.35)",
+                                                            background: childActive ? `${child.color}12` : "transparent",
+                                                            textDecoration: "none", transition: "all 0.12s",
+                                                        }}>
+                                                        <child.Icon size={12} style={{ color: child.color, opacity: childActive ? 1 : 0.5 }} />
+                                                        {child.label}
+                                                    </Link>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
                 ))}
             </nav>
 
@@ -150,13 +208,13 @@ export default function ClaudeSidebarNav() {
             fetch("/api/claude/token-stats").then(r => r.json()).catch(() => ({ totals: { sessions: 0 } })),
             fetch("/api/claude/health").then(r => r.json()).catch(() => ({ projects: [] })),
             fetch("/api/claude/memory-timeline").then(r => r.json()).catch(() => ({ timeline: [] })),
-        ]).then(([sessions, skills, brain, tokens, health, timeline]) => {
+            fetch("http://localhost:6200/api/stats").then(r => r.json()).catch(() => ({ documents: 0 })),
+        ]).then(([sessions, skills, brain, tokens, health, timeline, rag]) => {
             const totalSessions = (sessions.projects ?? []).reduce((sum: number, p: any) => sum + (p.sessions?.length ?? 0), 0);
             setBadges({
                 "/dashboard": brain.totalProjects ?? 0,
                 "/global": skills.summary?.claudeMd ?? 0,
                 "/brain": brain.categoryCounts?.memory ?? brain.totalFiles ?? 0,
-                "/rules": (brain.globalRules ?? []).length,
                 "/mcp": skills.summary?.mcp ?? 0,
                 "/plugins": skills.summary?.plugins ?? 0,
                 "/skills": skills.summary?.skills ?? 0,
@@ -165,6 +223,7 @@ export default function ClaudeSidebarNav() {
                 "/sessions": totalSessions,
                 "/tokens": tokens.totals?.session_count ?? tokens.tokens?.length ?? 0,
                 "/settings": (skills.settings ? Object.keys(skills.settings).length : 0) + (skills.localSettings ? Object.keys(skills.localSettings).length : 0),
+                "/rag": rag.documents ?? 0,
                 "/health": (health.projects ?? []).length,
                 "/timeline": (timeline.timeline ?? []).length,
             });

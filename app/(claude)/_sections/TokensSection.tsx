@@ -192,17 +192,19 @@ export default function TokensSection({ initialTokens }: { initialTokens: Token[
     const [totalTurns, setTotalTurns] = useState(0);
 
     useEffect(() => {
-        fetch("/api/claude/token-stats/daily").then(r => r.json()).then(d => {
-            setDaily(d.daily ?? []);
-            setByModelDaily(d.byModel ?? []);
-            setTopTools(d.tools ?? []);
-            setTotalTurns(d.totalTurns ?? 0);
-        }).catch(() => {});
+        fetch("/api/claude/token-stats/daily")
+            .then(r => r.ok ? r.json() : { daily: [], byModel: [], tools: [], totalTurns: 0 })
+            .then(d => {
+                setDaily(d.daily ?? []);
+                setByModelDaily(d.byModel ?? []);
+                setTopTools(d.tools ?? []);
+                setTotalTurns(d.totalTurns ?? 0);
+            }).catch(() => {});
     }, []);
 
     // Fetch session dates for time filtering
     useEffect(() => {
-        fetch("/api/claude/sessions").then(r => r.json()).then(d => {
+        fetch("/api/claude/sessions").then(r => r.ok ? r.json() : { projects: [] }).then(d => {
             const dates = new Map<string, number>();
             for (const p of d.projects ?? []) {
                 for (const s of p.sessions ?? []) {

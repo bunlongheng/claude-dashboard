@@ -1,14 +1,13 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { NAV_ITEMS } from "./ClaudeSidebarNav";
+import { NAV_ITEMS, NAV_SECTIONS } from "./ClaudeSidebarNav";
 import { hexToRgba } from "./shared";
 
 const PAGE_SUBTITLES: Record<string, string> = {
     "/dashboard": "Dashboard & monitoring",
     "/global":   "Identity, rules & instructions",
     "/brain":    "Per-project memory files",
-    "/rules":    "Global rules database",
     "/settings": "settings.json & settings.local.json",
     "/mcp":      "MCP server connections",
     "/plugins":  "Installed plugins & extensions",
@@ -17,6 +16,13 @@ const PAGE_SUBTITLES: Record<string, string> = {
     "/hooks":    "Event hooks & automation",
     "/sessions": "Active & past sessions",
     "/tokens":   "Token usage & cost tracking",
+    "/health":   "Project health scores",
+    "/timeline": "Memory timeline",
+    "/rag":              "Personal knowledge base & retrieval",
+    "/rag/documents":    "All indexed documents",
+    "/rag/search":       "Search your knowledge base",
+    "/rag/preferences":  "Extracted preferences & patterns",
+    "/rag/context":      "Context builder for prompts",
     "/monitor":  "App process monitor",
     "/monitor/crons": "24-hour automation schedule",
     "/monitor/gallery": "App screenshots & GIFs",
@@ -24,14 +30,23 @@ const PAGE_SUBTITLES: Record<string, string> = {
 
 export default function PageHero() {
     const pathname = usePathname();
-    const current = NAV_ITEMS.find(item =>
+    // Check sub-pages first (e.g. /rag/documents), then parent items
+    let current = NAV_ITEMS.find(item =>
         item.exact ? pathname === item.href : pathname.startsWith(item.href)
     );
 
+    // For sub-pages, find the child match and use parent's icon/color but child's label
+    let displayLabel = current?.label ?? "";
+    let displaySubtitle = PAGE_SUBTITLES[pathname] ?? PAGE_SUBTITLES[current?.href ?? ""] ?? "";
+
+    if (current?.children && pathname !== current.href) {
+        const child = current.children.find(c => pathname === c.href);
+        if (child) displayLabel = `${current.label} / ${child.label}`;
+    }
+
     if (!current) return null;
 
-    const { label, Icon, color } = current;
-    const subtitle = PAGE_SUBTITLES[current.href] ?? "";
+    const { Icon, color } = current;
 
     return (
         <div style={{
@@ -63,9 +78,9 @@ export default function PageHero() {
                     <Icon size={28} style={{ color }} />
                 </div>
                 <div>
-                    <h1 style={{ fontSize: 24, fontWeight: 700, color: "#ffffff", margin: 0, lineHeight: 1.2 }}>{label}</h1>
-                    {subtitle && (
-                        <p style={{ fontSize: 13, color: hexToRgba(color, 0.7), margin: 0, marginTop: 4, fontWeight: 500 }}>{subtitle}</p>
+                    <h1 style={{ fontSize: 24, fontWeight: 700, color: "#ffffff", margin: 0, lineHeight: 1.2 }}>{displayLabel}</h1>
+                    {displaySubtitle && (
+                        <p style={{ fontSize: 13, color: hexToRgba(color, 0.7), margin: 0, marginTop: 4, fontWeight: 500 }}>{displaySubtitle}</p>
                     )}
                 </div>
             </div>

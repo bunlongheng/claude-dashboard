@@ -6,6 +6,7 @@ import * as os from "os";
 export const dynamic = "force-dynamic";
 
 const CLAUDE_DIR = path.join(os.homedir(), ".claude", "projects");
+const MAX_BYTES = 100 * 1024; // 100KB per file (was full file read)
 
 interface DayBucket {
     day: string;
@@ -31,30 +32,37 @@ interface ToolBucket {
     calls: number;
 }
 
-function readFullFile(filePath: string): string {
+function readLastBytes(filePath: string, maxBytes: number): string {
+    let fd = -1;
     try {
-        return fs.readFileSync(filePath, "utf-8");
-    } catch {
-        return "";
-    }
+        fd = fs.openSync(filePath, "r");
+        const stat = fs.fstatSync(fd);
+        const readSize = Math.min(maxBytes, stat.size);
+        const offset = Math.max(0, stat.size - readSize);
+        const buf = Buffer.alloc(readSize);
+        fs.readSync(fd, buf, 0, readSize, offset);
+        return buf.toString("utf-8");
+    } catch { return ""; }
+    finally { if (fd >= 0) try { fs.closeSync(fd); } catch {} }
 }
 
 export async function GET() {
     if (!fs.existsSync(CLAUDE_DIR)) {
-        return NextResponse.json({ daily: [], byModel: [], tools: [] });
+        return NextResponse.json({ daily: [], byModel: [], tools: [] }, {
+            headers: { "Cache-Control": "public, max-age=30" },
+        });
     }
 
     const dailyMap = new Map<string, DayBucket>();
     const modelMap = new Map<string, ModelBucket>();
     const toolMap = new Map<string, number>();
-    const sessionDays = new Map<string, Set<string>>(); // session -> set of days
+    const sessionDays = new Map<string, Set<string>>();
     let totalTurns = 0;
     let totalSessions = 0;
 
     const currentUser = os.userInfo().username;
 
     for (const folder of fs.readdirSync(CLAUDE_DIR)) {
-        // Only scan current user's folders
         const hasUser = folder.includes(`-${currentUser}-`) || folder.endsWith(`-${currentUser}`);
         if (!hasUser) continue;
 
@@ -64,19 +72,22 @@ export async function GET() {
         for (const file of fs.readdirSync(folderPath).filter(f => f.endsWith(".jsonl"))) {
             const filePath = path.join(folderPath, file);
             const sessionId = file.replace(".jsonl", "");
-            const content = readFullFile(filePath);
+            const content = readLastBytes(filePath, MAX_BYTES);
             if (!content) continue;
 
             let sessionHasTokens = false;
+            const lines = content.split("\n");
+            // Drop first line if we started mid-line (offset > 0)
+            if (lines.length > 1) lines.shift();
 
-            for (const line of content.split("\n")) {
+            for (const line of lines) {
                 if (!line) continue;
                 try {
                     const d = JSON.parse(line);
                     const ts = d.timestamp as string | undefined;
                     const day = ts ? ts.slice(0, 10) : null;
 
-                    // Extract tool calls from assistant messages
+                    // Extract tool calls
                     if (d.type === "assistant" && d.message?.content) {
                         for (const block of d.message.content) {
                             if (block.type === "tool_use" && block.name) {
@@ -85,7 +96,7 @@ export async function GET() {
                         }
                     }
 
-                    // Extract usage from summary or assistant
+                    // Extract usage
                     let usage: Record<string, number> | null = null;
                     let model: string | undefined;
 
@@ -105,7 +116,6 @@ export async function GET() {
 
                         if (input + output > 0) sessionHasTokens = true;
 
-                        // Daily bucket
                         const bucket = dailyMap.get(day) ?? { day, input: 0, output: 0, cache_read: 0, cache_creation: 0, turns: 0, sessions: 0 };
                         bucket.input += input;
                         bucket.output += output;
@@ -114,11 +124,9 @@ export async function GET() {
                         bucket.turns += 1;
                         dailyMap.set(day, bucket);
 
-                        // Track session-day for session count
                         if (!sessionDays.has(sessionId)) sessionDays.set(sessionId, new Set());
                         sessionDays.get(sessionId)!.add(day);
 
-                        // Model bucket
                         const modelKey = model ?? "unknown";
                         const mb = modelMap.get(modelKey) ?? { model: modelKey, input: 0, output: 0, cache_read: 0, cache_creation: 0, turns: 0 };
                         mb.input += input;
@@ -137,7 +145,6 @@ export async function GET() {
         }
     }
 
-    // Add session counts to daily buckets
     for (const [, days] of sessionDays) {
         for (const day of days) {
             const bucket = dailyMap.get(day);
@@ -152,11 +159,7 @@ export async function GET() {
         .sort((a, b) => b.calls - a.calls)
         .slice(0, 15);
 
-    return NextResponse.json({
-        daily,
-        byModel,
-        tools,
-        totalTurns,
-        totalSessions,
+    return NextResponse.json({ daily, byModel, tools, totalTurns, totalSessions }, {
+        headers: { "Cache-Control": "public, max-age=30" },
     });
 }
