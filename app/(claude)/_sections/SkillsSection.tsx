@@ -1,7 +1,14 @@
 "use client";
 
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
-import { Zap, Search, Pencil, Save, X, Send, Copy, Download, Eye, Code2 } from "lucide-react";
+import {
+    Zap, Search, Pencil, Save, X, Send, Copy, Eye, Code2,
+    StickyNote, LayoutPanelTop, GitBranch, Monitor, Server, HardDrive, Cpu,
+    AppWindow, Rocket, LayoutGrid, BarChart3, Lightbulb, Ban, FlaskConical,
+    ClipboardList, TestTube2, PackageSearch, ShieldCheck, Bot, MessageSquare,
+    Mic, Camera, QrCode, Sparkles, Star, Mail, Presentation, Triangle,
+    type LucideIcon,
+} from "lucide-react";
 import { ACCENT } from "./shared";
 import { useMachine, type MachineInfo } from "./MachineContext";
 import { useToast } from "./ToastContext";
@@ -20,6 +27,47 @@ const ORB_ICONS = [
     "zap", "sparkles", "star", "bolt", "diamond", "hexagon",
     "triangle", "layers", "activity", "cpu", "terminal", "rocket",
 ];
+
+const SKILL_ICONS: Record<string, LucideIcon> = {
+    "stickies": StickyNote, "sticky": StickyNote, "/sticky": StickyNote,
+    "deck": LayoutPanelTop, "/deck": LayoutPanelTop,
+    "diagram": GitBranch, "/diagram": GitBranch,
+    "sshM4": Monitor, "/sshM4": Monitor,
+    "sshProd": Server, "/sshProd": Server,
+    "sshPM2026": HardDrive, "/sshPM2026": HardDrive,
+    "sshPi5": Cpu, "/sshPi5": Cpu,
+    "local-apps": AppWindow, "/local-apps": AppWindow,
+    "onboard": Rocket, "/onboard": Rocket,
+    "zeta-sprint": LayoutGrid, "sprint-snapshot": LayoutGrid,
+    "zeta-metrics": BarChart3,
+    "zeta-loe": Lightbulb, "loe-insight": Lightbulb,
+    "zeta-blocks": Ban,
+    "zeta-qe": FlaskConical, "qe-zeta": FlaskConical,
+    "zeta-chores": ClipboardList,
+    "zeta-qa": TestTube2,
+    "zeta-dev": Code2,
+    "zeta-kpds": PackageSearch,
+    "zeta-security": ShieldCheck,
+    "zeta-bugs": Ban,
+    "zeta-wins": Star,
+    "zeta-highlight": Sparkles,
+    "zeta-retro": Presentation,
+    "zeta-releases": Rocket,
+    "ai-ticket-flow": Bot,
+    "slack-read": MessageSquare, "/slack-read": MessageSquare,
+    "mimi": Mic, "/mimi": Mic,
+    "screenshots": Camera,
+    "show-lan": QrCode,
+    "email": Mail, "/email": Mail,
+    "pixel": Triangle,
+    "tabs": LayoutPanelTop,
+    "rag": Search,
+};
+
+function getSkillIcon(name: string): LucideIcon {
+    const clean = name.replace(/^\//, "");
+    return SKILL_ICONS[clean] || SKILL_ICONS[name] || Zap;
+}
 
 function skillTag(name: string): string {
     if (name.startsWith("/zeta") || name.startsWith("zeta-")) return "zeta";
@@ -112,7 +160,7 @@ function SkillModal({ skill, color, onClose, currentMachine, otherMachines, show
                         display: "flex", alignItems: "center", justifyContent: "center",
                         boxShadow: `0 0 20px ${color}40`,
                     }}>
-                        <Zap size={16} style={{ color: "#fff" }} />
+                        {(() => { const Icon = getSkillIcon(skill.name); return <Icon size={16} style={{ color: "#fff" }} />; })()}
                     </div>
                     <div style={{ flex: 1 }}>
                         <div style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>{cleanName(skill.name)}</div>
@@ -309,7 +357,7 @@ export default function SkillsSection() {
             </div>
 
             {/* Orbital circle - desktop */}
-            <div className="hidden md:block" style={{ position: "relative", width: "100%", aspectRatio: "1", maxWidth: 600, margin: "0 auto" }}>
+            <div className="hidden md:block" style={{ position: "relative", width: "100%", aspectRatio: "1", maxWidth: 900, margin: "0 auto" }}>
                 {/* Center label */}
                 <div style={{
                     position: "absolute", left: "50%", top: "50%", transform: "translate(-50%, -50%)",
@@ -352,7 +400,7 @@ export default function SkillsSection() {
                                 boxShadow: isHovered ? `0 0 30px ${color}60` : `0 2px 10px ${color}25`,
                                 transition: "all 0.3s",
                             }}>
-                                <Zap size={isHovered ? 24 : 20} style={{ color: "rgba(255,255,255,0.9)", filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.3))" }} />
+                                {(() => { const Icon = getSkillIcon(s.name); return <Icon size={isHovered ? 24 : 20} style={{ color: "rgba(255,255,255,0.9)", filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.3))" }} />; })()}
                             </div>
                             <span style={{
                                 fontSize: 9, fontWeight: 600,
@@ -383,7 +431,7 @@ export default function SkillsSection() {
                                 display: "flex", alignItems: "center", justifyContent: "center",
                                 boxShadow: `0 2px 8px ${color}20`,
                             }}>
-                                <Zap size={18} style={{ color: "rgba(255,255,255,0.9)" }} />
+                                {(() => { const Icon = getSkillIcon(s.name); return <Icon size={18} style={{ color: "rgba(255,255,255,0.9)" }} />; })()}
                             </div>
                             <span style={{ fontSize: 8, fontWeight: 600, color: "rgba(255,255,255,0.45)", textAlign: "center", maxWidth: 70, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                                 {cleanName(s.name)}
