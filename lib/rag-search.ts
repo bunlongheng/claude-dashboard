@@ -283,7 +283,13 @@ export function getStats() {
     const cs = db.prepare("SELECT SUM(context_size) as total FROM context_log").get() as { total: number | null };
     contextInjections = ci.count;
     totalContextSize = cs.total || 0;
-    recentContexts = db.prepare("SELECT project, prompt, prefs_count, chunks_count, context_size, created_at FROM context_log ORDER BY created_at DESC LIMIT 10").all();
+    recentContexts = db.prepare(`
+      SELECT project, prefs_count, chunks_count, context_size, MAX(created_at) as created_at, COUNT(*) as times
+      FROM context_log
+      GROUP BY project
+      ORDER BY MAX(created_at) DESC
+      LIMIT 10
+    `).all();
   } catch { /* table might not exist yet */ }
 
   return {

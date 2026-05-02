@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { DatabaseZap, Search, Layers, Brain, FolderOpen, RefreshCw, Sparkles, Copy, Check, ChevronDown, ChevronRight, FileText, X } from "lucide-react";
+import { DatabaseZap, Search, Layers, Brain, FolderOpen, RefreshCw, Sparkles, Copy, Check, ChevronDown, ChevronRight, FileText, X, Monitor } from "lucide-react";
+import { useMachine } from "./MachineContext";
 
-const ACCENT = "#dc143c";
+const ACCENT = "#10b981";
 
 type Stats = {
     documents: number; chunks: number; preferences: number;
@@ -19,6 +20,9 @@ export type RagTab = "overview" | "documents" | "search" | "preferences" | "cont
 type DocInfo = { id: number; source_path: string; source_type: string; project: string; title: string; size: number; chunk_count: number; updated_at: string };
 
 export default function RagSection({ initialTab = "overview" }: { initialTab?: RagTab }) {
+    const { machine, machines } = useMachine();
+    const currentMachine = machines.find(m => m.id === machine);
+    const isRemote = currentMachine ? !currentMachine.isLocal : false;
     const [tab, setTab] = useState<RagTab>(initialTab);
     const [stats, setStats] = useState<Stats | null>(null);
     const [prefs, setPrefs] = useState<Pref[]>([]);
@@ -106,12 +110,22 @@ export default function RagSection({ initialTab = "overview" }: { initialTab?: R
         setTimeout(() => setCopied(false), 1500);
     }
 
+    if (isRemote) return (
+        <div style={{ textAlign: "center", padding: "64px 0" }}>
+            <Monitor size={32} style={{ color: "rgba(255,255,255,0.15)", margin: "0 auto 12px" }} />
+            <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 14, fontWeight: 600 }}>RAG runs locally</p>
+            <p style={{ color: "rgba(255,255,255,0.25)", fontSize: 12, marginTop: 6, lineHeight: 1.6, maxWidth: 400, margin: "6px auto 0" }}>
+                RAG knowledge base is local to this machine. Switch to <span style={{ color: ACCENT, fontWeight: 600 }}>Local</span> in the machine picker to view your documents, preferences, and search.
+            </p>
+        </div>
+    );
+
     if (loading) return <p style={{ color: "rgba(255,255,255,0.3)", textAlign: "center", padding: "64px 0" }}>Connecting to RAG...</p>;
     if (!stats) return (
         <div style={{ textAlign: "center", padding: "64px 0" }}>
             <DatabaseZap size={32} style={{ color: "rgba(255,255,255,0.15)", margin: "0 auto 12px" }} />
-            <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 13 }}>RAG server not running</p>
-            <p style={{ color: "rgba(255,255,255,0.2)", fontSize: 11, marginTop: 4 }}>Start it: <code style={{ background: "rgba(255,255,255,0.05)", padding: "2px 6px", borderRadius: 4 }}>cd ~/Sites/rag && npm run dev</code></p>
+            <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 13 }}>RAG not available</p>
+            <p style={{ color: "rgba(255,255,255,0.2)", fontSize: 11, marginTop: 4 }}>RAG data will be created on your first Claude Code session.</p>
         </div>
     );
 
@@ -179,8 +193,8 @@ export default function RagSection({ initialTab = "overview" }: { initialTab?: R
                     {/* RAG Impact — proof it works */}
                     <div style={{
                         padding: "16px", borderRadius: 10, marginBottom: 16,
-                        background: "linear-gradient(135deg, rgba(220,20,60,0.08) 0%, rgba(220,20,60,0.02) 100%)",
-                        border: "1px solid rgba(220,20,60,0.15)",
+                        background: "linear-gradient(135deg, rgba(16,185,129,0.08) 0%, rgba(16,185,129,0.02) 100%)",
+                        border: "1px solid rgba(16,185,129,0.15)",
                     }}>
                         <div style={{ fontSize: 11, fontWeight: 700, color: ACCENT, marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.04em" }}>RAG Impact</div>
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
@@ -214,8 +228,9 @@ export default function RagSection({ initialTab = "overview" }: { initialTab?: R
                                 }}>
                                     <span style={{ fontSize: 10, fontWeight: 600, color: ACCENT, minWidth: 70 }}>{c.project || 'global'}</span>
                                     <span style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", flex: 1 }}>{c.prefs_count} prefs · {c.chunks_count} chunks</span>
+                                    <span style={{ fontSize: 8, padding: "1px 5px", borderRadius: 4, background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.4)" }}>{(c as any).times ?? 1}x</span>
                                     <span style={{ fontSize: 9, color: "rgba(255,255,255,0.5)", fontWeight: 600 }}>{(c.context_size / 1000).toFixed(1)}KB</span>
-                                    <span style={{ fontSize: 8, color: "rgba(255,255,255,0.2)" }}>{c.created_at}</span>
+                                    <span style={{ fontSize: 8, color: "rgba(255,255,255,0.2)" }}>{c.created_at?.slice(0, 10)}</span>
                                 </div>
                             ))}
                         </div>
@@ -225,7 +240,7 @@ export default function RagSection({ initialTab = "overview" }: { initialTab?: R
                     <div style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.5)", marginBottom: 8 }}>Data Sources</div>
                     {[
                         { label: "Conversations", desc: "Your past Claude Code sessions", color: "#22c55e" },
-                        { label: "Insights", desc: "Auto-extracted learnings from sessions", color: "#dc143c" },
+                        { label: "Insights", desc: "Auto-extracted learnings from sessions", color: "#10b981" },
                         { label: "Memory", desc: "Hand-curated project memory files", color: "#eab308" },
                         { label: "Articles", desc: "Compiled knowledge per project", color: "#06b6d4" },
                         { label: "CLAUDE.md", desc: "Global rules & config", color: "#8b5cf6" },
@@ -245,87 +260,156 @@ export default function RagSection({ initialTab = "overview" }: { initialTab?: R
 
             {/* ── Documents ── */}
             {tab === "documents" && (() => {
-                const types = [...new Set(docs.map(d => d.source_type))].sort();
-                const projects = [...new Set(docs.map(d => d.project))].sort();
-                const typeColors: Record<string, string> = { conversation: "#22c55e", insight: "#f43f5e", memory: "#eab308", claude_md: "#8b5cf6", global_rules: "#a855f7" };
+                const typeColors: Record<string, string> = { conversation: "#22c55e", insight: "#10b981", memory: "#eab308", claude_md: "#8b5cf6", global_rules: "#a855f7", article: "#06b6d4" };
 
-                let filtered = docs;
-                if (docFilter !== "all") filtered = filtered.filter(d => d.source_type === docFilter);
-                if (docProjectFilter !== "all") filtered = filtered.filter(d => d.project === docProjectFilter);
+                // Type breakdown
+                const typeCounts: Record<string, number> = {};
+                const typeSize: Record<string, number> = {};
+                for (const d of docs) {
+                    typeCounts[d.source_type] = (typeCounts[d.source_type] || 0) + 1;
+                    typeSize[d.source_type] = (typeSize[d.source_type] || 0) + d.size;
+                }
+                const typeEntries = Object.entries(typeCounts).sort((a, b) => b[1] - a[1]);
+                const maxTypeCount = Math.max(...Object.values(typeCounts), 1);
 
-                // Group by project
-                const grouped: Record<string, DocInfo[]> = {};
-                for (const d of filtered) { if (!grouped[d.project]) grouped[d.project] = []; grouped[d.project].push(d); }
+                // Project breakdown
+                const projectCounts: Record<string, number> = {};
+                const projectSize: Record<string, number> = {};
+                for (const d of docs) {
+                    projectCounts[d.project] = (projectCounts[d.project] || 0) + 1;
+                    projectSize[d.project] = (projectSize[d.project] || 0) + d.size;
+                }
+                const projectEntries = Object.entries(projectCounts).sort((a, b) => b[1] - a[1]);
+                const maxProjectCount = Math.max(...Object.values(projectCounts), 1);
+                const projectColors = ["#3b82f6", "#8b5cf6", "#f59e0b", "#22c55e", "#ef4444", "#06b6d4", "#ec4899", "#f97316", "#14b8a6", "#6366f1"];
+
+                // Total size
+                const totalSize = docs.reduce((s, d) => s + d.size, 0);
+                const totalChunks = docs.reduce((s, d) => s + d.chunk_count, 0);
 
                 return (
                     <>
                     <div>
-                        {/* Filters */}
-                        <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
-                            <div style={{ display: "flex", gap: 3 }}>
-                                {[{ label: "All", value: "all" }, ...types.map(t => ({ label: t, value: t }))].map(t => (
-                                    <button key={t.value} onClick={() => setDocFilter(t.value)}
-                                        style={{
-                                            padding: "3px 8px", borderRadius: 12, fontSize: 9, fontWeight: 700, cursor: "pointer",
-                                            background: docFilter === t.value ? `${typeColors[t.value] || ACCENT}20` : "rgba(255,255,255,0.03)",
-                                            border: docFilter === t.value ? `1px solid ${typeColors[t.value] || ACCENT}40` : "1px solid rgba(255,255,255,0.06)",
-                                            color: docFilter === t.value ? (typeColors[t.value] || ACCENT) : "rgba(255,255,255,0.35)",
-                                            textTransform: "uppercase", letterSpacing: "0.03em",
-                                        }}>{t.label}</button>
-                                ))}
+                        {/* Summary row */}
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 16 }}>
+                            <div style={{ padding: "12px", borderRadius: 8, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", textAlign: "center" }}>
+                                <div style={{ fontSize: 20, fontWeight: 800, color: "#fff" }}>{docs.length}</div>
+                                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", textTransform: "uppercase" }}>Documents</div>
                             </div>
-                            <select value={docProjectFilter} onChange={e => setDocProjectFilter(e.target.value)}
-                                style={{
-                                    padding: "3px 8px", borderRadius: 8, fontSize: 10, fontWeight: 600,
-                                    background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
-                                    color: "rgba(255,255,255,0.5)", outline: "none", fontFamily: "inherit",
-                                }}>
-                                <option value="all">All projects</option>
-                                {projects.map(p => <option key={p} value={p}>{p}</option>)}
-                            </select>
-                            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", marginLeft: "auto", alignSelf: "center" }}>{filtered.length} docs</span>
+                            <div style={{ padding: "12px", borderRadius: 8, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", textAlign: "center" }}>
+                                <div style={{ fontSize: 20, fontWeight: 800, color: "#fff" }}>{totalChunks.toLocaleString()}</div>
+                                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", textTransform: "uppercase" }}>Chunks</div>
+                            </div>
+                            <div style={{ padding: "12px", borderRadius: 8, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", textAlign: "center" }}>
+                                <div style={{ fontSize: 20, fontWeight: 800, color: "#fff" }}>{(totalSize / 1024).toFixed(0)}KB</div>
+                                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", textTransform: "uppercase" }}>Total Size</div>
+                            </div>
                         </div>
 
-                        {/* Grouped list */}
-                        {Object.entries(grouped).sort().map(([project, items]) => (
-                            <div key={project} style={{ marginBottom: 12 }}>
-                                <div style={{
-                                    padding: "6px 10px", fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)",
-                                    textTransform: "uppercase", letterSpacing: "0.04em",
-                                    display: "flex", alignItems: "center", gap: 6,
-                                }}>
-                                    <FolderOpen size={11} style={{ color: "rgba(255,255,255,0.2)" }} />
-                                    {project}
-                                    <span style={{ fontSize: 9, color: "rgba(255,255,255,0.15)" }}>({items.length})</span>
-                                </div>
-                                {items.map(d => {
-                                    const color = typeColors[d.source_type] || "#6b7280";
-                                    return (
-                                        <div key={d.id} onClick={async () => {
-                                            setSelectedDoc(d); setLoadingDoc(true);
-                                            try {
-                                                const res = await fetch(`/api/rag/docs/${d.id}`);
-                                                const data = await res.json();
-                                                setDocContent(data.content || "");
-                                            } catch { setDocContent("Failed to load"); }
-                                            setLoadingDoc(false);
-                                        }} style={{
-                                            padding: "8px 12px 8px 28px", marginBottom: 2, borderRadius: 6,
-                                            background: selectedDoc?.id === d.id ? "rgba(244,63,94,0.08)" : "rgba(255,255,255,0.02)",
-                                            border: selectedDoc?.id === d.id ? `1px solid ${ACCENT}30` : "1px solid rgba(255,255,255,0.04)",
-                                            display: "flex", alignItems: "center", gap: 8, cursor: "pointer",
-                                            transition: "background 0.1s",
-                                        }}>
-                                            <FileText size={12} style={{ color, flexShrink: 0 }} />
-                                            <span style={{ fontSize: 11, fontWeight: 500, color: "rgba(255,255,255,0.7)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.title}</span>
-                                            <span style={{ fontSize: 8, fontWeight: 700, padding: "1px 5px", borderRadius: 4, background: `${color}15`, color, textTransform: "uppercase" }}>{d.source_type}</span>
-                                            <span style={{ fontSize: 9, color: "rgba(255,255,255,0.2)", flexShrink: 0 }}>{d.chunk_count} chunks</span>
-                                            <span style={{ fontSize: 9, color: "rgba(255,255,255,0.15)", flexShrink: 0 }}>{(d.size / 1024).toFixed(1)}KB</span>
+                        {/* Type distribution - horizontal bar chart */}
+                        <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.04em" }}>By Type</div>
+                        <div style={{ marginBottom: 20 }}>
+                            {typeEntries.map(([type, count]) => {
+                                const color = typeColors[type] || "#6b7280";
+                                const pct = (count / maxTypeCount) * 100;
+                                const sizeKb = ((typeSize[type] || 0) / 1024).toFixed(0);
+                                return (
+                                    <div key={type} onClick={() => setDocFilter(docFilter === type ? "all" : type)} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, cursor: "pointer" }}>
+                                        <span style={{ fontSize: 9, fontWeight: 600, color: "rgba(255,255,255,0.45)", minWidth: 75, textAlign: "right" }}>{type}</span>
+                                        <div style={{ flex: 1, height: 20, background: "rgba(255,255,255,0.03)", borderRadius: 4, overflow: "hidden", position: "relative" }}>
+                                            <div style={{
+                                                width: `${pct}%`, height: "100%", background: `${color}30`, borderRadius: 4,
+                                                borderRight: `2px solid ${color}`, transition: "width 0.6s ease-out",
+                                            }} />
+                                            <span style={{ position: "absolute", left: 8, top: 3, fontSize: 9, fontWeight: 700, color }}>{count}</span>
                                         </div>
-                                    );
-                                })}
+                                        <span style={{ fontSize: 8, color: "rgba(255,255,255,0.2)", minWidth: 35, textAlign: "right" }}>{sizeKb}KB</span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {/* Stacked bar - type composition */}
+                        <div style={{ height: 24, borderRadius: 6, overflow: "hidden", display: "flex", marginBottom: 20 }}>
+                            {typeEntries.map(([type, count]) => {
+                                const color = typeColors[type] || "#6b7280";
+                                const pct = (count / docs.length) * 100;
+                                return (
+                                    <div key={type} title={`${type}: ${count} (${pct.toFixed(0)}%)`}
+                                        style={{ width: `${pct}%`, background: `${color}50`, borderRight: "1px solid rgba(0,0,0,0.3)", transition: "width 0.6s ease-out", position: "relative" }}>
+                                        {pct > 8 && <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 700, color }}>{type}</span>}
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {/* Project breakdown - horizontal bars */}
+                        <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.04em" }}>By Project ({Object.keys(projectCounts).length})</div>
+                        <div style={{ marginBottom: 16 }}>
+                            {projectEntries.slice(0, 15).map(([project, count], i) => {
+                                const color = projectColors[i % projectColors.length];
+                                const pct = (count / maxProjectCount) * 100;
+                                return (
+                                    <div key={project} onClick={() => setDocProjectFilter(docProjectFilter === project ? "all" : project)}
+                                        style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3, cursor: "pointer" }}>
+                                        <span style={{ fontSize: 9, fontWeight: 600, color: "rgba(255,255,255,0.45)", minWidth: 75, textAlign: "right", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{project}</span>
+                                        <div style={{ flex: 1, height: 18, background: "rgba(255,255,255,0.03)", borderRadius: 3, overflow: "hidden", position: "relative" }}>
+                                            <div style={{
+                                                width: `${pct}%`, height: "100%", background: `${color}25`, borderRadius: 3,
+                                                borderRight: `2px solid ${color}`, transition: "width 0.6s ease-out",
+                                            }} />
+                                            <span style={{ position: "absolute", left: 6, top: 2, fontSize: 9, fontWeight: 700, color }}>{count}</span>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                            {projectEntries.length > 15 && (
+                                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.2)", textAlign: "center", marginTop: 4 }}>+{projectEntries.length - 15} more projects</div>
+                            )}
+                        </div>
+
+                        {/* Expandable file list */}
+                        <details style={{ marginTop: 8 }}>
+                            <summary style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.35)", cursor: "pointer", padding: "8px 0", userSelect: "none" }}>
+                                Browse all {docs.length} documents
+                            </summary>
+                            <div style={{ marginTop: 8 }}>
+                                {(() => {
+                                    let filtered = docs;
+                                    if (docFilter !== "all") filtered = filtered.filter(d => d.source_type === docFilter);
+                                    if (docProjectFilter !== "all") filtered = filtered.filter(d => d.project === docProjectFilter);
+                                    const grouped: Record<string, DocInfo[]> = {};
+                                    for (const d of filtered) { if (!grouped[d.project]) grouped[d.project] = []; grouped[d.project].push(d); }
+                                    return Object.entries(grouped).sort().map(([project, items]) => (
+                                        <div key={project} style={{ marginBottom: 8 }}>
+                                            <div style={{ padding: "4px 8px", fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", display: "flex", alignItems: "center", gap: 5 }}>
+                                                <FolderOpen size={10} style={{ color: "rgba(255,255,255,0.15)" }} /> {project} <span style={{ fontSize: 8, color: "rgba(255,255,255,0.12)" }}>({items.length})</span>
+                                            </div>
+                                            {items.map(d => {
+                                                const color = typeColors[d.source_type] || "#6b7280";
+                                                return (
+                                                    <div key={d.id} onClick={async () => {
+                                                        setSelectedDoc(d); setLoadingDoc(true);
+                                                        try { const res = await fetch(`/api/rag/docs/${d.id}`); const data = await res.json(); setDocContent(data.content || ""); } catch { setDocContent("Failed to load"); }
+                                                        setLoadingDoc(false);
+                                                    }} style={{
+                                                        padding: "6px 10px 6px 24px", marginBottom: 1, borderRadius: 4,
+                                                        background: selectedDoc?.id === d.id ? `${ACCENT}10` : "rgba(255,255,255,0.01)",
+                                                        border: selectedDoc?.id === d.id ? `1px solid ${ACCENT}25` : "1px solid transparent",
+                                                        display: "flex", alignItems: "center", gap: 6, cursor: "pointer",
+                                                    }}>
+                                                        <FileText size={10} style={{ color, flexShrink: 0 }} />
+                                                        <span style={{ fontSize: 10, color: "rgba(255,255,255,0.6)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.title}</span>
+                                                        <span style={{ fontSize: 7, fontWeight: 700, padding: "1px 4px", borderRadius: 3, background: `${color}12`, color }}>{d.source_type}</span>
+                                                        <span style={{ fontSize: 8, color: "rgba(255,255,255,0.15)" }}>{d.chunk_count}ch</span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    ));
+                                })()}
                             </div>
-                        ))}
+                        </details>
                     </div>
 
                     {/* Doc content panel */}
