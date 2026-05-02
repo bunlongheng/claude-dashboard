@@ -29,11 +29,11 @@ export const NAV_SECTIONS: NavSection[] = [
         { href: "/dashboard", label: "Overview",  Icon: LayoutDashboard, exact: true,  color: "#f97316" },
     ]},
     { label: "Knowledge", items: [
-        { href: "/rag",       label: "RAG",       Icon: DatabaseZap,     exact: true,  color: "#dc143c", children: [
-            { href: "/rag/documents",   label: "Documents",   Icon: FileText,           color: "#dc143c" },
-            { href: "/rag/search",      label: "Search",      Icon: Search,             color: "#dc143c" },
-            { href: "/rag/preferences", label: "Preferences", Icon: SlidersHorizontal,  color: "#dc143c" },
-            { href: "/rag/context",     label: "Context",     Icon: Wand2,              color: "#dc143c" },
+        { href: "/rag",       label: "RAG",       Icon: DatabaseZap,     exact: true,  color: "#10b981", children: [
+            { href: "/rag/documents",   label: "Documents",   Icon: FileText,           color: "#10b981" },
+            { href: "/rag/search",      label: "Search",      Icon: Search,             color: "#10b981" },
+            { href: "/rag/preferences", label: "Preferences", Icon: SlidersHorizontal,  color: "#10b981" },
+            { href: "/rag/context",     label: "Context",     Icon: Wand2,              color: "#10b981" },
         ]},
         { href: "/brain",    label: "Memory",    Icon: Brain,           exact: false, color: "#eab308" },
         { href: "/global",   label: "CLAUDE.md", Icon: BookOpen,        exact: false, color: "#8b5cf6" },
@@ -41,7 +41,6 @@ export const NAV_SECTIONS: NavSection[] = [
     { label: "Config", items: [
         { href: "/mcp",      label: "MCP",       Icon: Server,          exact: false, color: "#10b981" },
         { href: "/skills",   label: "Skills",    Icon: Sparkles,        exact: false, color: "#06b6d4" },
-        { href: "/commands", label: "Commands",  Icon: Terminal,        exact: false, color: "#f472b6" },
         { href: "/plugins",  label: "Plugins",   Icon: Puzzle,          exact: false, color: "#8b5cf6" },
         { href: "/hooks",    label: "Hooks",     Icon: Webhook,         exact: false, color: "#a3e635" },
         { href: "/settings", label: "Settings",  Icon: Settings,        exact: false, color: "#6b7280" },
@@ -89,8 +88,8 @@ function NavItem({ href, label, Icon, exact, color, pathname, onClose, badge }: 
     );
 }
 
-function SidebarContent({ pathname, onClose, badges, onSearchClick }: {
-    pathname: string; onClose?: () => void; badges: Record<string, number>; onSearchClick?: () => void;
+function SidebarContent({ pathname, onClose, badges, onSearchClick, isLocalMachine }: {
+    pathname: string; onClose?: () => void; badges: Record<string, number>; onSearchClick?: () => void; isLocalMachine?: boolean;
 }) {
     return (
         <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
@@ -143,10 +142,11 @@ function SidebarContent({ pathname, onClose, badges, onSearchClick }: {
                         {section.items.map(item => {
                             const hasChildren = !!item.children;
                             const isRagActive = hasChildren && pathname.startsWith(item.href);
+                            const isLocal = isLocalMachine !== false;
                             return (
                                 <div key={item.href}>
                                     <NavItem {...item} pathname={pathname} onClose={hasChildren ? undefined : onClose} badge={badges[item.href]} />
-                                    {hasChildren && (isRagActive || pathname === item.href) && (
+                                    {hasChildren && isLocal && (isRagActive || pathname === item.href) && (
                                         <div style={{ paddingLeft: 20, marginBottom: 4 }}>
                                             {item.children!.map((child) => {
                                                 const childActive = pathname === child.href;
@@ -217,8 +217,7 @@ export default function ClaudeSidebarNav() {
                 "/brain": brain.categoryCounts?.memory ?? brain.totalFiles ?? 0,
                 "/mcp": skills.summary?.mcp ?? 0,
                 "/plugins": skills.summary?.plugins ?? 0,
-                "/skills": skills.summary?.skills ?? 0,
-                "/commands": skills.summary?.commands ?? 0,
+                "/skills": (skills.summary?.skills ?? 0) + (skills.summary?.commands ?? 0),
                 "/hooks": skills.summary?.hooks ?? 0,
                 "/sessions": totalSessions,
                 "/tokens": tokens.totals?.session_count ?? tokens.tokens?.length ?? 0,
@@ -253,7 +252,7 @@ export default function ClaudeSidebarNav() {
                 width: 200, minWidth: 200, background: "#111118",
                 borderRight: "1px solid rgba(255,255,255,0.05)", flexDirection: "column",
             }}>
-                <SidebarContent pathname={pathname} badges={badges} onSearchClick={openSearch} />
+                <SidebarContent pathname={pathname} badges={badges} onSearchClick={openSearch} isLocalMachine={machines.find(m => m.id === machine)?.isLocal ?? true} />
             </aside>
 
             {/* Mobile top bar */}
@@ -313,7 +312,7 @@ export default function ClaudeSidebarNav() {
                     style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(2px)" }}>
                     <aside onClick={e => e.stopPropagation()}
                         style={{ width: 240, height: "100%", background: "#111118", borderRight: "1px solid rgba(255,255,255,0.08)" }}>
-                        <SidebarContent pathname={pathname} onClose={() => setOpen(false)} badges={badges} onSearchClick={openSearch} />
+                        <SidebarContent pathname={pathname} onClose={() => setOpen(false)} badges={badges} onSearchClick={openSearch} isLocalMachine={machines.find(m => m.id === machine)?.isLocal ?? true} />
                     </aside>
                 </div>
             )}

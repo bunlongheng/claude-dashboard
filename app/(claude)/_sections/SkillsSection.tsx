@@ -215,7 +215,14 @@ export default function SkillsSection() {
         fetch(`/api/claude/skills${q}`)
             .then(r => r.json())
             .then(d => {
-                setSkills(d.skills ?? []);
+                // Merge commands into skills list
+                const allSkills = [...(d.skills ?? [])];
+                for (const cmd of (d.commands ?? [])) {
+                    if (cmd.source === "external") {
+                        allSkills.push({ name: cmd.name, plugin: cmd.plugin || "command", description: cmd.description, path: cmd.path, source: "external", content: cmd.content });
+                    }
+                }
+                setSkills(allSkills);
                 setPlugins(d.plugins ?? []);
                 setSettings(d.settings ?? null);
                 setLocalSettings(d.localSettings ?? null);
