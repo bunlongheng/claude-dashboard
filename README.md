@@ -134,10 +134,26 @@ Remote machines appear in the dropdown - all data fetched from their dashboards.
 
 Features inspired by these excellent open-source projects:
 
-| Project | What we learned | Stars |
-|---------|----------------|-------|
-| [phuryn/claude-usage](https://github.com/phuryn/claude-usage) | Token analytics, daily charts, per-model pricing, cost tracking | 1.1k+ |
-| [nateherkai/token-dashboard](https://github.com/nateherkai/token-dashboard) | Plan-aware pricing (API/Pro/Max), token glossary, top tools chart | - |
+**Dashboard & Token Analytics**
+
+| Project | What we learned |
+|---------|----------------|
+| [phuryn/claude-usage](https://github.com/phuryn/claude-usage) | Token analytics, daily charts, per-model pricing, cost tracking |
+| [nateherkai/token-dashboard](https://github.com/nateherkai/token-dashboard) | Plan-aware pricing (API/Pro/Max), token glossary, top tools chart |
+
+**RAG & Memory Systems**
+
+| Project | What we learned |
+|---------|----------------|
+| [affaan-m/everything-claude-code](https://github.com/affaan-m/everything-claude-code) | Hook-driven lifecycle (SessionStart/Stop), instinct-based learning, continuous pattern extraction |
+| [MemPalace/mempalace](https://github.com/MemPalace/mempalace) | Hybrid BM25 + semantic search, temporal knowledge graph, pluggable backends |
+| [thedotmack/claude-mem](https://github.com/thedotmack/claude-mem) | Progressive 3-layer disclosure, structured observation compiler, worker service architecture |
+| [coleam00/claude-memory-compiler](https://github.com/coleam00/claude-memory-compiler) | Karpathy-inspired compile-not-search pattern, article-first knowledge organization, lint health checks |
+| [lyonzin/knowledge-rag](https://github.com/lyonzin/knowledge-rag) | Query expansion, keyword routing, cross-encoder reranking, multi-format parsers |
+| [HKUDS/LightRAG](https://github.com/HKUDS/LightRAG) | Knowledge graph entity extraction, dual-mode retrieval (local + global graph) |
+| [Ricardo-Kaminski/local-rag](https://github.com/Ricardo-Kaminski/local-rag) | MCP as first-class integration, document checkpointing, file watcher daemon |
+| [doobidoo/mcp-memory-service](https://github.com/doobidoo/mcp-memory-service) | Turn-level storage, decay/compression consolidation, quality scoring |
+| [mem0ai/mem0](https://github.com/mem0ai/mem0) | Multi-level memory taxonomy, entity linking, multi-signal retrieval |
 
 Thank you to these creators for sharing their work with the community.
 
