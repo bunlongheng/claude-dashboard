@@ -77,7 +77,6 @@ Open **http://localhost:3000** - done. No config, no database, no account.
 | **Overview** | Stat cards, config donut, top sessions, context window, activity heatmap, 7-day breakdown |
 | **CLAUDE.md** | Global instructions Claude reads on every startup |
 | **Memory** | What Claude remembers about you and your projects |
-| **Rules** | Per-project rules and instruction files |
 | **MCP** | Model Context Protocol server configs and tools |
 | **Plugins** | Installed plugin directories |
 | **Skills** | Reusable prompts and workflows |
