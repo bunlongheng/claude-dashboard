@@ -12,6 +12,7 @@ import {
     groupBy, calcCost, fmtNum, fmtCost, hexToRgba, PRICE,
 } from "./shared";
 import { useMachine } from "./MachineContext";
+import { safeFetch } from "./shared";
 
 const PAGE_SIZE = 20;
 const COLOR_PALETTE = ["#ff3b5c", "#ff6347", "#f97316", "#ffb800", "#cddc39", "#00c853", "#00bfa5", "#4fc3f7", "#2962ff", "#5c4db1", "#ab47bc", "#ff1667"];
@@ -178,7 +179,7 @@ function HBarChart({ items, color }: { items: { label: string; value: number }[]
 // ─── Main Component ─────────────────────────────────────────────────────────
 export default function TokensSection({ initialTokens }: { initialTokens: Token[] }) {
     const [tokens] = useState<Token[]>(initialTokens);
-    const { machine } = useMachine();
+    const { machine, apiBase } = useMachine();
     const [page, setPage] = useState(0);
     const [period, setPeriod] = useState<"today" | "7d" | "30d" | "all">("30d");
     const [plan, setPlan] = useState("max-20x");
@@ -192,19 +193,19 @@ export default function TokensSection({ initialTokens }: { initialTokens: Token[
     const [totalTurns, setTotalTurns] = useState(0);
 
     useEffect(() => {
-        fetch("/api/claude/token-stats/daily")
-            .then(r => r.ok ? r.json() : { daily: [], byModel: [], tools: [], totalTurns: 0 })
+        safeFetch<any>(apiBase("/api/claude/token-stats/daily"), { daily: [], byModel: [], tools: [], totalTurns: 0 })
             .then(d => {
                 setDaily(d.daily ?? []);
                 setByModelDaily(d.byModel ?? []);
                 setTopTools(d.tools ?? []);
                 setTotalTurns(d.totalTurns ?? 0);
-            }).catch(() => {});
-    }, []);
+            });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [apiBase]);
 
     // Fetch session dates for time filtering
     useEffect(() => {
-        fetch("/api/claude/sessions").then(r => r.ok ? r.json() : { projects: [] }).then(d => {
+        safeFetch<any>(apiBase("/api/claude/sessions"), { projects: [] }).then(d => {
             const dates = new Map<string, number>();
             for (const p of d.projects ?? []) {
                 for (const s of p.sessions ?? []) {
@@ -212,8 +213,9 @@ export default function TokensSection({ initialTokens }: { initialTokens: Token[
                 }
             }
             setSessionDates(dates);
-        }).catch(() => {});
-    }, []);
+        });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [apiBase]);
 
     // Time-filtered tokens
     const timeFiltered = useMemo(() => {

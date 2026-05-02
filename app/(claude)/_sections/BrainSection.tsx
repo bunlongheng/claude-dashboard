@@ -3,6 +3,8 @@
 import { useEffect, useState, useMemo } from "react";
 import { Search, ChevronDown, ChevronRight, AlertTriangle, FolderOpen, FileText, Settings, Brain, ShieldCheck, Terminal, List, Share2 } from "lucide-react";
 import { marked } from "marked";
+import { useMachine } from "./MachineContext";
+import { safeFetch } from "./shared";
 import dynamic from "next/dynamic";
 
 const MemoryGraph = dynamic(() => import("./MemoryGraph"), { ssr: false });
@@ -126,6 +128,7 @@ function ProjectCard({ project, categoryFilter }: { project: ProjectBrain; categ
 type CategoryFilter = string | null;
 
 export default function BrainSection() {
+    const { apiBase } = useMachine();
     const [view, setView] = useState<"list" | "graph">("graph");
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
@@ -136,17 +139,17 @@ export default function BrainSection() {
     const [totalFiles, setTotalFiles] = useState(0);
 
     useEffect(() => {
-        fetch("/api/claude/brain")
-            .then(r => r.json())
+        setLoading(true);
+        safeFetch<any>(apiBase("/api/claude/brain"), { projects: [], projectsWithoutMemory: [], categoryCounts: {}, totalFiles: 0 })
             .then(d => {
                 setProjects(d.projects ?? []);
                 setGaps(d.projectsWithoutMemory ?? []);
                 setCategoryCounts(d.categoryCounts ?? {});
                 setTotalFiles(d.totalFiles ?? 0);
                 setLoading(false);
-            })
-            .catch(() => setLoading(false));
-    }, []);
+            });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [apiBase]);
 
     const filteredProjects = useMemo(() => {
         let list = projects;
