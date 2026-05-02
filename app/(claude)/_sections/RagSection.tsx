@@ -236,25 +236,71 @@ export default function RagSection({ initialTab = "overview" }: { initialTab?: R
                         </div>
                     )}
 
-                    {/* Source breakdown */}
-                    <div style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.5)", marginBottom: 8 }}>Data Sources</div>
-                    {[
-                        { label: "Conversations", desc: "Your past Claude Code sessions", color: "#22c55e" },
-                        { label: "Insights", desc: "Auto-extracted learnings from sessions", color: "#10b981" },
-                        { label: "Memory", desc: "Hand-curated project memory files", color: "#eab308" },
-                        { label: "Articles", desc: "Compiled knowledge per project", color: "#06b6d4" },
-                        { label: "CLAUDE.md", desc: "Global rules & config", color: "#8b5cf6" },
-                    ].map(s => (
-                        <div key={s.label} style={{
-                            padding: "8px 12px", marginBottom: 3, borderRadius: 6,
-                            background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)",
-                            display: "flex", alignItems: "center", gap: 8,
-                        }}>
-                            <div style={{ width: 6, height: 6, borderRadius: 3, background: s.color, flexShrink: 0 }} />
-                            <span style={{ fontSize: 11, fontWeight: 500, color: "rgba(255,255,255,0.6)" }}>{s.label}</span>
-                            <span style={{ fontSize: 9, color: "rgba(255,255,255,0.25)" }}>{s.desc}</span>
-                        </div>
-                    ))}
+                    {/* Source breakdown - donut charts */}
+                    {(() => {
+                        const typeColors: Record<string, string> = { conversation: "#22c55e", insight: "#10b981", memory: "#eab308", claude_md: "#8b5cf6", global_rules: "#a855f7", article: "#06b6d4" };
+                        const typeCounts: Record<string, number> = {};
+                        for (const d of docs) typeCounts[d.source_type] = (typeCounts[d.source_type] || 0) + 1;
+                        const typeEntries = Object.entries(typeCounts).sort((a, b) => b[1] - a[1]);
+                        const total = docs.length || 1;
+
+                        // Project breakdown
+                        const projectCounts: Record<string, number> = {};
+                        for (const d of docs) projectCounts[d.project] = (projectCounts[d.project] || 0) + 1;
+                        const topProjects = Object.entries(projectCounts).sort((a, b) => b[1] - a[1]).slice(0, 6);
+                        const projColors = ["#3b82f6", "#8b5cf6", "#f59e0b", "#22c55e", "#ef4444", "#06b6d4"];
+
+                        function Donut({ data, colors, size = 120, label }: { data: [string, number][]; colors: Record<string, string> | string[]; size?: number; label: string }) {
+                            const r = size / 2 - 8;
+                            const cx = size / 2, cy = size / 2;
+                            const circumference = 2 * Math.PI * r;
+                            const total = data.reduce((s, [, v]) => s + v, 0) || 1;
+                            let offset = 0;
+                            return (
+                                <div style={{ textAlign: "center" }}>
+                                    <svg width={size} height={size} style={{ display: "block", margin: "0 auto" }}>
+                                        <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth={14} />
+                                        {data.map(([key, value], i) => {
+                                            const pct = value / total;
+                                            const dash = circumference * pct;
+                                            const gap = circumference - dash;
+                                            const color = Array.isArray(colors) ? colors[i % colors.length] : (colors[key] || "#6b7280");
+                                            const currentOffset = offset;
+                                            offset += pct * circumference;
+                                            return <circle key={key} cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth={14}
+                                                strokeDasharray={`${dash} ${gap}`} strokeDashoffset={-currentOffset}
+                                                style={{ transform: "rotate(-90deg)", transformOrigin: "center", transition: "stroke-dasharray 0.6s ease-out" }} />;
+                                        })}
+                                        <text x={cx} y={cy - 4} textAnchor="middle" fill="#fff" fontSize={18} fontWeight={800}>{total}</text>
+                                        <text x={cx} y={cy + 12} textAnchor="middle" fill="rgba(255,255,255,0.35)" fontSize={8} fontWeight={600}>{label}</text>
+                                    </svg>
+                                    <div style={{ marginTop: 8 }}>
+                                        {data.map(([key, value], i) => {
+                                            const color = Array.isArray(colors) ? colors[i % colors.length] : (colors[key] || "#6b7280");
+                                            return (
+                                                <div key={key} style={{ display: "flex", alignItems: "center", gap: 5, justifyContent: "center", marginBottom: 2 }}>
+                                                    <div style={{ width: 6, height: 6, borderRadius: 3, background: color, flexShrink: 0 }} />
+                                                    <span style={{ fontSize: 9, color: "rgba(255,255,255,0.5)" }}>{key}</span>
+                                                    <span style={{ fontSize: 9, fontWeight: 700, color }}>{value}</span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            );
+                        }
+
+                        return (
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 8 }}>
+                                <div style={{ padding: "16px", borderRadius: 10, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                                    <Donut data={typeEntries} colors={typeColors} label="BY TYPE" />
+                                </div>
+                                <div style={{ padding: "16px", borderRadius: 10, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                                    <Donut data={topProjects} colors={projColors} label="TOP PROJECTS" />
+                                </div>
+                            </div>
+                        );
+                    })()}
                 </div>
             )}
 
