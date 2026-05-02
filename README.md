@@ -45,21 +45,28 @@ Open **http://localhost:3000** - done. No config, no database, no account.
 
 | Feature | Description |
 |---------|-------------|
-| **Overview Dashboard** | 12 stat cards, configuration donut, top sessions, context window visualizer |
-| **Activity Heatmap** | GitHub-style contribution calendar with streaks and stats |
-| **Token Analytics** | Daily charts, per-model pricing (Opus/Sonnet/Haiku), plan-aware cost (API/Pro/Max/Max 20x) |
-| **Context Window** | Live per-session context usage bars with cache/input/create breakdown |
-| **Multi-Machine** | Switch between machines (Mac, Pi, VPS) - data proxied from remote dashboards |
-| **Session Monitor** | Live session viewer with thinking state, tool calls, and SSE streaming |
-| **Memory Browser** | All memory files across projects - user, feedback, project, reference |
-| **Rules Database** | Global rules with categories, search, and per-project filtering |
-| **MCP Servers** | Connection status, tools list, and configuration viewer |
-| **Skills & Commands** | Browse all custom skills and slash commands |
-| **Hooks** | Event-driven automation hooks viewer |
-| **Settings** | Global and local Claude Code settings editor |
-| **Timeline** | Memory timeline across all projects |
-| **Health Check** | Project health scores based on Claude setup quality |
-| **RAG Memory** | Personal knowledge base - ingest sessions, memory, CLAUDE.md into searchable FTS index |
+| **Token Analytics** | Daily stacked charts, per-model pricing (Opus/Sonnet/Haiku), plan-aware cost (API/Pro/Max/Max 20x), cost by model and project tables |
+| **Context Window** | Live per-session context usage bars with cache/input/create breakdown, color-coded thresholds |
+| **RAG Memory** | Personal knowledge base - ingest sessions, memory, CLAUDE.md into searchable FTS index with preference extraction |
+| **Overview Dashboard** | 12 stat cards, configuration donut, top sessions by tokens, context window visualizer, 7-day breakdown |
+| **Activity Heatmap** | GitHub-style contribution calendar with active days, longest/current streak, most active day, top model |
+| **Session Monitor** | Live session viewer with thinking state, tool calls, SSE streaming, custom title sync |
+| **Multi-Machine** | Switch between machines (Mac, Pi, VPS) - all API calls proxied to remote dashboards |
+| **Memory Browser** | All memory files across projects - user, feedback, project, reference types with timeline view |
+| **CLAUDE.md Editor** | View and edit global instructions Claude reads on every startup |
+| **MCP Servers** | Connection status, tools list, configuration viewer for all MCP servers |
+| **Skills** | Browse all custom skills and reusable prompt workflows |
+| **Commands** | Slash commands across all projects with source file locations |
+| **Hooks** | Event-driven automation hooks - PreToolUse, PostToolUse, Notification, etc. |
+| **Plugins** | Installed plugin directories and marketplace status |
+| **Settings** | Global and local Claude Code settings editor (settings.json, settings.local.json) |
+| **Health Check** | Project health scores 0-100 based on CLAUDE.md, memory, sessions, settings quality |
+| **Timeline** | Memory events across all projects with chronological view |
+| **Session Export** | Export any session as clean Markdown |
+| **Global Search** | Cmd+K search across sessions, memory, skills, and settings |
+| **QR Code LAN** | Share dashboard access via QR code on your local network |
+| **Mobile Responsive** | Full mobile support with adaptive layouts |
+| **Active Session Pills** | Top bar shows all running Claude sessions with live status |
 
 <br/>
 
