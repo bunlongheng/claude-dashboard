@@ -206,7 +206,7 @@ export default function SkillsSection() {
     const [settings, setSettings] = useState<Record<string, unknown> | null>(null);
     const [localSettings, setLocalSettings] = useState<Record<string, unknown> | null>(null);
     const [loading, setLoading] = useState(true);
-    const [filter, setFilter] = useState<FilterTab>("custom");
+    const [filter] = useState<FilterTab>("custom");
     const [search, setSearch] = useState("");
 
     useEffect(() => {
@@ -250,23 +250,9 @@ export default function SkillsSection() {
 
     return (
         <div>
-            {/* Filter bar */}
+            {/* Search bar */}
             <div className="flex items-center gap-3 mb-4 flex-wrap">
-                <div className="flex items-center gap-1">
-                    {tabs.map(t => (
-                        <button key={t.value}
-                            onClick={() => setFilter(t.value)}
-                            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold transition cursor-pointer"
-                            style={{
-                                background: filter === t.value ? `${t.color}20` : "rgba(255,255,255,0.03)",
-                                border: filter === t.value ? `1px solid ${t.color}40` : "1px solid rgba(255,255,255,0.06)",
-                                color: filter === t.value ? t.color : "rgba(255,255,255,0.4)",
-                            }}>
-                            {t.label}
-                            <span style={{ fontSize: 9, opacity: 0.6 }}>{t.count}</span>
-                        </button>
-                    ))}
-                </div>
+                <span className="text-[10px] text-white/30">{customCount} custom skills</span>
                 <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg flex-1 max-w-[240px]"
                     style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
                     <Search size={11} style={{ color: "rgba(255,255,255,0.25)", flexShrink: 0 }} />
