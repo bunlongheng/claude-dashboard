@@ -56,6 +56,16 @@ export function getDb(): Database.Database {
       created_at    TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS context_log (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      project       TEXT NOT NULL DEFAULT '',
+      prompt        TEXT NOT NULL DEFAULT '',
+      prefs_count   INTEGER NOT NULL DEFAULT 0,
+      chunks_count  INTEGER NOT NULL DEFAULT 0,
+      context_size  INTEGER NOT NULL DEFAULT 0,
+      created_at    TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     CREATE TABLE IF NOT EXISTS entities (
       id          INTEGER PRIMARY KEY AUTOINCREMENT,
       name        TEXT NOT NULL UNIQUE,

@@ -8,6 +8,8 @@ const ACCENT = "#dc143c";
 type Stats = {
     documents: number; chunks: number; preferences: number;
     searches: number; projects: number; lastIngest: string | null;
+    contextInjections: number; totalContextSize: number;
+    recentContexts: { project: string; prefs_count: number; chunks_count: number; context_size: number; created_at: string }[];
 };
 
 type Pref = { id: number; category: string; key: string; value: string };
@@ -174,24 +176,68 @@ export default function RagSection({ initialTab = "overview" }: { initialTab?: R
                         </div>
                     )}
 
+                    {/* RAG Impact — proof it works */}
+                    <div style={{
+                        padding: "16px", borderRadius: 10, marginBottom: 16,
+                        background: "linear-gradient(135deg, rgba(220,20,60,0.08) 0%, rgba(220,20,60,0.02) 100%)",
+                        border: "1px solid rgba(220,20,60,0.15)",
+                    }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: ACCENT, marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.04em" }}>RAG Impact</div>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+                            <div>
+                                <div style={{ fontSize: 24, fontWeight: 800, color: "#fff" }}>{stats.contextInjections}</div>
+                                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>Sessions enriched</div>
+                            </div>
+                            <div>
+                                <div style={{ fontSize: 24, fontWeight: 800, color: "#fff" }}>{stats.totalContextSize > 1000 ? `${(stats.totalContextSize / 1000).toFixed(0)}K` : stats.totalContextSize}</div>
+                                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>Chars injected</div>
+                            </div>
+                            <div>
+                                <div style={{ fontSize: 24, fontWeight: 800, color: "#fff" }}>{stats.contextInjections > 0 ? `${(stats.totalContextSize / stats.contextInjections / 1000).toFixed(1)}K` : '0'}</div>
+                                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>Avg per session</div>
+                            </div>
+                        </div>
+                        <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", marginTop: 10 }}>
+                            Without RAG: ~4KB (CLAUDE.md only) · With RAG: ~17KB (preferences + relevant context)
+                        </div>
+                    </div>
+
+                    {/* Recent injections */}
+                    {stats.recentContexts && stats.recentContexts.length > 0 && (
+                        <div style={{ marginBottom: 16 }}>
+                            <div style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.5)", marginBottom: 8 }}>Recent Injections</div>
+                            {stats.recentContexts.slice(0, 5).map((c, i) => (
+                                <div key={i} style={{
+                                    padding: "8px 12px", marginBottom: 3, borderRadius: 6,
+                                    background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)",
+                                    display: "flex", alignItems: "center", gap: 8,
+                                }}>
+                                    <span style={{ fontSize: 10, fontWeight: 600, color: ACCENT, minWidth: 70 }}>{c.project || 'global'}</span>
+                                    <span style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", flex: 1 }}>{c.prefs_count} prefs · {c.chunks_count} chunks</span>
+                                    <span style={{ fontSize: 9, color: "rgba(255,255,255,0.5)", fontWeight: 600 }}>{(c.context_size / 1000).toFixed(1)}KB</span>
+                                    <span style={{ fontSize: 8, color: "rgba(255,255,255,0.2)" }}>{c.created_at}</span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
                     {/* Source breakdown */}
                     <div style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.5)", marginBottom: 8 }}>Data Sources</div>
                     {[
                         { label: "Conversations", desc: "Your past Claude Code sessions", color: "#22c55e" },
-                        { label: "Insights", desc: "Auto-extracted learnings from sessions", color: "#f43f5e" },
+                        { label: "Insights", desc: "Auto-extracted learnings from sessions", color: "#dc143c" },
                         { label: "Memory", desc: "Hand-curated project memory files", color: "#eab308" },
-                        { label: "CLAUDE.md", desc: "Project rules & global config", color: "#8b5cf6" },
+                        { label: "Articles", desc: "Compiled knowledge per project", color: "#06b6d4" },
+                        { label: "CLAUDE.md", desc: "Global rules & config", color: "#8b5cf6" },
                     ].map(s => (
                         <div key={s.label} style={{
-                            padding: "10px 12px", marginBottom: 4, borderRadius: 8,
-                            background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)",
-                            display: "flex", alignItems: "center", gap: 10,
+                            padding: "8px 12px", marginBottom: 3, borderRadius: 6,
+                            background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)",
+                            display: "flex", alignItems: "center", gap: 8,
                         }}>
-                            <div style={{ width: 8, height: 8, borderRadius: 4, background: s.color, flexShrink: 0 }} />
-                            <div>
-                                <div style={{ fontSize: 12, fontWeight: 600, color: "#fff" }}>{s.label}</div>
-                                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>{s.desc}</div>
-                            </div>
+                            <div style={{ width: 6, height: 6, borderRadius: 3, background: s.color, flexShrink: 0 }} />
+                            <span style={{ fontSize: 11, fontWeight: 500, color: "rgba(255,255,255,0.6)" }}>{s.label}</span>
+                            <span style={{ fontSize: 9, color: "rgba(255,255,255,0.25)" }}>{s.desc}</span>
                         </div>
                     ))}
                 </div>

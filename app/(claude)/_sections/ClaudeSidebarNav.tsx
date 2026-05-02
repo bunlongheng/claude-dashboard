@@ -208,7 +208,7 @@ export default function ClaudeSidebarNav() {
             fetch("/api/claude/token-stats").then(r => r.json()).catch(() => ({ totals: { sessions: 0 } })),
             fetch("/api/claude/health").then(r => r.json()).catch(() => ({ projects: [] })),
             fetch("/api/claude/memory-timeline").then(r => r.json()).catch(() => ({ timeline: [] })),
-            fetch("http://localhost:6200/api/stats").then(r => r.json()).catch(() => ({ documents: 0 })),
+            fetch("/api/rag/stats").then(r => r.json()).catch(() => ({ documents: 0 })),
         ]).then(([sessions, skills, brain, tokens, health, timeline, rag]) => {
             const totalSessions = (sessions.projects ?? []).reduce((sum: number, p: any) => sum + (p.sessions?.length ?? 0), 0);
             setBadges({

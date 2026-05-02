@@ -9,9 +9,10 @@ function sha256(content: string): string {
 }
 
 function extractProject(filePath: string): string {
-  const match = filePath.match(/-Users-bheng-Sites-([^/]+)\//);
+  const user = require("os").userInfo().username;
+  const match = filePath.match(new RegExp(`-Users-${user}-Sites-([^/]+)/`));
   if (match) return match[1];
-  const match2 = filePath.match(/-Users-bheng-([^/]+)\//);
+  const match2 = filePath.match(new RegExp(`-Users-${user}-([^/]+)/`));
   if (match2) return match2[1];
   return "global";
 }
@@ -46,7 +47,7 @@ function parseSessionMessages(filePath: string): UserMessage[] {
       text = text.trim();
       if (text.length < 15) continue;
       // Skip terminal output pastes
-      if (text.startsWith("bheng@") || text.startsWith("zsh:")) continue;
+      if (text.match(/^\w+@\w+/) || text.startsWith("zsh:")) continue;
 
       messages.push({ text, timestamp: d.timestamp });
     } catch {
@@ -59,7 +60,8 @@ function parseSessionMessages(filePath: string): UserMessage[] {
 
 export async function ingestSessions(): Promise<{ total: number; created: number; skipped: number; chunks: number }> {
   const db = getDb();
-  const files = await glob("/Users/bheng/.claude/projects/*/*.jsonl");
+  const home = require("os").homedir();
+  const files = await glob(path.join(home, ".claude/projects/*/*.jsonl"));
 
   let created = 0, skipped = 0, totalChunks = 0;
 

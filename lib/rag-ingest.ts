@@ -21,11 +21,11 @@ function extractTitle(content: string, filePath: string): string {
 }
 
 function extractProject(filePath: string): string {
-  // From memory path: /Users/bheng/.claude/projects/-Users-bheng-Sites-PROJ/memory/file.md
-  const memMatch = filePath.match(/-Users-bheng-Sites-([^/]+)\//);
+  const user = require("os").userInfo().username;
+  const memMatch = filePath.match(new RegExp(`-Users-${user}-Sites-([^/]+)/`));
   if (memMatch) return memMatch[1];
-  // From CLAUDE.md: /Users/bheng/Sites/PROJ/CLAUDE.md
-  const siteMatch = filePath.match(/\/Users\/bheng\/Sites\/([^/]+)\//);
+  const home = require("os").homedir();
+  const siteMatch = filePath.match(new RegExp(`${home.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/Sites/([^/]+)/`));
   if (siteMatch) return siteMatch[1];
   return "global";
 }
@@ -95,13 +95,14 @@ export async function discoverSources(): Promise<SourceFile[]> {
   }
 
   // 2. Per-project CLAUDE.md files
-  const projectClaudes = await glob("/Users/bheng/Sites/*/CLAUDE.md");
+  const home = process.env.HOME || require("os").homedir();
+  const projectClaudes = await glob(path.join(home, "Sites/*/CLAUDE.md"));
   for (const p of projectClaudes) {
     sources.push({ path: p, type: "claude_md" });
   }
 
   // 3. Memory files
-  const memoryFiles = await glob("/Users/bheng/.claude/projects/*/memory/*.md");
+  const memoryFiles = await glob(path.join(home, ".claude/projects/*/memory/*.md"));
   for (const p of memoryFiles) {
     sources.push({ path: p, type: "memory" });
   }

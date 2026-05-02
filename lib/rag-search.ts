@@ -276,6 +276,16 @@ export function getStats() {
   const turns = db.prepare("SELECT COUNT(*) as count FROM turns").get() as { count: number };
   const recentSearches = db.prepare("SELECT query, results_count, created_at FROM search_log ORDER BY created_at DESC LIMIT 10").all();
 
+  // Context injection stats
+  let contextInjections = 0, totalContextSize = 0, recentContexts: any[] = [];
+  try {
+    const ci = db.prepare("SELECT COUNT(*) as count FROM context_log").get() as { count: number };
+    const cs = db.prepare("SELECT SUM(context_size) as total FROM context_log").get() as { total: number | null };
+    contextInjections = ci.count;
+    totalContextSize = cs.total || 0;
+    recentContexts = db.prepare("SELECT project, prompt, prefs_count, chunks_count, context_size, created_at FROM context_log ORDER BY created_at DESC LIMIT 10").all();
+  } catch { /* table might not exist yet */ }
+
   return {
     documents: docs.count,
     chunks: chunks.count,
@@ -286,5 +296,8 @@ export function getStats() {
     turns: turns.count,
     lastIngest: lastIngest.t,
     recentSearches,
+    contextInjections,
+    totalContextSize,
+    recentContexts,
   };
 }

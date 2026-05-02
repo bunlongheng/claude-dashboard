@@ -59,6 +59,7 @@ Open **http://localhost:3000** - done. No config, no database, no account.
 | **Settings** | Global and local Claude Code settings editor |
 | **Timeline** | Memory timeline across all projects |
 | **Health Check** | Project health scores based on Claude setup quality |
+| **RAG Memory** | Personal knowledge base - ingest sessions, memory, CLAUDE.md into searchable FTS index |
 
 <br/>
 
@@ -80,6 +81,7 @@ Open **http://localhost:3000** - done. No config, no database, no account.
 | **Settings** | Global and local Claude Code settings |
 | **Health** | Project health scores and setup quality |
 | **Timeline** | Memory events across all projects |
+| **RAG** | Personal knowledge base with document ingestion, FTS search, preferences extraction |
 
 <br/>
 
@@ -118,6 +120,19 @@ MACHINES=10.0.0.57:3003,10.0.0.97:3003
 ```
 
 Remote machines appear in the dropdown - all data fetched from their dashboards.
+
+<br/>
+
+## Inspired By
+
+Features inspired by these excellent open-source projects:
+
+| Project | What we learned | Stars |
+|---------|----------------|-------|
+| [phuryn/claude-usage](https://github.com/phuryn/claude-usage) | Token analytics, daily charts, per-model pricing, cost tracking | 1.1k+ |
+| [nateherkai/token-dashboard](https://github.com/nateherkai/token-dashboard) | Plan-aware pricing (API/Pro/Max), token glossary, top tools chart | - |
+
+Thank you to these creators for sharing their work with the community.
 
 <br/>
 
