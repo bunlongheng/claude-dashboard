@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --hostname 0.0.0.0",
+    "dev": "next dev -p 3003 --hostname 0.0.0.0",
     "dev:full": "node scripts/ws-server.mjs & next dev -p 3003 --hostname 0.0.0.0",
     "prod": "next build && (node scripts/ws-server.mjs & PORT=3003 next start --hostname 0.0.0.0)",
     "dev:ws": "node scripts/ws-server.mjs",
