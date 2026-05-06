@@ -5,10 +5,13 @@ import * as path from "path";
 import * as os from "os";
 
 const CLAUDE_DIR = path.join(os.homedir(), ".claude", "projects");
+const SAFE_ID = /^[a-zA-Z0-9_-]+$/;
 
 function findSessionFile(sessionId: string): string | null {
+    if (!SAFE_ID.test(sessionId)) return null;
     try {
         for (const folder of fs.readdirSync(CLAUDE_DIR)) {
+            if (!SAFE_ID.test(folder)) continue;
             const fp = path.join(CLAUDE_DIR, folder, `${sessionId}.jsonl`);
             if (fs.existsSync(fp)) return fp;
         }
