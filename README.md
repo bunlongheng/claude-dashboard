@@ -32,12 +32,14 @@
 
 ```bash
 git clone https://github.com/bunlongheng/claude-dashboard.git
-cd claude-dashboard && npm install && npm run dev
+cd claude-dashboard
+cp .env.example .env.local   # optional - everything works without it
+npm install && npm run dev
 ```
 
 Open **http://localhost:3000** - done. No config, no database, no account.
 
-> **Requires:** [Node.js 18+](https://nodejs.org/) and [Claude Code](https://docs.anthropic.com/en/docs/claude-code)
+> **Requires:** [Node.js 18+](https://nodejs.org/) and [Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed (`~/.claude/` must exist with session data)
 
 <br/>
 
