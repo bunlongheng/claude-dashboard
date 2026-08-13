@@ -1,0 +1,236 @@
+{
+  "3pi-poc": {
+    "path": "/app-icons/3pi-poc.png",
+    "version": "1778871211554",
+    "hash": "f5319ae4",
+    "synced": "2026-05-18"
+  },
+  "3pi": {
+    "path": "/app-icons/3pi.png",
+    "version": "1778871211553",
+    "hash": "6e18773d",
+    "synced": "2026-05-18"
+  },
+  "ai-spinner": {
+    "path": "/app-icons/ai-spinner.png",
+    "version": "1778871211559",
+    "hash": "deee8ea5",
+    "synced": "2026-05-18"
+  },
+  "audit": {
+    "path": "/app-icons/audit.png",
+    "version": "1778871211560",
+    "hash": "61a54ff3",
+    "synced": "2026-05-18"
+  },
+  "chrome": {
+    "path": "/app-icons/chrome.svg",
+    "version": "1774993549973",
+    "hash": "00c3635a",
+    "synced": "2026-05-13"
+  },
+  "cl-poster": {
+    "path": "/app-icons/cl-poster.png",
+    "version": "1778871211564",
+    "hash": "28dcf83b",
+    "synced": "2026-05-18"
+  },
+  "claude-live": {
+    "path": "/app-icons/claude-live.svg",
+    "version": "1774993549973",
+    "hash": "2f3c6aed",
+    "synced": "2026-05-13"
+  },
+  "claude-mascot": {
+    "path": "/app-icons/claude-mascot.svg",
+    "version": "1774993549973",
+    "hash": "8efe4bcb",
+    "synced": "2026-05-13"
+  },
+  "claude": {
+    "path": "/app-icons/claude.png",
+    "version": "1778871211566",
+    "hash": "64f75751",
+    "synced": "2026-05-18"
+  },
+  "clip": {
+    "path": "/app-icons/clip.png",
+    "version": "1778871211566",
+    "hash": "bc979aa5",
+    "synced": "2026-05-18"
+  },
+  "decks": {
+    "path": "/app-icons/decks.png",
+    "version": "1778871211568",
+    "hash": "a60bc4d3",
+    "synced": "2026-05-18"
+  },
+  "diagrams": {
+    "path": "/app-icons/diagrams.png",
+    "version": "1778871211572",
+    "hash": "ab9d12b0",
+    "synced": "2026-05-18"
+  },
+  "drop-menu": {
+    "path": "/app-icons/drop-menu.svg",
+    "version": "1775387193682",
+    "hash": "cf11127d",
+    "synced": "2026-05-13"
+  },
+  "drop": {
+    "path": "/app-icons/drop.png",
+    "version": "1778871211577",
+    "hash": "1ebee335",
+    "synced": "2026-05-18"
+  },
+  "flash-cards": {
+    "path": "/app-icons/flash-cards.png",
+    "version": "1784132835379",
+    "hash": "7179f9cd",
+    "synced": "2026-07-16"
+  },
+  "frames": {
+    "path": "/app-icons/frames.png",
+    "version": "1778871211574",
+    "hash": "726a566d",
+    "synced": "2026-05-18"
+  },
+  "games": {
+    "path": "/app-icons/games.png",
+    "version": "1778871211578",
+    "hash": "beb212b5",
+    "synced": "2026-05-18"
+  },
+  "ideas": {
+    "path": "/app-icons/ideas.svg",
+    "version": "1774993549974",
+    "hash": "a12893b9",
+    "synced": "2026-05-13"
+  },
+  "local-apps": {
+    "path": "/app-icons/local-apps.png",
+    "version": "1778871211577",
+    "hash": "c0c4b47c",
+    "synced": "2026-05-18"
+  },
+  "mermaid": {
+    "path": "/app-icons/mermaid.png",
+    "version": "1778871211580",
+    "hash": "aa9f8d52",
+    "synced": "2026-05-18"
+  },
+  "mindmaps": {
+    "path": "/app-icons/mindmaps.png",
+    "version": "1778871211586",
+    "hash": "4705329f",
+    "synced": "2026-05-18"
+  },
+  "moments": {
+    "path": "/app-icons/moments.png",
+    "version": "1778871211585",
+    "hash": "ad5b8bc9",
+    "synced": "2026-05-18"
+  },
+  "norden-study": {
+    "path": "/app-icons/norden-study.png",
+    "version": "1778871211581",
+    "hash": "9d008660",
+    "synced": "2026-05-18"
+  },
+  "pixel": {
+    "path": "/app-icons/pixel.png",
+    "version": "1778871211587",
+    "hash": "9e85943d",
+    "synced": "2026-05-18"
+  },
+  "pm2020-tools": {
+    "path": "/app-icons/pm2020-tools.png",
+    "version": "1778871211586",
+    "hash": "a4abde5b",
+    "synced": "2026-05-18"
+  },
+  "pm2020": {
+    "path": "/app-icons/pm2020.png",
+    "version": "1778871211591",
+    "hash": "c203a1ce",
+    "synced": "2026-05-18"
+  },
+  "recap": {
+    "path": "/app-icons/recap.svg",
+    "version": "1774993549974",
+    "hash": "93d5b57d",
+    "synced": "2026-05-13"
+  },
+  "safe": {
+    "path": "/app-icons/safe.png",
+    "version": "1778871211592",
+    "hash": "5c761773",
+    "synced": "2026-05-18"
+  },
+  "score-card": {
+    "path": "/app-icons/score-card.png",
+    "version": "1778871211593",
+    "hash": "22085aff",
+    "synced": "2026-05-18"
+  },
+  "stickies": {
+    "path": "/app-icons/stickies.png",
+    "version": "1778871211597",
+    "hash": "1180eaaa",
+    "synced": "2026-05-18"
+  },
+  "system-design": {
+    "path": "/app-icons/system-design.png",
+    "version": "1778871211594",
+    "hash": "11e2e32e",
+    "synced": "2026-05-18"
+  },
+  "think": {
+    "path": "/app-icons/think.png",
+    "version": "1778871211593",
+    "hash": "de023715",
+    "synced": "2026-05-18"
+  },
+  "tools": {
+    "path": "/app-icons/tools.png",
+    "version": "1778871211599",
+    "hash": "570fd860",
+    "synced": "2026-05-18"
+  },
+  "vault": {
+    "path": "/app-icons/vault.png",
+    "version": "1778871211596",
+    "hash": "085516f7",
+    "synced": "2026-05-18"
+  },
+  "workflows": {
+    "path": "/app-icons/workflows.png",
+    "version": "1778672701974",
+    "hash": "22df122e",
+    "synced": "2026-05-13"
+  },
+  "automations": {
+    "path": "/app-icons/automations.png",
+    "version": "1778871605116",
+    "hash": "986fc36c",
+    "synced": "2026-05-18"
+  },
+  "automation-builder": {
+    "path": "/app-icons/automation-builder.png",
+    "version": "1781540370015",
+    "hash": "137d80cf",
+    "synced": "2026-07-16"
+  },
+  "pr-audit": {
+    "path": "/app-icons/pr-audit.png",
+    "version": "1781535512033",
+    "hash": "061ea681",
+    "synced": "2026-07-16"
+  },
+  "worldcup26": {
+    "path": "/app-icons/worldcup26.png",
+    "version": "1784122065002",
+    "hash": "283fda0b",
+    "synced": "2026-07-16"
+  }
+}

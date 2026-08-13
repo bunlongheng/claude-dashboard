@@ -1,0 +1,66 @@
+{
+  "name": "claude-dashboard",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "setup": "npm install && npm run dev",
+    "dev": "next dev -p 3003 --hostname 0.0.0.0",
+    "dev:full": "scripts/with-ws.sh next dev -p 3003 --hostname 0.0.0.0",
+    "prod": "next build && scripts/with-ws.sh env PORT=3003 next start --hostname 0.0.0.0",
+    "dev:ws": "node scripts/ws-server.mjs",
+    "build": "node scripts/sync-icons.mjs || echo 'icon sync skipped (non-fatal)'; next build",
+    "sync-icons": "node scripts/sync-icons.mjs",
+    "start": "next start",
+    "start:lan": "next build && scripts/with-ws.sh env PORT=3003 next start --hostname 0.0.0.0",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "test:all": "vitest run && playwright test",
+    "lint": "eslint . --max-warnings 69"
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.2.138",
+    "@anthropic-ai/sdk": "^0.92.0",
+    "@heroicons/react": "^2.2.0",
+    "@huggingface/transformers": "^4.2.0",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "glob": "^13.0.6",
+    "lucide-react": "^1.7.0",
+    "marked": "^17.0.5",
+    "next": "^16.1.6",
+    "prismjs": "^1.30.0",
+    "qrcode": "^1.5.4",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "recharts": "^3.8.1"
+  },
+  "optionalDependencies": {
+    "better-sqlite3": "^12.8.0"
+  },
+  "engines": {
+    "node": ">=20.9"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.6",
+    "@playwright/test": "^1.59.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^20.19.37",
+    "@types/prismjs": "^1.26.6",
+    "@types/qrcode": "^1.5.6",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19",
+    "@vitest/coverage-v8": "^4.1.7",
+    "autoprefixer": "^10.4.27",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.2.10",
+    "jsdom": "^24.1.3",
+    "msw": "^2.14.6",
+    "postcss": "^8.5.8",
+    "tailwindcss": "^3.4.19",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.2"
+  }
+}
