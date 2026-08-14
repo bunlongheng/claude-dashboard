@@ -21,13 +21,3 @@ export interface QueryOptions {
     ascending?: boolean;
     limit?: number;
 }
-
-/**
- * Auth adapter interface (optional - only needed for remote access).
- */
-export interface AuthAdapter {
-    getUser(): Promise<{ email: string } | null>;
-    signIn(email: string, password: string): Promise<{ error?: string }>;
-    signOut(): Promise<void>;
-    configured: boolean;
-}

@@ -1,4 +1,4 @@
-import type { DbAdapter, AuthAdapter } from "./types";
+import type { DbAdapter } from "./types";
 
 /**
  * No-op database adapter - returns empty results for everything.
@@ -10,11 +10,4 @@ export const noopDb: DbAdapter = {
     async upsert() { return null; },
     async update() { return null; },
     async remove() { return false; },
-};
-
-export const noopAuth: AuthAdapter = {
-    configured: false,
-    async getUser() { return null; },
-    async signIn() { return { error: "Authentication not configured" }; },
-    async signOut() {},
 };

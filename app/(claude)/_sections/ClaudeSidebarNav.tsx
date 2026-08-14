@@ -7,7 +7,7 @@ import {
     LayoutDashboard, FolderOpen, Coins, DollarSign,
     BookOpen, Settings,
     Brain, Sparkles, Terminal, Blocks, Server, SquareTerminal,
-    Menu, X, ChevronDown, ChevronLeft, ChevronRight, Monitor, LogOut, PanelLeftClose, PanelLeftOpen,
+    Menu, X, ChevronDown, ChevronLeft, ChevronRight, Monitor, PanelLeftClose, PanelLeftOpen,
     Bot,
     Search, DatabaseZap, FileText, SlidersHorizontal, Wand2,
 } from "lucide-react";
@@ -17,7 +17,6 @@ import { RAG_ENABLED } from "@/lib/features";
 
 const CLI_TOOL_COUNT = Object.keys(CLI_ICON_MAP).length;
 import { useMachine } from "./MachineContext";
-import { signOut } from "@/app/actions";
 import QrLanModal from "./QrLanModal";
 import SearchModal from "./SearchModal";
 
@@ -185,7 +184,7 @@ function SidebarContent({ pathname, onClose, badges, onSearchClick, isLocalMachi
                 ))}
             </nav>
 
-            {/* Bottom utility rail: LAN QR, Search, Collapse, Sign out */}
+            {/* Bottom utility rail: LAN QR, Search, Collapse */}
             <div style={{ padding: "8px 10px", borderTop: "1px solid rgba(255,255,255,0.05)", flexShrink: 0 }}>
                 <QrLanModal iconOnly={iconOnly} />
                 {onSearchClick && (
@@ -212,14 +211,6 @@ function SidebarContent({ pathname, onClose, badges, onSearchClick, isLocalMachi
                         {!iconOnly && <span>{level === 0 ? "Hide badges" : "Icon only"}</span>}
                     </button>
                 )}
-                <button
-                    onClick={() => signOut()}
-                    className="flex items-center gap-2 w-full px-2.5 py-2 rounded-lg text-[11px] font-medium transition-colors cursor-pointer hover:bg-white/5"
-                    style={{ color: "rgba(255,255,255,0.5)", background: "none", border: "none", justifyContent: iconOnly ? "center" : "flex-start" }}
-                >
-                    <LogOut size={14} style={{ color: "rgba(255,255,255,0.5)" }} />
-                    {!iconOnly && <span>Sign out</span>}
-                </button>
             </div>
         </div>
     );

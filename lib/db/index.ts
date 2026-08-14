@@ -1,7 +1,6 @@
-import type { DbAdapter, AuthAdapter } from "./types";
+import type { DbAdapter } from "./types";
 import { sqliteDb } from "./sqlite";
-import { simpleAuth } from "./simple-auth";
-import { noopDb, noopAuth } from "./noop";
+import { noopDb } from "./noop";
 
 /**
  * Database adapter - auto-detects the configured backend from env vars.
@@ -16,13 +15,12 @@ import { noopDb, noopAuth } from "./noop";
  * PLANNED:
  *   PostgreSQL - via DATABASE_URL
  *
- * NOT SUPPORTED:
- *   MySQL - use PostgreSQL instead
- *
  * To add a new backend:
  * 1. Create lib/db/yourdb.ts implementing DbAdapter from types.ts
  * 2. Add env var detection in detectDb() below
  * 3. Submit a PR - contributions welcome!
+ *
+ * Note: this is a local, single-user tool - there is no auth layer.
  */
 
 function detectDb(): DbAdapter {
@@ -35,16 +33,6 @@ function detectDb(): DbAdapter {
     return noopDb;
 }
 
-function detectAuth(): AuthAdapter {
-    // 1. Simple password auth (just set ADMIN_PASSWORD env var)
-    if (process.env.ADMIN_PASSWORD) {
-        return simpleAuth;
-    }
-    // 2. No auth - localhost/LAN only
-    return noopAuth;
-}
-
 export const db: DbAdapter = detectDb();
-export const auth: AuthAdapter = detectAuth();
 
-export type { DbAdapter, AuthAdapter, QueryOptions } from "./types";
+export type { DbAdapter, QueryOptions } from "./types";
