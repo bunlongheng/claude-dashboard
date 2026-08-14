@@ -2,6 +2,7 @@
   "name": "claude-dashboard",
   "version": "0.1.0",
   "private": true,
+  "license": "SEE LICENSE IN LICENSE",
   "scripts": {
     "setup": "npm install && npm run dev",
     "dev": "next dev -p 3003 --hostname 0.0.0.0",

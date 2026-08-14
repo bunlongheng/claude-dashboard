@@ -50,7 +50,7 @@ Want to add support for a new database (PostgreSQL, MySQL, etc.)?
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the MIT License.
+By contributing, you agree that your contributions will be licensed under the PolyForm Noncommercial License 1.0.0.
 
 ---
 

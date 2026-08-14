@@ -186,7 +186,8 @@ cd claude-dashboard && npm install && npm run dev
 
 ## License
 
-[MIT](LICENSE)
+[PolyForm Noncommercial 1.0.0](LICENSE) - free to use, modify, and share for any
+**noncommercial** purpose. You may not sell it or use it commercially.
 
 ---
 
