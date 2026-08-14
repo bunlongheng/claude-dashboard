@@ -22,6 +22,12 @@
 
 <br/>
 
+<p align="center">
+  <img src="public/screenshot.png" width="820" alt="Claude Dashboard - overview" style="border-radius: 12px;" />
+</p>
+
+<br/>
+
 ## Get Started
 
 **One command** - clones, installs, and starts the dashboard:

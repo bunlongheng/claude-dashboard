@@ -144,3 +144,15 @@ code[class*="language-"], pre[class*="language-"] { color: #f8f8f2; font-size: 1
     scroll-behavior: auto !important;
   }
 }
+
+/* Keyboard accessibility: a visible focus ring for keyboard nav only (not on
+   mouse click), so tab-through works without changing the mouse UX. */
+:focus-visible {
+  outline: 2px solid #5b9dff;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+a:focus:not(:focus-visible),
+button:focus:not(:focus-visible) {
+  outline: none;
+}

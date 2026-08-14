@@ -30,7 +30,7 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: buildAllowedDevOrigins(),
   devIndicators: false,
   experimental: {
-    optimizePackageImports: ["lucide-react", "@heroicons/react"],
+    optimizePackageImports: ["lucide-react", "@heroicons/react", "recharts"],
   },
   // The 12 agent avatars and machine icons never change - cache hard.
   async headers() {
