@@ -54,7 +54,7 @@ Open **http://localhost:3003** - done. No config, no database, no account.
 | **Activity Heatmap** | GitHub-style contribution calendar with active days, longest/current streak, most active day, top model |
 | **Session Monitor** | Live session viewer with thinking state, tool calls, SSE streaming, custom title sync |
 | **Multi-Machine** *(opt-in)* | Switch between machines (laptop, Mac mini, Pi, VPS) from one UI; peer data read via a same-origin proxy, no remote exec. Set `MACHINES=host:port,...` |
-| **RAG Memory** *(opt-in)* | Local semantic + FTS search over memory and session transcripts, preference/insight extraction, eval harness. Off by default - enable with `NEXT_PUBLIC_RAG_ENABLED=1` |
+| **RAG Memory** *(opt-in)* | Local semantic + FTS search over memory and session transcripts, preference/insight extraction, eval harness. Off by default - enable with `NEXT_PUBLIC_RAG_ENABLED=1`. Vector search also needs `npm install @huggingface/transformers` |
 | **CLAUDE.md Editor** | View and edit global instructions Claude reads on every startup |
 | **MCP Servers** | Connection status, tools list, configuration viewer for all MCP servers |
 | **Skills** | Browse all custom skills and reusable prompt workflows |
@@ -121,6 +121,7 @@ single-machine until you opt in.
 # On each machine
 git clone https://github.com/bunlongheng/claude-dashboard.git
 cd claude-dashboard && npm install && PORT=3003 npm run prod
+# For LAN/iPad access, use: npm run dev:lan   (binds 0.0.0.0)
 ```
 
 On your main machine, list the peers in `.env.local`:

@@ -10,8 +10,21 @@ let extractorPromise: Promise<Extractor> | null = null;
 async function getExtractor(): Promise<Extractor> {
   if (!extractorPromise) {
     extractorPromise = (async () => {
-      const { pipeline } = await import("@huggingface/transformers");
-      return (await pipeline("feature-extraction", MODEL)) as unknown as Extractor;
+      // transformers.js is an OPTIONAL dependency - it (and its heavy native deps:
+      // onnxruntime, sharp) are only needed for RAG vector search, which is opt-in.
+      // A default install does not pull it, so import it dynamically and fail with a
+      // clear instruction if it is missing. The variable specifier keeps the bundler
+      // from statically requiring it.
+      const pkg = "@huggingface/transformers";
+      let mod: { pipeline: (task: string, model: string) => Promise<unknown> };
+      try {
+        mod = await import(/* webpackIgnore: true */ pkg);
+      } catch {
+        throw new Error(
+          "RAG vector search needs the embedding model. Install it with: npm install @huggingface/transformers"
+        );
+      }
+      return (await mod.pipeline("feature-extraction", MODEL)) as unknown as Extractor;
     })();
   }
   return extractorPromise;
