@@ -1,33 +1,27 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { X, Copy, Check, QrCode } from "lucide-react";
 import QRCode from "qrcode";
 import { useMachine } from "./MachineContext";
+import { safeFetch } from "./shared";
 
 export default function QrLanModal({ iconOnly }: { iconOnly?: boolean } = {}) {
   const { apiBase } = useMachine();
   const [open, setOpen] = useState(false);
-  const [url, setUrl] = useState("");
   const [copied, setCopied] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const fetchLan = useCallback(async () => {
-    try {
-      const res = await fetch(apiBase("/api/claude/lan"));
-      const data = await res.json();
-      setUrl(data.url ?? "");
-    } catch {
-      setUrl("");
-    }
-  }, [apiBase]);
-
-  // Refresh the QR target when the selected machine changes so the QR scans
-  // into the actively-selected machine's dashboard.
-  useEffect(() => { if (open) fetchLan(); }, [open, fetchLan]);
-  useEffect(() => {
-    if (open && !url) fetchLan();
-  }, [open, url, fetchLan]);
+  // Refresh the QR target when the selected machine changes (or the modal is
+  // reopened) so the QR scans into the actively-selected machine's dashboard.
+  const lanUrl = apiBase("/api/claude/lan");
+  const lanQuery = useQuery<{ url?: string }>({
+    queryKey: ["qr-lan", lanUrl],
+    queryFn: () => safeFetch<{ url?: string }>(lanUrl, { url: "" }),
+    enabled: open,
+  });
+  const url = lanQuery.data?.url ?? "";
 
   useEffect(() => {
     if (open && url && canvasRef.current) {

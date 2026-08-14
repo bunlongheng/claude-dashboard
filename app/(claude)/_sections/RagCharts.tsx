@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useSyncExternalStore } from "react";
 import {
     PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
     RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
@@ -11,6 +11,13 @@ import { cardShell } from "@/lib/ui-tokens";
 
 const COLORS = ["#22c55e", "#10b981", "#eab308", "#8b5cf6", "#a855f7", "#06b6d4", "#3b82f6", "#f59e0b", "#ef4444", "#ec4899"];
 
+// Recharts needs a real DOM to measure, so this only renders client-side.
+// Read that via useSyncExternalStore instead of a mount effect + setState -
+// the value never changes once mounted, so subscribe is a no-op.
+function subscribeMounted() { return () => {}; }
+function getMounted() { return true; }
+function getMountedServer() { return false; }
+
 type Props = {
     typeCounts: { source_type: string; count: number }[];
     projectCounts: { project: string; count: number }[];
@@ -20,8 +27,7 @@ type Props = {
 };
 
 export default function RagCharts({ typeCounts, projectCounts, prefCategories, timeline, injectionTimeline }: Props) {
-    const [mounted, setMounted] = useState(false);
-    useEffect(() => setMounted(true), []);
+    const mounted = useSyncExternalStore(subscribeMounted, getMounted, getMountedServer);
     if (!mounted) return null;
 
     const typeData = typeCounts.map((t, i) => ({ name: t.source_type, value: t.count, fill: COLORS[i % COLORS.length] }));

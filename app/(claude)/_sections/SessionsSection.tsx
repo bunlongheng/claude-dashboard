@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ChevronDownIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { Search, User, Bot, ChevronRight } from "lucide-react";
-import { ACCENT, timeAgo, ProjectSessions, SessionEntry } from "./shared";
+import { ACCENT, timeAgo, ProjectSessions, SessionEntry, safeFetch } from "./shared";
 import { useMachine } from "./MachineContext";
 import AppIcon from "./AppIcon";
 
@@ -34,18 +35,12 @@ export default function SessionsSection() {
         setMachine(drillMachine);
     }, [drillMachine, machine, machines, setMachine]);
 
-    const [sessionProjects, setSessionProjects] = useState<ProjectSessions[]>([]);
-    const [sessionsLoading, setSessionsLoading] = useState(true);
     const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
     const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
     const [deleting, setDeleting] = useState<string | null>(null);
     const [search, setSearch] = useState("");
     const [filter, setFilter] = useState<SessionFilter>("all");
     type TurnEntry = { ts: string; role: string; preview: string; full?: string; model?: string; inTokens?: number; outTokens?: number; cacheReadTokens?: number; cacheCreationTokens?: number };
-    const [sessionTurns, setSessionTurns] = useState<Record<string, number>>({});
-    const [sessionPrompts, setSessionPrompts] = useState<Record<string, number>>({});
-    const [sessionEntries, setSessionEntries] = useState<Record<string, TurnEntry[]>>({});
-    const [drillLoading, setDrillLoading] = useState(false);
     // Keyed by `${sessionId}:${ts}` so expand state is unique per turn.
     const [expandedTurns, setExpandedTurns] = useState<Set<string>>(new Set());
     const toggleTurn = (key: string) => setExpandedTurns(prev => {
@@ -55,48 +50,48 @@ export default function SessionsSection() {
     });
 
     // Drill-down: fetch exact turn counts, prompt counts, AND per-turn details for (date, hour)
-    useEffect(() => {
-        if (!drillActive) { setSessionTurns({}); setSessionPrompts({}); setSessionEntries({}); return; }
-        setDrillLoading(true);
-        fetch(apiBase(`/api/claude/turns-by-hour?date=${drillDate}&hour=${drillHour}`))
-            .then(r => r.json())
-            .then(d => { setSessionTurns(d.sessionTurns ?? {}); setSessionPrompts(d.sessionPrompts ?? {}); setSessionEntries(d.sessionEntries ?? {}); })
-            .catch(() => { setSessionTurns({}); setSessionPrompts({}); setSessionEntries({}); })
-            .finally(() => setDrillLoading(false));
-    }, [drillActive, drillDate, drillHour, apiBase]);
+    type DrillData = { sessionTurns: Record<string, number>; sessionPrompts: Record<string, number>; sessionEntries: Record<string, TurnEntry[]> };
+    const drillUrl = apiBase(`/api/claude/turns-by-hour?date=${drillDate}&hour=${drillHour}`);
+    const drillQuery = useQuery<DrillData>({
+        queryKey: ["sessions-drill", drillUrl],
+        queryFn: () => safeFetch<DrillData>(drillUrl, { sessionTurns: {}, sessionPrompts: {}, sessionEntries: {} }),
+        enabled: drillActive,
+    });
+    const sessionTurns = useMemo(() => (drillActive ? (drillQuery.data?.sessionTurns ?? {}) : {}), [drillActive, drillQuery.data]);
+    const sessionPrompts = useMemo(() => (drillActive ? (drillQuery.data?.sessionPrompts ?? {}) : {}), [drillActive, drillQuery.data]);
+    const sessionEntries = useMemo(() => (drillActive ? (drillQuery.data?.sessionEntries ?? {}) : {}), [drillActive, drillQuery.data]);
+    const drillLoading = drillActive && drillQuery.isFetching;
 
     const drillTotalTurns = useMemo(() => Object.values(sessionTurns).reduce((a, b) => a + b, 0), [sessionTurns]);
     const drillTotalPrompts = useMemo(() => Object.values(sessionPrompts).reduce((a, b) => a + b, 0), [sessionPrompts]);
     const drillSessionCount = new Set([...Object.keys(sessionTurns), ...Object.keys(sessionPrompts)]).size;
 
+    // apiBase already routes to the right host; the legacy ?machine= would make
+    // the remote try to proxy to itself and return zero sessions (the bug I fixed
+    // elsewhere but missed here). Drop it.
+    const queryClient = useQueryClient();
+    const sessionsUrl = apiBase("/api/claude/sessions");
+    const sessionsQueryKey = ["sessions-list", sessionsUrl];
+    const sessionsQuery = useQuery<{ projects: ProjectSessions[] }>({
+        queryKey: sessionsQueryKey,
+        queryFn: () => safeFetch<{ projects: ProjectSessions[] }>(sessionsUrl, { projects: [] }),
+        refetchInterval: 30_000,
+    });
+    const sessionProjects = useMemo(() => sessionsQuery.data?.projects ?? [], [sessionsQuery.data]);
+    const sessionsLoading = sessionsQuery.isLoading;
+
     const deleteSession = async (filePath: string) => {
         setDeleting(filePath);
         try {
             await fetch(apiBase("/api/claude/sessions"), { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ filePath }) });
-            setSessionProjects(prev => prev.map(p => ({ ...p, sessions: p.sessions.filter(s => s.filePath !== filePath) })).filter(p => p.sessions.length > 0));
+            queryClient.setQueryData<{ projects: ProjectSessions[] }>(sessionsQueryKey, prev =>
+                prev ? { projects: prev.projects.map(p => ({ ...p, sessions: p.sessions.filter(s => s.filePath !== filePath) })).filter(p => p.sessions.length > 0) } : prev
+            );
         } finally {
             setDeleting(null);
             setConfirmDelete(null);
         }
     };
-
-    const refreshSessions = useCallback(() => {
-        // apiBase already routes to the right host; the legacy ?machine= would make
-        // the remote try to proxy to itself and return zero sessions (the bug I fixed
-        // elsewhere but missed here). Drop it.
-        fetch(apiBase("/api/claude/sessions"))
-            .then(r => r.json())
-            .then(d => setSessionProjects(d.projects ?? []))
-            .catch(() => {})
-            .finally(() => setSessionsLoading(false));
-    }, [apiBase]);
-
-    useEffect(() => {
-        setSessionsLoading(true);
-        refreshSessions();
-        const timer = setInterval(refreshSessions, 30_000);
-        return () => clearInterval(timer);
-    }, [refreshSessions]);
 
     const allSessions = useMemo(() => sessionProjects.flatMap(p => p.sessions), [sessionProjects]);
     const activeCount = allSessions.filter(s => !s.stale).length;
@@ -132,12 +127,16 @@ export default function SessionsSection() {
     }, [sessionProjects, filter, search, drillActive, sessionTurns, sessionPrompts]);
 
     // Auto-expand projects that contain drill-down matches so the user sees results immediately.
+    // expandedProjects is also toggled manually by the user (see the accordion
+    // onClick below), so this can't be expressed as a pure render-time
+    // derivation without clobbering manual toggles - it has to stay an effect.
     useEffect(() => {
         if (!drillActive || drillSessionCount === 0) return;
         const matched = new Set<string>();
         for (const p of sessionProjects) {
             if (p.sessions.some(s => ((sessionTurns[s.id] ?? 0) + (sessionPrompts[s.id] ?? 0)) > 0)) matched.add(p.project);
         }
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- see comment above the effect
         setExpandedProjects(matched);
     }, [drillActive, drillSessionCount, sessionProjects, sessionTurns, sessionPrompts]);
 

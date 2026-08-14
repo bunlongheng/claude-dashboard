@@ -27,7 +27,6 @@ export default function ExtensionsSection() {
                 });
             })
             .catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [apiBase]);
 
     return (

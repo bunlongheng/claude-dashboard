@@ -61,13 +61,22 @@ export default function SearchModal() {
         };
     }, []);
 
-    // Focus input on open
-    useEffect(() => {
+    // Reset search state when the palette opens. Adjusted during render (not
+    // an effect) since this only needs to run once per open/close transition.
+    const [prevOpen, setPrevOpen] = useState(open);
+    if (open !== prevOpen) {
+        setPrevOpen(open);
         if (open) {
-            setTimeout(() => inputRef.current?.focus(), 50);
             setQuery("");
             setResults(null);
             setActiveIdx(0);
+        }
+    }
+
+    // Focus input on open - imperative DOM interaction, stays an effect.
+    useEffect(() => {
+        if (open) {
+            setTimeout(() => inputRef.current?.focus(), 50);
         }
     }, [open]);
 

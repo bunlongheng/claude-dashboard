@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { FlaskConical, Play, Trophy, Clock, DollarSign, FileText, ChevronDown, ChevronRight } from "lucide-react";
 
 type ConfigKey = "nothing" | "rag" | "rag_vector" | "rag_vector_kp" | "kp";
@@ -28,37 +29,33 @@ type Question = { id: number; question: string; expected: string; tags: string }
 type DetailRow = { question_id: number; question: string; expected: string; config: ConfigKey; response: string; judge_score: number; judge_reason: string };
 
 export default function EvalTab({ apiBase }: { apiBase: (p: string) => string }) {
-    const [report, setReport] = useState<Report | null>(null);
-    const [questions, setQuestions] = useState<Question[]>([]);
     const [running, setRunning] = useState(false);
-    const [loading, setLoading] = useState(true);
-    const [detail, setDetail] = useState<DetailRow[]>([]);
     const [openQ, setOpenQ] = useState<number | null>(null);
 
-    const load = useCallback(async () => {
-        setLoading(true);
-        try {
+    const { data, isFetching: loading, refetch } = useQuery({
+        queryKey: ["rag-eval", apiBase("/api/rag/eval")],
+        queryFn: async () => {
             const [r, q] = await Promise.all([
                 fetch(apiBase(`/api/rag/eval`)).then(x => x.json()),
                 fetch(apiBase(`/api/rag/eval/questions`)).then(x => x.json()),
             ]);
-            setReport(r);
-            setQuestions(q.questions || []);
+            let detail: DetailRow[] = [];
             if (r?.batchId) {
                 const d = await fetch(apiBase(`/api/rag/eval?batch=${r.batchId}&detail=1`)).then(x => x.json());
-                setDetail(d.rows || []);
+                detail = d.rows || [];
             }
-        } catch { /* not available */ }
-        setLoading(false);
-    }, [apiBase]);
-
-    useEffect(() => { load(); }, [load]);
+            return { report: r as Report, questions: (q.questions || []) as Question[], detail };
+        },
+    });
+    const report = data?.report ?? null;
+    const questions = data?.questions ?? [];
+    const detail = data?.detail ?? [];
 
     async function run() {
         setRunning(true);
         try {
             await fetch(apiBase(`/api/rag/eval`), { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
-            await load();
+            await refetch();
         } catch { /* */ }
         setRunning(false);
     }

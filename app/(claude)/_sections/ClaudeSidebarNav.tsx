@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -123,7 +124,7 @@ function SidebarContent({ pathname, onClose, badges, onSearchClick, isLocalMachi
                 <div style={{ display: "flex", alignItems: "center", justifyContent: iconOnly ? "center" : "space-between" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                         <div style={{ position: "relative", width: 20, height: 20, flexShrink: 0 }}>
-                            <img src="/claude-logo.png" alt="Claude" width={20} height={20} className="claude-jump" style={{ imageRendering: "pixelated", display: "block" }} />
+                            <Image src="/claude-logo.png" alt="Claude" width={20} height={20} className="claude-jump" style={{ imageRendering: "pixelated", display: "block" }} />
                             <div className="claude-smoke" />
                         </div>
                         {!iconOnly && (
@@ -288,12 +289,19 @@ export default function ClaudeSidebarNav() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [badgeKey]);
 
-    // /agents badge is just the machine count (no fetch) — keep it in sync as the list settles.
-    useEffect(() => {
-        setBadges(prev => ({ ...prev, "/agents": machines.length || 0 }));
-    }, [machines.length]);
+    // /agents badge is just the machine count (no fetch) — derived at render time
+    // instead of synced back into `badges` via an effect.
+    const displayBadges = useMemo(() => ({ ...badges, "/agents": machines.length || 0 }), [badges, machines.length]);
 
-    useEffect(() => { setOpen(false); setMobileDD(false); }, [pathname]);
+    // Close the mobile drawer/dropdown on navigation. Adjusted during render
+    // (React's documented pattern for resetting state when a prop changes)
+    // rather than via an effect, so it doesn't cause an extra commit.
+    const [prevPathname, setPrevPathname] = useState(pathname);
+    if (pathname !== prevPathname) {
+        setPrevPathname(pathname);
+        setOpen(false);
+        setMobileDD(false);
+    }
 
     useEffect(() => {
         const handler = (e: MouseEvent) => {
@@ -328,14 +336,14 @@ export default function ClaudeSidebarNav() {
                 position: "sticky", top: 0, height: "100vh", overflow: "hidden",
                 transition: "width 0.18s ease, min-width 0.18s ease",
             }}>
-                <SidebarContent pathname={pathname} badges={badges} onSearchClick={openSearch} isLocalMachine={machines.find(m => m.id === machine)?.isLocal ?? true} collapseLevel={collapseLevel} onToggleCollapse={cycleCollapse} />
+                <SidebarContent pathname={pathname} badges={displayBadges} onSearchClick={openSearch} isLocalMachine={machines.find(m => m.id === machine)?.isLocal ?? true} collapseLevel={collapseLevel} onToggleCollapse={cycleCollapse} />
             </aside>
 
             {/* Mobile top bar */}
             <div className="md:hidden flex items-center justify-between px-4 py-3 border-b sticky top-0 z-40"
                 style={{ background: "#111118", borderColor: "rgba(255,255,255,0.05)" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <img src="/claude-logo.png" alt="Claude" width={20} height={20} style={{ imageRendering: "pixelated" }} />
+                    <Image src="/claude-logo.png" alt="Claude" width={20} height={20} style={{ imageRendering: "pixelated" }} />
                     <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.12em", color: "#ffffff", textTransform: "uppercase" }}>CLAUDE</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -352,7 +360,7 @@ export default function ClaudeSidebarNav() {
                     style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(2px)" }}>
                     <aside onClick={e => e.stopPropagation()}
                         style={{ width: 240, height: "100%", background: "#111118", borderRight: "1px solid rgba(255,255,255,0.08)" }}>
-                        <SidebarContent pathname={pathname} onClose={() => setOpen(false)} badges={badges} onSearchClick={openSearch} isLocalMachine={machines.find(m => m.id === machine)?.isLocal ?? true} />
+                        <SidebarContent pathname={pathname} onClose={() => setOpen(false)} badges={displayBadges} onSearchClick={openSearch} isLocalMachine={machines.find(m => m.id === machine)?.isLocal ?? true} />
                     </aside>
                 </div>
             )}

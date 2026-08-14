@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useCallback, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Code2, Pencil, Save, X, Check, Eye, EyeOff } from "lucide-react";
 import { marked } from "marked";
 import { useMachine } from "./MachineContext";
@@ -28,20 +29,18 @@ function ClaudeMdEditor({ item }: { item: ClaudeMdInfo }) {
     const [saved, setSaved] = useState(false);
     const [preview, setPreview] = useState(false);
     const autoSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const lastSavedRef = useRef(item.content);
 
     const handleSave = useCallback(async (text: string) => {
-        if (text === lastSavedRef.current) return;
+        if (text === content) return;
         setSaving(true);
         const ok = await saveFile(apiBase, item.path, text);
         setSaving(false);
         if (ok) {
             setContent(text);
-            lastSavedRef.current = text;
             setSaved(true);
             setTimeout(() => setSaved(false), 2000);
         }
-    }, [item.path, apiBase]);
+    }, [item.path, apiBase, content]);
 
     const onDraftChange = useCallback((text: string) => {
         setDraft(text);
@@ -75,7 +74,7 @@ function ClaudeMdEditor({ item }: { item: ClaudeMdInfo }) {
                 <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
                     {saving && <span style={{ fontSize: 9, color: "rgba(255,255,255,0.55)" }}>saving...</span>}
                     {saved && <Check size={12} style={{ color: "#22c55e" }} />}
-                    {!preview && draft !== lastSavedRef.current && (
+                    {!preview && draft !== content && (
                         <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#f59e0b" }} title="Unsaved changes" />
                     )}
                     <button onClick={() => setPreview(p => !p)} title={preview ? "Edit" : "Preview"}
@@ -145,17 +144,17 @@ function ClaudeMdEditor({ item }: { item: ClaudeMdInfo }) {
 
 export default function GlobalSection() {
     const { machine, apiBase } = useMachine();
-    const [claudeMdFiles, setClaudeMdFiles] = useState<ClaudeMdInfo[]>([]);
-    const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        setLoading(true);
-        const q = machine ? `?machine=${machine}` : "";
-        fetch(apiBase(`/api/claude/skills${q}`))
-            .then(r => r.json())
-            .then(d => { setClaudeMdFiles(d.claudeMd ?? []); setLoading(false); })
-            .catch(() => setLoading(false));
-    }, [machine, apiBase]);
+    const q = machine ? `?machine=${machine}` : "";
+    const skillsUrl = apiBase(`/api/claude/skills${q}`);
+    const { data, isFetching: loading } = useQuery({
+        queryKey: ["claude-md-files", skillsUrl],
+        queryFn: async () => {
+            const r = await fetch(skillsUrl);
+            return r.json();
+        },
+    });
+    const claudeMdFiles: ClaudeMdInfo[] = data?.claudeMd ?? [];
 
     if (loading) return <MascotLoader label="Loading" />;
 

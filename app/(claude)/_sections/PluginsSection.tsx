@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Puzzle, Search, LayoutGrid, List, CircleDot } from "lucide-react";
 import { useMachine } from "./MachineContext";
+import { safeFetch } from "./shared";
 
 type PluginInfo = { name: string; description: string; path: string; type: "builtin" | "external" | "lsp" };
 type PluginFilter = "all" | "builtin" | "external" | "lsp";
@@ -18,21 +20,18 @@ const ORB_COLORS = [
 
 export default function PluginsSection() {
     const { machine, apiBase } = useMachine();
-    const [plugins, setPlugins] = useState<PluginInfo[]>([]);
-    const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
     const [filter, setFilter] = useState<PluginFilter>("external");
     const [viewMode, setViewMode] = useState<"thumbs" | "list" | "circles">("circles");
     const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
 
-    useEffect(() => {
-        setLoading(true);
-        const q = machine ? `?machine=${machine}` : "";
-        fetch(apiBase(`/api/claude/skills?slim=1${q ? "&" + q.slice(1) : ""}`))
-            .then(r => r.json())
-            .then(d => { setPlugins(d.plugins ?? []); setLoading(false); })
-            .catch(() => setLoading(false));
-    }, [machine, apiBase]);
+    const pluginsUrl = apiBase(`/api/claude/skills?slim=1${machine ? `&machine=${machine}` : ""}`);
+    const pluginsQuery = useQuery<{ plugins?: PluginInfo[] }>({
+        queryKey: ["plugins-skills", pluginsUrl],
+        queryFn: () => safeFetch<{ plugins?: PluginInfo[] }>(pluginsUrl, {}),
+    });
+    const plugins = useMemo(() => pluginsQuery.data?.plugins ?? [], [pluginsQuery.data]);
+    const loading = pluginsQuery.isLoading;
 
     const filtered = useMemo(() => {
         let list = plugins;

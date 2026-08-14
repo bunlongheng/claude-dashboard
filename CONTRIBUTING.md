@@ -13,6 +13,8 @@ npm run dev
 
 Open http://localhost:3003
 
+This project targets Node 20 (see .nvmrc). Run `nvm use` before installing.
+
 ## How to Contribute
 
 1. **Fork** the repo

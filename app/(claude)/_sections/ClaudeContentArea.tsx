@@ -15,6 +15,9 @@ export default function ClaudeContentArea({ children }: { children: React.ReactN
     const [ddOpen, setDdOpen] = useState(false);
     const ddRef = useRef<HTMLDivElement>(null);
     const [sessionProjects, setSessionProjects] = useState<ProjectSessions[]>([]);
+    // Snapshot of "now" used for idle-time math below (kept in state, refreshed
+    // alongside sessions, instead of calling Date.now() during render).
+    const [now, setNow] = useState(() => Date.now());
 
     // Sessions polling. apiBase routes directly to the selected machine, so we
     // hit http://<remote-ip>:<port>/api/claude/sessions with no `?machine=` query
@@ -22,7 +25,7 @@ export default function ClaudeContentArea({ children }: { children: React.ReactN
     const refreshSessions = useCallback(() => {
         fetch(apiBase("/api/claude/sessions"))
             .then(r => r.ok ? r.json() : { projects: [] })
-            .then(d => setSessionProjects(d.projects ?? []))
+            .then(d => { setSessionProjects(d.projects ?? []); setNow(Date.now()); })
             .catch(() => {});
     }, [apiBase]);
 
@@ -119,7 +122,7 @@ export default function ClaudeContentArea({ children }: { children: React.ReactN
                             const projectName = s.project?.replace(/-/g, "/").split("/").pop() || "";
                             const label = s.customTitle || projectName || shortId;
                             const isSelected = currentSessionId === s.id;
-                            const idleMin = (Date.now() - new Date(s.updatedAt).getTime()) / 60000;
+                            const idleMin = (now - new Date(s.updatedAt).getTime()) / 60000;
                             const isStale = idleMin >= 30; // 2 states: active (< 30m) vs dimmed
                             const borderColor = isStale ? "rgba(107,114,128,0.28)" : (isSelected ? "rgba(255,255,255,0.55)" : "rgba(255,255,255,0.5)");
                             return (

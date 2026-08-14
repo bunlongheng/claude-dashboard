@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { History, X, RotateCcw, ChevronRight, FileText } from "lucide-react";
 import { ACCENT } from "./shared";
 import { useMachine } from "./MachineContext";
@@ -77,34 +78,26 @@ function diffLines(oldText: string, newText: string) {
 export default function ClaudeMdHistory({ onRestore }: { onRestore?: (content: string) => void }) {
     const { apiBase } = useMachine();
     const [open, setOpen] = useState(false);
-    const [versions, setVersions] = useState<VersionMeta[]>([]);
-    const [total, setTotal] = useState(0);
-    const [loading, setLoading] = useState(false);
     const [selectedVersion, setSelectedVersion] = useState<VersionFull | null>(null);
-    const [currentContent, setCurrentContent] = useState("");
     const [showDiff, setShowDiff] = useState(false);
-    const [dbAvailable, setDbAvailable] = useState<boolean | null>(null);
 
-    const fetchVersions = useCallback(async () => {
-        setLoading(true);
-        try {
-            const r = await fetch(apiBase("/api/claude/claude-md-history"));
-            if (r.status === 501) { setDbAvailable(false); return; }
-            setDbAvailable(true);
-            const data = await r.json();
-            setVersions(data.versions ?? []);
-            setTotal(data.total ?? 0);
-            setCurrentContent(data.current?.content ?? "");
-        } catch {
-            setDbAvailable(false);
-        } finally {
-            setLoading(false);
-        }
-    }, [apiBase]);
+    const historyUrl = apiBase("/api/claude/claude-md-history");
+    const { data, isFetching, isError } = useQuery({
+        queryKey: ["claude-md-history", historyUrl],
+        queryFn: async () => {
+            const r = await fetch(historyUrl);
+            if (r.status === 501) return { available: false as const, versions: [] as VersionMeta[], total: 0, currentContent: "" };
+            const json = await r.json();
+            return { available: true as const, versions: (json.versions ?? []) as VersionMeta[], total: json.total ?? 0, currentContent: json.current?.content ?? "" };
+        },
+        enabled: open,
+    });
 
-    useEffect(() => {
-        if (open) fetchVersions();
-    }, [open, fetchVersions]);
+    const dbAvailable = data ? data.available : (isError ? false : null);
+    const versions = data?.versions ?? [];
+    const total = data?.total ?? 0;
+    const currentContent = data?.currentContent ?? "";
+    const loading = open && isFetching;
 
     const loadVersion = useCallback(async (id: number) => {
         try {

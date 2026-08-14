@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useState, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { FileViews, ViewModeToggle, type ViewMode } from "./FileViews";
 import {
     Terminal, ChevronDown, ChevronRight,
@@ -110,20 +111,20 @@ type CmdFilter = "all" | "custom" | "builtin";
 
 export default function CommandsSection() {
     const { machine, apiBase } = useMachine();
-    const [commands, setCommands] = useState<CommandInfo[]>([]);
-    const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
     const [filter, setFilter] = useState<CmdFilter>("custom");
     const [viewMode, setViewMode] = useState<ViewMode>("list");
 
-    useEffect(() => {
-        setLoading(true);
-        const q = machine ? `?machine=${machine}` : "";
-        fetch(apiBase(`/api/claude/skills${q}`))
-            .then(r => r.json())
-            .then(d => { setCommands(d.commands ?? []); setLoading(false); })
-            .catch(() => setLoading(false));
-    }, [machine, apiBase]);
+    const q = machine ? `?machine=${machine}` : "";
+    const commandsUrl = apiBase(`/api/claude/skills${q}`);
+    const { data, isFetching: loading } = useQuery({
+        queryKey: ["claude-commands", commandsUrl],
+        queryFn: async () => {
+            const r = await fetch(commandsUrl);
+            return r.json();
+        },
+    });
+    const commands: CommandInfo[] = useMemo(() => data?.commands ?? [], [data]);
 
     const filtered = useMemo(() => {
         let list = commands;

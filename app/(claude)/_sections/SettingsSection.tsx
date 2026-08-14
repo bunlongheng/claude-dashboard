@@ -272,7 +272,6 @@ export default function SettingsSection() {
                 setLoading(false);
             })
             .catch(() => setLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [apiBase]);
 
     if (loading) return <MascotLoader label="Loading settings" />;

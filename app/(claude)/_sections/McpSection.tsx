@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
     Server, Globe, Terminal as TermIcon, Radio, Search, X,
     Mail, Calendar, FileText, Bell, Cloud, Database, MessageSquare,
@@ -52,8 +53,15 @@ function cleanName(name: string): string {
         .replace(/\b\w/g, c => c.toUpperCase());
 }
 
+// Renders the looked-up icon as a plain function call (not a JSX tag bound to a
+// locally-scoped variable) so the icon selection doesn't read as "a component
+// created during render".
+function renderMcpIcon(name: string, size: number, style?: React.CSSProperties) {
+    const Icon = getMcpIcon(name);
+    return <Icon size={size} style={style} />;
+}
+
 function McpModal({ server, color, onClose }: { server: McpInfo; color: string; onClose: () => void }) {
-    const Icon = getMcpIcon(server.name);
     return (
         <div style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}
             onClick={onClose}>
@@ -74,7 +82,7 @@ function McpModal({ server, color, onClose }: { server: McpInfo; color: string; 
                         display: "flex", alignItems: "center", justifyContent: "center",
                         boxShadow: `0 0 24px ${color}30`,
                     }}>
-                        <Icon size={24} style={{ color: "#fff" }} />
+                        {renderMcpIcon(server.name, 24, { color: "#fff" })}
                     </div>
                     <div>
                         <h3 style={{ fontSize: 20, fontWeight: 700, color: "#fff" }}>{cleanName(server.name)}</h3>
@@ -111,24 +119,24 @@ function McpModal({ server, color, onClose }: { server: McpInfo; color: string; 
 
 export default function McpSection() {
     const { machine, apiBase } = useMachine();
-    const [servers, setServers] = useState<McpInfo[]>([]);
-    const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
     const [filter, setFilter] = useState<McpFilter>("mine");
     const [selected, setSelected] = useState<McpInfo | null>(null);
     const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
     const [viewMode, setViewMode] = useState<"thumbs" | "list" | "circles">("list");
-    useEffect(() => {
-        setLoading(true);
-        // apiBase already routes to the right host; the legacy ?machine= triggers
-        // a self-proxy on the remote and returns zero servers (sidebar shows 36
-        // but page shows 0). Drop it - same bug pattern we fixed elsewhere.
-        fetch(apiBase("/api/claude/skills?slim=1"))
-            .then(r => r.json())
-            .then(d => { setServers(d.mcp ?? []); setLoading(false); })
-            .catch(() => setLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [apiBase]);
+
+    // apiBase already routes to the right host; the legacy ?machine= triggers
+    // a self-proxy on the remote and returns zero servers (sidebar shows 36
+    // but page shows 0). Drop it - same bug pattern we fixed elsewhere.
+    const mcpUrl = apiBase("/api/claude/skills?slim=1");
+    const { data, isFetching: loading } = useQuery({
+        queryKey: ["claude-mcp", mcpUrl],
+        queryFn: async () => {
+            const r = await fetch(mcpUrl);
+            return r.json();
+        },
+    });
+    const servers: McpInfo[] = useMemo(() => data?.mcp ?? [], [data]);
 
     const filtered = useMemo(() => {
         let list = servers;

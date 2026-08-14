@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
+import Image from "next/image";
 
 const CLAUDE_DIR = path.join(os.homedir(), ".claude");
 const PROJECTS_DIR = path.join(CLAUDE_DIR, "projects");
@@ -45,7 +46,7 @@ export function SetupBanner({ status }: { status: SetupStatus }) {
                 textAlign: "center",
             }}>
                 <div style={{ fontSize: 40, marginBottom: 12 }}>
-                    <img src="/claude-logo.png" alt="" width={48} height={48} style={{ imageRendering: "pixelated", display: "inline-block" }} />
+                    <Image src="/claude-logo.png" alt="" width={48} height={48} style={{ imageRendering: "pixelated", display: "inline-block" }} />
                 </div>
                 <h2 style={{ fontSize: 18, fontWeight: 700, color: "#fff", marginBottom: 8 }}>
                     Welcome to Claude Dashboard
@@ -75,7 +76,7 @@ export function SetupBanner({ status }: { status: SetupStatus }) {
                 textAlign: "center",
             }}>
                 <div style={{ fontSize: 28, marginBottom: 8 }}>
-                    <img src="/claude-logo.png" alt="" width={40} height={40} style={{ imageRendering: "pixelated", display: "inline-block" }} />
+                    <Image src="/claude-logo.png" alt="" width={40} height={40} style={{ imageRendering: "pixelated", display: "inline-block" }} />
                 </div>
                 <h2 style={{ fontSize: 16, fontWeight: 700, color: "#fff", marginBottom: 8 }}>
                     Claude Code is installed

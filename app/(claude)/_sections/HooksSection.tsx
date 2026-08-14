@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Webhook, ChevronDown, ChevronRight, Search, LayoutGrid, List, CircleDot } from "lucide-react";
 import { useMachine } from "./MachineContext";
 
@@ -168,22 +169,22 @@ function HookModal({ hook, onClose }: { hook: HookInfo; onClose: () => void }) {
 
 export default function HooksSection() {
     const { machine, apiBase } = useMachine();
-    const [hooks, setHooks] = useState<HookInfo[]>([]);
-    const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
     const [eventFilter, setEventFilter] = useState<string | null>(null);
     const [viewMode, setViewMode] = useState<"thumbs" | "list" | "circles">("circles");
     const [selectedHook, setSelectedHook] = useState<HookInfo | null>(null);
     const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
 
-    useEffect(() => {
-        setLoading(true);
-        const q = machine ? `?machine=${machine}` : "";
-        fetch(apiBase(`/api/claude/skills?slim=1${q ? "&" + q.slice(1) : ""}`))
-            .then(r => r.json())
-            .then(d => { setHooks(d.hooks ?? []); setLoading(false); })
-            .catch(() => setLoading(false));
-    }, [machine, apiBase]);
+    const q = machine ? `?machine=${machine}` : "";
+    const hooksUrl = apiBase(`/api/claude/skills?slim=1${q ? "&" + q.slice(1) : ""}`);
+    const { data, isFetching: loading } = useQuery({
+        queryKey: ["claude-hooks", hooksUrl],
+        queryFn: async () => {
+            const r = await fetch(hooksUrl);
+            return r.json();
+        },
+    });
+    const hooks: HookInfo[] = data?.hooks ?? [];
 
     const allEvents = [...new Set(hooks.flatMap(h => h.events))].sort();
 

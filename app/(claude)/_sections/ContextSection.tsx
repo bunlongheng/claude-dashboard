@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDown } from "lucide-react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useMachine } from "./MachineContext";
 import { type MemMode } from "./MemoryGraph";
 
@@ -14,29 +15,44 @@ const MODES: { key: MemMode; label: string; color: string; blurb: string }[] = [
     { key: "kp", label: "KP only", color: "#f59e0b", blurb: "Whole wiki synthesized, no retrieval. Loses specific facts (benchmarked 1.4/5)." },
 ];
 
+// The mode picker portals into PageHero's right-side slot, a sibling DOM node
+// (id="page-hero-slot") this component has no props/ref access to. Read it
+// via useSyncExternalStore instead of a mount effect + setState - the node
+// itself never changes once mounted, so subscribe is a no-op.
+function subscribeHeroSlot() { return () => {}; }
+function getHeroSlot() { return typeof document !== "undefined" ? document.getElementById("page-hero-slot") : null; }
+function getHeroSlotServer() { return null; }
+
 export default function ContextSection() {
     const { machine, apiBase } = useMachine();
-    const [mode, setMode] = useState<MemMode>("rag");
+    const heroSlot = useSyncExternalStore(subscribeHeroSlot, getHeroSlot, getHeroSlotServer);
     const [saved, setSaved] = useState(false);
-    const [heroSlot, setHeroSlot] = useState<HTMLElement | null>(null);
 
-    useEffect(() => {
-        setHeroSlot(document.getElementById("page-hero-slot"));
-    }, []);
+    const { data: modeData } = useQuery({
+        queryKey: ["rag", "mode", machine],
+        queryFn: () => fetch(apiBase("/api/rag/mode")).then(r => r.json()) as Promise<{ mode?: MemMode }>,
+    });
 
-    useEffect(() => {
-        fetch(apiBase("/api/rag/mode"))
-            .then(r => r.json())
-            .then(d => { if (d?.mode) setMode(d.mode as MemMode); })
-            .catch(() => {});
-    }, [machine, apiBase]);
+    // Local override so a user edit shows immediately without waiting on a
+    // refetch, while still resetting back to the server value when the
+    // selected machine changes (mirrors the old effect's [machine] dep).
+    const [prevMachine, setPrevMachine] = useState(machine);
+    const [overrideMode, setOverrideMode] = useState<MemMode | null>(null);
+    if (machine !== prevMachine) {
+        setPrevMachine(machine);
+        setOverrideMode(null);
+    }
+    const mode: MemMode = overrideMode ?? modeData?.mode ?? "rag";
 
     // Persist the mode so the rag-memory MCP / live sessions actually use it.
+    const modeMutation = useMutation({
+        mutationFn: (m: MemMode) =>
+            fetch(apiBase("/api/rag/mode"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mode: m }) }),
+        onSuccess: () => { setSaved(true); setTimeout(() => setSaved(false), 1800); },
+    });
     function changeMode(m: MemMode) {
-        setMode(m);
-        fetch(apiBase("/api/rag/mode"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mode: m }) })
-            .then(() => { setSaved(true); setTimeout(() => setSaved(false), 1800); })
-            .catch(() => {});
+        setOverrideMode(m);
+        modeMutation.mutate(m);
     }
 
     const active = MODES.find(m => m.key === mode)!;

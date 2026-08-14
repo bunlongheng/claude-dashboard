@@ -211,8 +211,11 @@ export default function VoiceModal({ onSubmit, onClose }: VoiceModalProps) {
         };
     }, [stopListening]);
 
-    // Auto-start on mount
+    // Auto-start on mount. startListening is an imperative call into an external
+    // system (mic + Web Speech API); its leading setState calls (reset transcript/
+    // error before the async recognition starts) are intentional here.
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional external-system kickoff, not a data fetch
         startListening();
     }, [startListening]);
 
