@@ -103,6 +103,30 @@ Open **http://localhost:3003** - done. No config, no database, no account.
 
 ## How It Works
 
+## Architecture
+
+```mermaid
+flowchart LR
+    FS["~/.claude data<br>transcripts, memory, settings"]
+    WALK["jsonl-walk + safe-read<br>tail-reads session files"]
+    API["Next.js API routes<br>/api/claude/*"]
+    INGEST["RAG ingest<br>lib/rag-ingest-sessions"]
+    DB["SQLite data/rag.db<br>full-text search"]
+    RAGAPI["RAG API<br>/api/rag"]
+    WS["WS server on port 7878<br>scripts/ws-server.mjs"]
+    PEERS["Peer dashboards<br>MACHINES list"]
+    PROXY["Same-origin proxy<br>/api/proxy"]
+    UI["Dashboard UI<br>React Query + Recharts"]
+
+    FS --> WALK --> API --> UI
+    FS --> INGEST --> DB --> RAGAPI --> UI
+    FS -->|file watch| WS -->|live session updates| UI
+    PEERS -->|read-only fetch| PROXY --> UI
+```
+
+*Local `~/.claude` files flow through Next.js API routes, a SQLite RAG index, and a live WebSocket watcher into the dashboard UI - nothing ever leaves your machine.*
+
+
 ```
 ~/.claude/                        Your Claude Code data (already exists)
   CLAUDE.md                       Global instructions
@@ -200,4 +224,10 @@ cd claude-dashboard && npm install && npm run dev
 
 <p align="center">
   <sub>Built by <a href="https://www.bunlongheng.com">Bunlong Heng</a> for the Claude Code community</sub>
+</p>
+
+---
+
+<p align="center">
+  <sub>Built by <a href="https://bunlongheng.com">Bunlong Heng</a> &middot; <a href="https://bunlongheng.com/projects/claude-dashboard">See it in my portfolio &rarr;</a></sub>
 </p>
