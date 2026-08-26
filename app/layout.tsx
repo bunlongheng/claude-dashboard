@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import SwRegister from "./sw-register";
 
 export const metadata: Metadata = {
   title: "Claude Dashboard - The Missing GUI for Claude Code",
@@ -8,7 +9,7 @@ export const metadata: Metadata = {
     icon: "/icon-192.png",
     apple: "/icon-192.png",
   },
-  manifest: "/manifest.json",
+  manifest: "/manifest.webmanifest",
   openGraph: {
     title: "Claude Dashboard",
     description: "The missing GUI for Claude Code. Browse sessions, memory, skills, hooks, MCP servers, and settings - zero config, no database.",
@@ -38,7 +39,10 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-title" content="Claude" />
         <meta name="theme-color" content="#08090d" />
       </head>
-      <body suppressHydrationWarning>{children}</body>
+      <body suppressHydrationWarning>
+        {children}
+        <SwRegister />
+      </body>
     </html>
   );
 }
