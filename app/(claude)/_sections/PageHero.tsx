@@ -23,7 +23,6 @@ const PAGE_SUBTITLES: Record<string, string> = {
     "/rag/documents":    "All indexed documents",
     "/rag/search":       "Search your knowledge base",
     "/rag/preferences":  "Extracted preferences & patterns",
-    "/rag/context":      "Context builder for prompts",
     "/monitor":  "App process monitor",
     "/monitor/crons": "24-hour automation schedule",
     "/monitor/gallery": "App screenshots & GIFs",

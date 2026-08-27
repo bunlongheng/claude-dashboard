@@ -6,7 +6,7 @@ const ROUTES = [
   "/dashboard", "/agents", "/rag", "/context", "/global", "/mcp", "/skills",
   "/cli", "/extensions", "/settings", "/sessions", "/tokens", "/usage", "/hooks",
   "/commands", "/plugins",
-  "/rag/search", "/rag/preferences", "/rag/context", "/rag/documents",
+  "/rag/search", "/rag/preferences", "/rag/documents",
 ];
 
 test.describe("every route loads", () => {

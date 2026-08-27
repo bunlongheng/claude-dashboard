@@ -6,7 +6,7 @@ import { RAG_ENABLED } from "@/lib/features";
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Claude | RAG" };
 
-const RAG_TABS: readonly RagTab[] = ["overview", "documents", "search", "preferences", "context", "eval"];
+const RAG_TABS: readonly RagTab[] = ["overview", "documents", "search", "preferences", "eval"];
 
 export default async function RagPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
     if (!RAG_ENABLED) return <RagDisabledNotice feature="RAG" />;
