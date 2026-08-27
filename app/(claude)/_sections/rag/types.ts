@@ -20,5 +20,5 @@ export type Stats = {
 export type Pref = { id: number; category: string; key: string; value: string };
 export type SearchResult = { chunk_id: number; doc_id: number; content: string; project: string; source_type: string; title: string };
 
-export type RagTab = "overview" | "documents" | "search" | "preferences" | "context" | "eval";
+export type RagTab = "overview" | "documents" | "search" | "preferences" | "eval";
 export type DocInfo = { id: number; source_path: string; source_type: string; project: string; title: string; size: number; chunk_count: number; updated_at: string };

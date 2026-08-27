@@ -13,7 +13,6 @@ import SearchResultsPanel from "./rag/SearchResultsPanel";
 import OverviewTab from "./rag/OverviewTab";
 import DocumentsTab from "./rag/DocumentsTab";
 import PreferencesTab from "./rag/PreferencesTab";
-import ContextBuilderTab from "./rag/ContextBuilderTab";
 
 export type { RagTab };
 
@@ -90,7 +89,6 @@ export default function RagSection({ initialTab = "overview" }: { initialTab?: R
         { label: "Overview", value: "overview" },
         { label: "Documents", value: "documents", count: docs.length },
         { label: "Preferences", value: "preferences", count: prefs.length },
-        { label: "Context", value: "context" },
         { label: "Benchmark", value: "eval" },
     ];
 
@@ -142,9 +140,6 @@ export default function RagSection({ initialTab = "overview" }: { initialTab?: R
 
             {/* ── Preferences ── */}
             {tab === "preferences" && <PreferencesTab prefs={prefs} />}
-
-            {/* ── Context Builder ── */}
-            {tab === "context" && <ContextBuilderTab apiBase={apiBase} />}
 
             {tab === "eval" && <EvalTab apiBase={apiBase} />}
 
