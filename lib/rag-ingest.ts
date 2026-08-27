@@ -85,7 +85,7 @@ type SourceFile = {
   type: "global_rules" | "claude_md" | "memory" | "obsidian";
 };
 
-export async function discoverSources(): Promise<SourceFile[]> {
+async function discoverSources(): Promise<SourceFile[]> {
   const sources: SourceFile[] = [];
 
   // 1. Global CLAUDE.md
@@ -126,7 +126,7 @@ export async function discoverSources(): Promise<SourceFile[]> {
   return sources;
 }
 
-export function ingestFile(filePath: string, sourceType: string): { status: "created" | "updated" | "skipped"; chunks: number } {
+function ingestFile(filePath: string, sourceType: string): { status: "created" | "updated" | "skipped"; chunks: number } {
   if (!fs.existsSync(filePath)) return { status: "skipped", chunks: 0 };
   const db = getDb();
   const content = fs.readFileSync(filePath, "utf-8");

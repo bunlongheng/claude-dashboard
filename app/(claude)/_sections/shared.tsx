@@ -1,6 +1,6 @@
 "use client";
 
-import { getModelRates, MODEL_RATES } from "@/lib/pricing";
+import { getModelRates } from "@/lib/pricing";
 import { SECTION_COLORS } from "./sectionColors";
 import {
     CpuChipIcon,
@@ -21,11 +21,8 @@ export const ACCENT = SECTION_COLORS.claude;
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 export type HistoryEntry = { display: string; timestamp: number; project?: string; sessionId?: string };
-export type Note = { id: string; title: string; content: string; folder_color: string; created_at: string };
 export type Token = { session_id: string; project?: string; model?: string; machine?: string; input_tokens: number; output_tokens: number; cache_read_tokens: number; cache_creation_tokens: number; prompt_count: number };
-export type GlobalInstruction = { id: string; category: string; title: string; instruction: string; source: string; project?: string; confidence: number; last_used_at: string | null; violations_count: number; created_at: string; updated_at: string };
 export type Interval = "today" | "7d" | "1m" | "all";
-export type DrillTarget = "prompts" | "sessions" | "projects" | "tokens" | null;
 
 export type SessionEntry = { id: string; filePath: string; sizeBytes: number; sizeLabel: string; lines: number; customTitle: string | null; title: string; createdAt: string; updatedAt: string; stale: boolean; live?: boolean };
 export type ProjectSessions = { project: string; path: string; sessions: SessionEntry[] };
@@ -53,8 +50,6 @@ export const AGENTS = [
     { id: 11, name: "Shadow", role: "Security",      color: "#999999", status: "online",  Icon: LockClosedIcon        },
     { id: 12, name: "Rock",   role: "Dashboard",     color: "#7a7a7a", status: "standby", Icon: Squares2X2Icon        },
 ] as const;
-
-export const STATUS_COLORS = { online: "#22c55e", standby: "#eab308", offline: "#6b7280" } as const;
 
 // ─── Agent Details ────────────────────────────────────────────────────────────
 export type AgentDetail = { description: string; responsibilities: string[]; iconPrompt: string };
@@ -193,18 +188,6 @@ export const AGENT_DETAILS: Record<string, AgentDetail> = {
     },
 };
 
-// ─── Category colors ──────────────────────────────────────────────────────────
-export const CATEGORY_COLORS: Record<string, string> = {
-    security:     "#ef4444",
-    architecture: "#ff3333",
-    workflow:     "#0ea5e9",
-    performance:  "#ffdd00",
-    css:          "#ff8800",
-    db:           "#cc6633",
-    infra:        "#9333ea",
-    general:      "#6b7280",
-};
-
 // ─── Machines ────────────────────────────────────────────────────────────────
 // Static fallback - overridden by dynamic machine list from /api/claude/machines
 export const MACHINES: string[] = [];
@@ -246,8 +229,6 @@ export function MachineFilter({ value, onChange }: { value: string | null; onCha
 }
 
 // ─── Pricing (rates live in lib/pricing.ts - single source of truth) ─────────
-export const PRICE = MODEL_RATES.sonnet;
-
 export function calcCost(t: Token) {
     const p = getModelRates(t.model);
     return (
@@ -351,7 +332,7 @@ export function SectionHeader({ icon: Icon, title }: { icon: React.ElementType; 
 
 // Segmented pill tabs - matches the [24h | 7d | 30d | ALL] control style.
 // Used wherever the user toggles between mutually-exclusive views.
-export const SEGMENT_ACTIVE = "#f97316";
+const SEGMENT_ACTIVE = "#f97316";
 export function SegmentedTabs<K extends string>({ tabs, value, onChange, accent = SEGMENT_ACTIVE }: {
     tabs: { key: K; label: string; count?: number }[];
     value: K;

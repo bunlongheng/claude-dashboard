@@ -35,4 +35,4 @@ function detectDb(): DbAdapter {
 
 export const db: DbAdapter = detectDb();
 
-export type { DbAdapter, QueryOptions } from "./types";
+export type { DbAdapter } from "./types";
