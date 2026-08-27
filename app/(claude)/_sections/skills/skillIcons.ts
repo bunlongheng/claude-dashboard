@@ -22,12 +22,7 @@ export const ORB_COLORS = [
     "#e11d48", "#65a30d",
 ];
 
-export const ORB_ICONS = [
-    "zap", "sparkles", "star", "bolt", "diamond", "hexagon",
-    "triangle", "layers", "activity", "cpu", "terminal", "rocket",
-];
-
-export const SKILL_ICONS: Record<string, LucideIcon> = {
+const SKILL_ICONS: Record<string, LucideIcon> = {
     "stickies": StickyNote, "sticky": StickyNote, "/sticky": StickyNote, "note": StickyNote,
     "deck": LayoutPanelTop, "/deck": LayoutPanelTop,
     "diagram": GitBranch, "/diagram": GitBranch,
@@ -76,7 +71,7 @@ export const SKILL_ICONS: Record<string, LucideIcon> = {
 // Pool used when a skill has no explicit mapping. Hashing the name into this
 // pool gives each skill a stable, distinct-looking icon instead of every
 // unmapped row collapsing to a single fallback (Zap).
-export const SKILL_ICON_POOL: LucideIcon[] = [
+const SKILL_ICON_POOL: LucideIcon[] = [
     Activity, Award, Boxes, Briefcase, Cloud, Coffee, Compass, Crosshair,
     Filter, Flame, Folder, FileCode, FileText, Gift, Hammer, Headphones,
     Heart, Inbox, Info, Layers, LinkIcon, Network, Package, PieChart,

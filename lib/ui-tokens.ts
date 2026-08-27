@@ -4,9 +4,9 @@ import type { CSSProperties } from "react";
 // The standard "panel" look used across the dashboard: subtle raised
 // background, hairline border, rounded corners. Single source of truth so
 // a theme change is a one-line edit instead of a ~36-site find/replace.
-export const CARD_BG = "rgba(255,255,255,0.02)";
-export const CARD_BORDER = "rgba(255,255,255,0.06)";
-export const CARD_RADIUS = 14;
+const CARD_BG = "rgba(255,255,255,0.02)";
+const CARD_BORDER = "rgba(255,255,255,0.06)";
+const CARD_RADIUS = 14;
 
 export const cardShell: CSSProperties = {
     padding: "20px 24px",

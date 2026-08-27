@@ -40,7 +40,7 @@ export function folderToName(folder: string): string {
  * mapping first; if it doesn't exist, walk the filesystem greedily (longest-match per
  * level) to find the real directory.
  */
-export function resolveFolderPath(folder: string): string | null {
+function resolveFolderPath(folder: string): string | null {
     const naive = folderToPath(folder);
     try {
         if (fs.existsSync(naive) && fs.statSync(naive).isDirectory()) return naive;
