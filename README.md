@@ -233,11 +233,5 @@ cd claude-dashboard && npm install && npm run dev
 ---
 
 <p align="center">
-  <sub>Built by <a href="https://www.bunlongheng.com">Bunlong Heng</a> for the Claude Code community</sub>
-</p>
-
----
-
-<p align="center">
-  <sub>Built by <a href="https://bunlongheng.com">Bunlong Heng</a> &middot; <a href="https://bunlongheng.com/projects/claude-dashboard">See it in my portfolio &rarr;</a></sub>
+  <sub>Built by <a href="https://bunlongheng.com">Bunlong Heng</a> for the Claude Code community &middot; <a href="https://bunlongheng.com/projects/claude-dashboard">See it in my portfolio &rarr;</a></sub>
 </p>
