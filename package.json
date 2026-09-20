@@ -37,6 +37,15 @@
     "recharts": "^3.8.1",
     "ws": "^8.21.3"
   },
+  "overrides": {
+    "baseline-browser-mapping": "^2.11.25",
+    "browserslist": "^4.29.0",
+    "fast-uri": "^3.1.8",
+    "hono": "^4.13.8",
+    "js-yaml": "^4.3.2",
+    "postcss-selector-parser": "^6.1.4",
+    "qs": "^6.16.0"
+  },
   "optionalDependencies": {
     "better-sqlite3": "^12.8.0"
   },
@@ -53,7 +62,7 @@
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19",
-    "@vitest/coverage-v8": "^4.1.7",
+    "@vitest/coverage-v8": "^4.1.11",
     "autoprefixer": "^10.4.27",
     "eslint": "^9.39.5",
     "eslint-config-next": "^16.2.10",
@@ -62,6 +71,6 @@
     "postcss": "^8.5.8",
     "tailwindcss": "^3.4.19",
     "typescript": "^5.9.3",
-    "vitest": "^4.1.2"
+    "vitest": "^4.1.11"
   }
 }
