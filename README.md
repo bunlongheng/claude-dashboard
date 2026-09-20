@@ -1,13 +1,3 @@
-<div align="center">
-  <img src="docs/icon.png" alt="Claude Dashboard" width="96" height="96" />
-  <h1>Claude Dashboard</h1>
-  <p><em>Self-learning RAG memory that mines sessions into searchable vectors</em></p>
-  <p><a href="https://github.com/bunlongheng/claude">Repo</a> &middot; <a href="https://bunlongheng.com/projects?name=claude-dashboard">Portfolio</a></p>
-  <img src="docs/social-preview.png" alt="Claude Dashboard - preview" width="820" />
-</div>
-
----
-
 <p align="center">
   <img src="public/claude-logo.png" width="80" height="80" alt="Claude Dashboard" style="image-rendering: pixelated;" />
 </p>
@@ -21,6 +11,10 @@
 <p align="center">
   Monitor sessions, tokens, context windows, memory, rules, skills, hooks, MCP servers, and more<br/>
   from one local-first dashboard. Zero config - it reads <code>~/.claude/</code> directly.
+</p>
+
+<p align="center">
+  <a href="https://bunlongheng.com/projects?name=claude-dashboard">Portfolio</a>
 </p>
 
 <p align="center">
