@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
@@ -96,10 +96,33 @@ describe("folderToName", () => {
   });
 });
 
+// Encode a real path the way Claude names project folders: every "/" becomes "-".
+const asFolder = (p: string) => p.replace(/\//g, "-");
+
 describe("isRealRepo", () => {
+  let tmp: string;
+
+  beforeEach(() => {
+    tmp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "isrealrepo")));
+  });
+
+  afterEach(() => {
+    delete overrides.statSync;
+    fs.rmSync(tmp, { recursive: true, force: true });
+  });
+
   it("returns true for a folder mapping to an existing directory", () => {
-    const folder = process.cwd().replace(/\//g, "-");
-    expect(isRealRepo(folder)).toBe(true);
+    const dir = path.join(tmp, "plain");
+    fs.mkdirSync(dir);
+    expect(isRealRepo(asFolder(dir))).toBe(true);
+  });
+
+  it("resolves a directory whose own name contains hyphens", () => {
+    // "-local-apps" is ambiguous between local/apps and local-apps, so this
+    // always takes the greedy filesystem walk rather than the naive mapping.
+    const dir = path.join(tmp, "local-apps");
+    fs.mkdirSync(dir);
+    expect(isRealRepo(asFolder(dir))).toBe(true);
   });
 
   it("returns false for a non-existent path", () => {
@@ -107,17 +130,18 @@ describe("isRealRepo", () => {
   });
 
   it("returns false when the path exists but is a file, not a directory", () => {
-    const folder = process.cwd().replace(/\//g, "-") + "-package.json";
-    expect(isRealRepo(folder)).toBe(false);
+    const file = path.join(tmp, "file.txt");
+    fs.writeFileSync(file, "");
+    expect(isRealRepo(asFolder(file))).toBe(false);
   });
 
   it("returns false when statSync throws after the path resolves", () => {
+    const dir = path.join(tmp, "plain");
+    fs.mkdirSync(dir);
     overrides.statSync = () => {
       throw new Error("EACCES");
     };
-    const folder = process.cwd().replace(/\//g, "-");
-    expect(isRealRepo(folder)).toBe(false);
-    delete overrides.statSync;
+    expect(isRealRepo(asFolder(dir))).toBe(false);
   });
 });
 
@@ -127,16 +151,25 @@ describe("getProjectFolders", () => {
     delete overrides.homedir;
   });
 
-  it("returns an array", () => {
-    expect(Array.isArray(getProjectFolders())).toBe(true);
-  });
+  // These used to read the developer's real ~/.claude/projects, so they passed
+  // vacuously on a machine with no sessions and covered different branches
+  // depending on the host. Drive a controlled home directory instead.
+  it("returns only projects directory entries that map to real local directories", () => {
+    const home = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "claude-home-real-")));
+    const projectsDir = path.join(home, ".claude", "projects");
+    fs.mkdirSync(projectsDir, { recursive: true });
 
-  it("returns only strings", () => {
-    expect(getProjectFolders().every((f) => typeof f === "string")).toBe(true);
-  });
+    const real = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "real-project-")));
+    const realFolder = real.replace(/\//g, "-");
+    fs.mkdirSync(path.join(projectsDir, realFolder));
+    fs.mkdirSync(path.join(projectsDir, "-nope-does-not-exist-anywhere-12345"));
+    overrides.homedir = () => home;
 
-  it("returns only folders that map to real local directories", () => {
-    expect(getProjectFolders().every((f) => isRealRepo(f))).toBe(true);
+    expect(getProjectFolders()).toEqual([realFolder]);
+
+    delete overrides.homedir;
+    fs.rmSync(home, { recursive: true, force: true });
+    fs.rmSync(real, { recursive: true, force: true });
   });
 
   it("returns an empty array when the projects directory can't be read", () => {
