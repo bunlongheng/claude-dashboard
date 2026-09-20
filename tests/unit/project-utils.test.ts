@@ -79,8 +79,16 @@ describe("folderToName", () => {
   });
 
   it("returns the segment after Sites when the resolved path exists on disk", () => {
-    const folder = process.cwd().replace(/\//g, "-");
-    expect(folderToName(folder)).toBe(path.basename(process.cwd()));
+    // Build a real Sites/<name> path instead of leaning on process.cwd(): CI checks
+    // out to a hyphenated dir with no Sites marker, which took a different branch.
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "project-utils-"));
+    try {
+      fs.mkdirSync(path.join(root, "Sites", "local-apps"), { recursive: true });
+      const folder = path.join(root, "Sites", "local-apps").replace(/\//g, "-");
+      expect(folderToName(folder)).toBe("local-apps");
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
   });
 
   it("falls back to the raw folder when there are no dash-separated parts", () => {
