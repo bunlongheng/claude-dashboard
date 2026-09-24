@@ -192,14 +192,23 @@ export async function searchWithRerank(query: string, limit = 5): Promise<Search
     `[${i}] (${c.project}/${c.title}): ${c.content.slice(0, 300)}`
   ).join("\n\n");
 
-  const msg = await anthropic.messages.create({
-    model: "claude-haiku-4-5-20251001",
-    max_tokens: 200,
-    messages: [{
-      role: "user",
-      content: `Given this query: "${query}"\n\nPick the ${limit} most relevant chunks. Return ONLY a JSON array of indices, e.g. [2, 0, 5, 1, 4]. Most relevant first.\n\n${numbered}`,
-    }],
-  });
+  // The key being set is not the same as the key being accepted - a rotated or
+  // revoked one throws a 401 here. Reranking is a nicety on top of retrieval, so
+  // losing it costs order, not results: fall back to the FTS candidates rather
+  // than failing the whole context build.
+  let msg;
+  try {
+    msg = await anthropic.messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 200,
+      messages: [{
+        role: "user",
+        content: `Given this query: "${query}"\n\nPick the ${limit} most relevant chunks. Return ONLY a JSON array of indices, e.g. [2, 0, 5, 1, 4]. Most relevant first.\n\n${numbered}`,
+      }],
+    });
+  } catch {
+    return candidates.slice(0, limit);
+  }
 
   const text = msg.content.find(b => b.type === "text")?.text ?? "[]";
   const match = text.match(/\[[\d,\s]+\]/);
