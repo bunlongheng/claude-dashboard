@@ -4,7 +4,7 @@ const GOTO = { waitUntil: "domcontentloaded" as const };
 
 const ROUTES = [
   "/dashboard", "/agents", "/rag", "/context", "/global", "/mcp", "/skills",
-  "/cli", "/extensions", "/settings", "/sessions", "/tokens", "/usage", "/hooks",
+  "/cli", "/extensions", "/settings", "/sessions", "/tokens", "/usage", "/jev", "/hooks",
   "/commands", "/plugins",
   "/rag/search", "/rag/preferences", "/rag/documents",
 ];
@@ -21,7 +21,7 @@ test.describe("every route loads", () => {
 
 const PRIMARY_NAV = [
   "Overview", "Agents", "RAG", "Memory", "CLAUDE.md", "MCP",
-  "Skills", "CLI", "Extensions", "Settings", "Sessions", "Tokens",
+  "Skills", "CLI", "Extensions", "Settings", "Sessions", "Tokens", "Jev",
 ];
 
 test("sidebar shows every primary nav item", async ({ page }) => {
@@ -40,7 +40,8 @@ test("clicking each nav item navigates to its route", async ({ page }) => {
     ["Agents", /\/agents/], ["RAG", /\/rag/], ["Context", /\/context/],
     ["CLAUDE.md", /\/global/], ["MCP", /\/mcp/], ["Skills", /\/skills/],
     ["CLI", /\/cli/], ["Extensions", /\/extensions/], ["Settings", /\/settings/],
-    ["Sessions", /\/sessions/], ["Tokens", /\/tokens/], ["Overview", /\/dashboard/],
+    ["Sessions", /\/sessions/], ["Tokens", /\/tokens/], ["Jev", /\/jev/],
+    ["Overview", /\/dashboard/],
   ];
   for (const [label, urlRe] of targets) {
     await aside.getByRole("link", { name: label }).first().click();
@@ -54,4 +55,15 @@ test("no uncaught page errors on the dashboard", async ({ page }) => {
   await page.goto("/dashboard", GOTO);
   await page.waitForTimeout(1000);
   expect(errors).toEqual([]);
+});
+
+test("the jev page leads with the health strip", async ({ page }) => {
+  await page.goto("/jev", GOTO);
+  // The strip is the proof block: one of the 3 health states, plus the metric
+  // cells that only exist on this page.
+  await expect(page.getByText(/^(LIVE|STALE|NEVER)$/).first()).toBeVisible();
+  await expect(page.getByText("Calls today", { exact: true })).toBeVisible();
+  await expect(page.getByText("Routed", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("Avg latency", { exact: true })).toBeVisible();
+  await expect(page.getByText("Est. cost", { exact: true })).toBeVisible();
 });

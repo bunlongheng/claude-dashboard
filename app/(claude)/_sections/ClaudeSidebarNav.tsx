@@ -11,6 +11,7 @@ import {
     Menu, X, ChevronDown, ChevronLeft, ChevronRight, Monitor, PanelLeftClose, PanelLeftOpen,
     Bot,
     Search, DatabaseZap, FileText, SlidersHorizontal, Wand2,
+    Route,
 } from "lucide-react";
 import { MACHINES, MACHINE_COLORS, ACCENT, fmtCompact, type ProjectSessions } from "./shared";
 import { CLI_ICON_MAP } from "./cliIcons";
@@ -51,6 +52,7 @@ export const NAV_SECTIONS: NavSection[] = [
     { label: "Activity", items: [
         { href: "/sessions", label: "Sessions",  Icon: FolderOpen,      exact: false, color: "#007AFF" },
         { href: "/tokens",   label: "Tokens",    Icon: Coins,           exact: false, color: "#5856D6" },
+        { href: "/jev",      label: "Jev",       Icon: Route,           exact: false, color: "#0EA5E9" },
         { href: "/usage",    label: "Usage",     Icon: DollarSign,      exact: false, color: "#FF6347" },
     ]},
 ];
@@ -268,7 +270,13 @@ export default function ClaudeSidebarNav() {
             fetch(apiBase("/api/claude/brain?slim=1"), opts).then(r => r.json()).catch(() => ({ categoryCounts: {}, globalRules: [], totalFiles: 0 })),
             fetch(apiBase("/api/claude/token-stats/daily"), opts).then(r => r.json()).catch(() => ({ daily: [] })),
             fetch(apiBase("/api/rag/stats"), opts).then(r => r.json()).catch(() => ({ documents: 0 })),
-        ]).then(([sessions, skills, brain, tokens, rag]) => {
+            fetch(apiBase("/api/claude/jev?days=1"), opts).then(r => r.json()).catch(() => ({ daily: [] })),
+        ]).then(([sessions, skills, brain, tokens, rag, jev]) => {
+            // The badge is calls *today*, so read the day bucket rather than the
+            // rolling 24 h total the days=1 window returns.
+            const todayKey = new Date().toLocaleDateString("en-CA");
+            const jevToday = (jev.daily ?? []).find((d: { day: string }) => d.day === todayKey);
+            const jevCalls = jevToday ? jevToday.routed + jevToday.skipped + jevToday.errors : 0;
             const totalSessions = (sessions.projects ?? []).reduce((sum: number, p: ProjectSessions) => sum + (p.sessions?.length ?? 0), 0);
             const totalTokens = (tokens.daily ?? []).reduce((s: number, d: { input?: number; output?: number }) => s + (d.input ?? 0) + (d.output ?? 0), 0);
             setBadges(prev => ({
@@ -284,6 +292,7 @@ export default function ClaudeSidebarNav() {
                 "/tokens": fmtCompact(totalTokens),
                 "/settings": skills.summary?.settings ?? 0,
                 "/rag": rag.documents ?? 0,
+                "/jev": jevCalls,
             }));
         });
     // eslint-disable-next-line react-hooks/exhaustive-deps
