@@ -63,9 +63,9 @@ Everything works with 0 config. Only set what you need in `.env.local`.
 |---------|---------|
 | `PORT` | Dev and prod port, default `3003` |
 | `DASHBOARD_HOST` | Bind address, default `127.0.0.1` (`0.0.0.0` for LAN) |
-| `MACHINES` | Peer dashboards, e.g. `mac-mini.local:3003,raspberrypi.local:3003` |
+| `MACHINES` | Peer dashboards, e.g. `mini.local:3003,pi.local:3003` |
 | `NEXT_PUBLIC_RAG_ENABLED` | `1` enables the RAG page and hooks |
-| `AI_GATEWAY_API_KEY` or `TYPESAFE_API_KEY` | Jev router hook (see below) |
+| `AI_GATEWAY_API_KEY` | Jev router hook, see below (`TYPESAFE_API_KEY` also works) |
 | `ANTHROPIC_API_KEY` | RAG benchmark tab |
 
 ## Jev router (optional)
