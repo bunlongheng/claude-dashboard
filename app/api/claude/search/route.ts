@@ -98,7 +98,7 @@ function searchMemory(q: string): Result[] {
                 results.push({
                     title: file.replace(".md", ""),
                     description: snippet(content),
-                    path: `/context`,
+                    path: `/rag`,
                     type: "memory",
                 });
                 if (results.length >= LIMIT) return results;

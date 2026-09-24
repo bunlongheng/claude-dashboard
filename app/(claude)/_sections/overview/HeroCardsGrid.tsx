@@ -2,7 +2,7 @@
 
 import {
     FolderOpen, Sparkles, Server, Coins, TerminalSquare,
-    DatabaseZap, Brain, Blocks, BookOpen, Settings as SettingsIcon,
+    DatabaseZap, Blocks, BookOpen, Settings as SettingsIcon,
 } from "lucide-react";
 import { CLI_ICON_MAP } from "../cliIcons";
 import { RAG_ENABLED } from "@/lib/features";
@@ -20,17 +20,11 @@ export function HeroCardsGrid({ stats, ragStats, liveSessions, totalTokens }: {
     return (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
             {RAG_ENABLED && (
-                <>
-                    <HeroCard name="RAG" icon={DatabaseZap} color="#FF3B30" href="/rag" stats={[
-                        { label: "Docs", value: ragStats?.documents ?? 0 },
-                        { label: "Prefs", value: ragStats?.preferences ?? 0 },
-                        { label: "Chunks", value: ragStats?.chunks ?? 0 },
-                    ]} />
-                    <HeroCard name="Context" icon={Brain} color="#FF6347" href="/context" stats={[
-                        { label: "Prefs", value: ragStats?.preferences ?? 0 },
-                        { label: "Categories", value: stats.memCategories },
-                    ]} />
-                </>
+                <HeroCard name="RAG" icon={DatabaseZap} color="#FF3B30" href="/rag" stats={[
+                    { label: "Docs", value: ragStats?.documents ?? 0 },
+                    { label: "Prefs", value: ragStats?.preferences ?? 0 },
+                    { label: "Chunks", value: ragStats?.chunks ?? 0 },
+                ]} />
             )}
             <HeroCard name="Rules" icon={BookOpen} color="#FF9500" href="/global" stats={[
                 { label: "Rules", value: stats.rules },

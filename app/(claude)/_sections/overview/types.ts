@@ -12,7 +12,6 @@ export interface Stats {
     plugins: number;
     claudeMd: number;
     memory: number;
-    memCategories: number;
     settings: number;
     rules: number;
     tokens: { input: number; output: number; cacheRead: number; cost: number };
