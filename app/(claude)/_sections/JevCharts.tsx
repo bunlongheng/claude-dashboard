@@ -168,7 +168,6 @@ function HealthStrip({ data }: { data: JevAggregate }) {
             <div style={{
                 display: "flex", alignItems: "center", gap: 12,
                 padding: "18px 24px", minWidth: 260, flex: "1 1 260px",
-                borderLeft: `3px solid ${h.color}`,
                 background: `linear-gradient(90deg, ${h.color}14 0%, transparent 100%)`,
             }}>
                 <span style={{
