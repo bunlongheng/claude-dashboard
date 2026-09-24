@@ -101,7 +101,7 @@ The switch on the page writes `~/.claude/jev-router.json`: **on** lets Jev pick,
 
 | Agent | Role | Model | Owns |
 |-------|------|-------|------|
-| <img src="public/agents/1.webp" width="22" align="absmiddle" />&nbsp;<img src="docs/agents/snow.svg" width="10" />&nbsp;**Snow** | Commander / Research | haiku | explore, find, study how something works; the catch-all |
+| <img src="public/agents/1.webp" width="22" align="absmiddle" />&nbsp;<img src="docs/agents/snow.svg" width="10" />&nbsp;**Snow** | Research | haiku | explore, find, study how something works; the catch-all |
 | <img src="public/agents/12.webp" width="22" align="absmiddle" />&nbsp;<img src="docs/agents/rock.svg" width="10" />&nbsp;**Rock** | Investigate | haiku | status checks, counts, batch comparisons |
 | <img src="public/agents/7.webp" width="22" align="absmiddle" />&nbsp;<img src="docs/agents/blitz.svg" width="10" />&nbsp;**Blitz** | Fix / Code | sonnet | surgical patches, lint and type errors, updates |
 | <img src="public/agents/4.webp" width="22" align="absmiddle" />&nbsp;<img src="docs/agents/venus.svg" width="10" />&nbsp;**Venus** | UI / Frontend | sonnet | styling, layout, dark mode, icons, images |
