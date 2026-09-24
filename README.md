@@ -10,7 +10,7 @@ A local-first dashboard that reads your `~/.claude/` folder directly and shows s
 ![React](https://img.shields.io/badge/React-19-20232A?style=flat&logo=react&logoColor=61DAFB)
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat&logo=typescript&logoColor=white)
 ![SQLite](https://img.shields.io/badge/SQLite-003B57?style=flat&logo=sqlite&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-310%20unit%20%2B%2024%20e2e-3FB68B?style=flat)
+![Tests](https://img.shields.io/badge/tests-310%20unit%20%2B%2023%20e2e-3FB68B?style=flat)
 ![License](https://img.shields.io/badge/License-PolyForm%20NC-blue?style=flat)
 
 ## Features
