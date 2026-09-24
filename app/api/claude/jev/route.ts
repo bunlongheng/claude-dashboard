@@ -1,19 +1,11 @@
 import { NextResponse } from "next/server";
 import { withErrorHandler } from "@/lib/api-handler";
-import { readJevLog, aggregateJev, JEV_LOG_PATH, JEV_HOOK_PATH, type JevAggregate } from "@/lib/jev-log";
+import { readJevLog, aggregateJev, JEV_LOG_PATH, JEV_HOOK_PATH, type JevPayload } from "@/lib/jev-log";
 
 export const dynamic = "force-dynamic";
 
 const CACHE_TTL_MS = 30_000;
 const CC = { headers: { "Cache-Control": "public, max-age=30" } };
-
-interface JevPayload extends JevAggregate {
-    days: number;
-    project: string | null;
-    projects: string[];
-    logPath: string;
-    hookPath: string;
-}
 
 // Cached per (days, project) pair - the day toggle and the project filter each
 // re-fetch, and re-reading a 5 MB tail on every toggle click is wasteful.
