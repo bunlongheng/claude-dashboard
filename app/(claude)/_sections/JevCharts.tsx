@@ -10,6 +10,7 @@ import {
 } from "recharts";
 import { cardShell } from "@/lib/ui-tokens";
 import { fmtNum, timeAgo } from "./shared";
+import AppIcon from "./AppIcon";
 import type { JevAggregate, JevRow, JevSession } from "@/lib/jev-log";
 
 // Fixed tier colors - the ladder reads left to right cheapest first, so the
@@ -340,6 +341,16 @@ const TD: React.CSSProperties = {
     fontSize: 11, color: "rgba(255,255,255,0.72)", padding: "7px 10px",
     borderTop: "1px solid rgba(255,255,255,0.04)", whiteSpace: "nowrap",
 };
+
+function ProjectCell({ project }: { project?: string }) {
+    if (!project) return <>-</>;
+    return (
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+            <AppIcon project={project} size={14} />
+            {project}
+        </span>
+    );
+}
 const NUM: React.CSSProperties = { ...TD, textAlign: "right", fontVariantNumeric: "tabular-nums" };
 
 // ── 5. Per session ───────────────────────────────────────────────────────────
@@ -375,7 +386,7 @@ function SessionTable({ sessions }: { sessions: JevSession[] }) {
                                         {s.session_id.slice(0, 8)}
                                     </Link>
                                 </td>
-                                <td style={TD}>{s.project}</td>
+                                <td style={TD}><ProjectCell project={s.project} /></td>
                                 <td style={NUM}>{s.messages}</td>
                                 <td style={{ ...NUM, color: STATUS_COLORS.routed }}>{s.routed}</td>
                                 <td style={{ ...NUM, color: s.errors > 0 ? STATUS_COLORS.error : "rgba(255,255,255,0.25)" }}>{s.errors}</td>
@@ -469,7 +480,7 @@ function MessageTable({ recent }: { recent: JevRow[] }) {
                             return (
                                 <tr key={`${r.ts}-${i}`}>
                                     <td style={{ ...TD, color: "rgba(255,255,255,0.45)" }}>{fmtTime(r.ts)}</td>
-                                    <td style={TD}>{r.project ?? "-"}</td>
+                                    <td style={TD}><ProjectCell project={r.project} /></td>
                                     <td style={{ ...TD, fontFamily: "ui-monospace, monospace", color: "rgba(255,255,255,0.4)" }}>{(r.session_id ?? "").slice(0, 8) || "-"}</td>
                                     <td style={TD}><Pill text={status === "skipped" && r.reason ? `${status} ${r.reason}` : status} color={STATUS_COLORS[status]} dim={status === "skipped"} /></td>
                                     <td style={TD}>{r.tier ? <TierPill tier={r.tier} /> : <span style={{ color: "rgba(255,255,255,0.2)" }}>-</span>}</td>
