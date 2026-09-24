@@ -51,6 +51,27 @@ describe("rag-context: mode-routed assembly", () => {
     expect(meta.mode).toBe("nothing");
   });
 
+  it("degrades a mode whose dependency is missing instead of throwing", async () => {
+    // The embedder is an optional dep and is absent here, so rag_vector cannot
+    // run. The SessionStart hook discards errors, so throwing would cost the
+    // session its memory with nothing on screen to show it.
+    db.setSetting("memory_mode", "rag_vector");
+    const { meta } = await context.buildContext("hello world", "proj-a");
+
+    expect(meta.mode).toBe("rag");
+    expect(meta.fallbackFrom).toBe("rag_vector");
+    expect(meta.reason).toMatch(/transformers/);
+  });
+
+  it("degrades a mode left behind by an older build", async () => {
+    db.setSetting("memory_mode", "hybrid_v2");
+    const { meta } = await context.buildContext("hello world");
+
+    expect(meta.mode).toBe("rag");
+    expect(meta.fallbackFrom).toBe("hybrid_v2");
+    expect(meta.reason).toBe("unknown mode");
+  });
+
   afterAll(() => {
     // Restore legacy (mode-unset) behavior for the tests below.
     db.getDb().prepare("DELETE FROM app_settings WHERE key = ?").run("memory_mode");
