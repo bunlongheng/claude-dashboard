@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/icon.png" width="96" height="96" alt="Claude Dashboard" />
+  <img src="docs/dashboard-icon.png" width="96" height="96" alt="Claude Dashboard" />
 </p>
 
 <h1 align="center">Claude Dashboard</h1>
