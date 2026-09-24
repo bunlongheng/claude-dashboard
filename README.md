@@ -33,33 +33,20 @@ Or `git clone` and `npm run setup`. Open **http://localhost:3003**. Needs [Node.
 
 | Page | What it shows |
 |------|--------------|
-| **Dashboard** | 12 stat cards, config donut, top sessions, live context window bars, activity heatmap, 7-day breakdown |
-| **Sessions** | Every session with live thinking state, tool calls, streaming, and Markdown export |
-| **Tokens / Usage** | Daily stacked charts, per-model and per-project cost, plan-aware pricing (API / Pro / Max), punchcard |
-| **Agents** | 12 color-coded specialist agents and subagent run history: status, duration, success rate |
-| **Jev** *(opt-in)* | Model-routing hook: tier and agent per prompt, confidence, latency, cost, and an on/off switch |
-| **RAG** *(opt-in)* | Local FTS5 memory over transcripts and CLAUDE.md, preference extraction, benchmark |
-| **Global / Settings** | Edit CLAUDE.md, settings.json and settings.local.json in place |
-| **Skills / Commands / Hooks / MCP / Plugins / Extensions** | Everything installed, with source locations and MCP connection status |
+| **Dashboard** | Stat cards, config donut, top sessions, Jev card, heatmap, 7-day breakdown |
+| **Sessions** | Live thinking state, tool calls, streaming, Markdown export |
+| **Tokens / Usage** | Daily charts, cost by model and project, plan pricing, punchcard |
+| **Agents** | 12 color-coded specialists plus subagent run history |
+| **Jev** *(opt-in)* | Tier and agent per prompt, confidence, latency, cost, on/off switch |
+| **RAG** *(opt-in)* | Local FTS5 memory, preference extraction, benchmark |
+| **Global / Settings** | Edit CLAUDE.md, settings.json, settings.local.json in place |
+| **Skills / Hooks / MCP** | Plus Commands, Plugins, Extensions: everything installed, with sources |
 
 Plus Cmd+K global search, a QR code for LAN access, a machine switcher, and active-session pills in the top bar. Mobile works.
 
 ## How It Works
 
-```mermaid
-flowchart LR
-    FS["~/.claude data<br>transcripts, memory, settings"]
-    API["Next.js API routes<br>/api/claude/*"]
-    DB["SQLite data/rag.db<br>full-text search"]
-    JEV["Jev router hook<br>~/.claude/logs/jev.jsonl"]
-    WS["WS watcher<br>port 7878"]
-    UI["Dashboard UI<br>React Query + Recharts"]
-
-    FS --> API --> UI
-    FS -->|ingest| DB --> API
-    JEV -->|1 line per prompt| API
-    FS -->|file watch| WS -->|live updates| UI
-```
+<a href="https://flows-bheng.vercel.app/?id=78e3bf49-16a1-472e-bc66-52bc23a63328"><img src="docs/how-it-works.svg" alt="How it works: ~/.claude files flow through Next.js API routes, a SQLite index and a WebSocket watcher into the dashboard UI" width="100%" /></a>
 
 Tail-reads your `~/.claude` files, indexes them into a local SQLite file, and streams changes to the UI. No upload, no account, no database server.
 
