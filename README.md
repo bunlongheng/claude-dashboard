@@ -33,14 +33,14 @@ Or `git clone` and `npm run setup`. Open **http://localhost:3003**. Needs [Node.
 
 | Page | What it shows |
 |------|--------------|
-| **Dashboard** | Stat cards, config donut, top sessions, Jev card, heatmap, 7-day breakdown |
+| **Dashboard** | Stat cards, config donut, top sessions, Jev card, heatmap |
 | **Sessions** | Live thinking state, tool calls, streaming, Markdown export |
 | **Tokens / Usage** | Daily charts, cost by model and project, plan pricing, punchcard |
 | **Agents** | 12 color-coded specialists plus subagent run history |
-| **Jev** *(opt-in)* | Tier and agent per prompt, confidence, latency, cost, on/off switch |
+| **Jev** *(opt-in)* | Tier and agent per prompt, confidence, latency, cost, switch |
 | **RAG** *(opt-in)* | Local FTS5 memory, preference extraction, benchmark |
 | **Global / Settings** | Edit CLAUDE.md, settings.json, settings.local.json in place |
-| **Skills / Hooks / MCP** | Plus Commands, Plugins, Extensions: everything installed, with sources |
+| **Skills / Hooks** | Plus Commands, MCP, Plugins, Extensions, all with sources |
 
 Plus Cmd+K global search, a QR code for LAN access, a machine switcher, and active-session pills in the top bar. Mobile works.
 
