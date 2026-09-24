@@ -11,7 +11,7 @@ vi.mock("@anthropic-ai/sdk", () => ({
   },
 }));
 
-import { answer, judge, kpSynthesize } from "@/lib/eval/llm";
+import { answer, judge } from "@/lib/eval/llm";
 
 function textResult(text: string, tokensIn = 10, tokensOut = 5) {
   return {
@@ -117,42 +117,6 @@ describe("lib/eval/llm", () => {
       const result = await judge("q", "expected", "response");
       expect(result.score).toBe(0);
       expect(result.reason).toBe("");
-    });
-  });
-
-  describe("kpSynthesize", () => {
-    it("returns an empty brief immediately when raw is empty, without calling the model", async () => {
-      const result = await kpSynthesize("q", "");
-      expect(mockCreate).not.toHaveBeenCalled();
-      expect(result.brief).toBe("");
-      expect(result.usage.tokensIn).toBe(0);
-      expect(result.usage.tokensOut).toBe(0);
-      expect(result.usage.costUsd).toBe(0);
-      expect(result.usage.latencyMs).toBe(0);
-    });
-
-    it("returns an empty brief immediately when raw is only whitespace", async () => {
-      const result = await kpSynthesize("q", "   ");
-      expect(mockCreate).not.toHaveBeenCalled();
-      expect(result.brief).toBe("");
-    });
-
-    it("synthesizes a brief when raw content is present", async () => {
-      mockCreate.mockResolvedValueOnce(textResult("a tight brief"));
-      const result = await kpSynthesize("q", "some raw memory");
-      expect(mockCreate).toHaveBeenCalledTimes(1);
-      expect(result.brief).toBe("a tight brief");
-      expect(result.usage.tokensIn).toBe(10);
-      expect(result.usage.tokensOut).toBe(5);
-    });
-
-    it("falls back to an empty string when no text block is present", async () => {
-      mockCreate.mockResolvedValueOnce({
-        content: [{ type: "image" }],
-        usage: { input_tokens: 1, output_tokens: 1 },
-      });
-      const result = await kpSynthesize("q", "raw");
-      expect(result.brief).toBe("");
     });
   });
 

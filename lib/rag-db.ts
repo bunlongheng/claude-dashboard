@@ -139,12 +139,6 @@ export function getDb(): Database.Database {
       created_at  TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
-    CREATE TABLE IF NOT EXISTS app_settings (
-      key        TEXT PRIMARY KEY,
-      value      TEXT NOT NULL,
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
     CREATE INDEX IF NOT EXISTS idx_eval_runs_batch ON eval_runs(batch_id);
     CREATE INDEX IF NOT EXISTS idx_eval_runs_config ON eval_runs(config);
     CREATE INDEX IF NOT EXISTS idx_chunks_doc ON chunks(doc_id);
@@ -184,18 +178,6 @@ export function getDb(): Database.Database {
   return db;
 }
 
-// Simple key/value app settings (e.g. the live memory mode chosen on /context).
-export function getSetting(key: string): string | null {
-  const row = getDb().prepare("SELECT value FROM app_settings WHERE key = ?").get(key) as { value: string } | undefined;
-  return row?.value ?? null;
-}
-
-export function setSetting(key: string, value: string): void {
-  getDb().prepare(
-    "INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, datetime('now')) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at"
-  ).run(key, value);
-}
-
 // Rebuild FTS index from chunks table
 export function syncFts(db: Database.Database) {
   db.exec(`DELETE FROM chunks_fts;`);
@@ -220,16 +202,14 @@ export type Preference = {
   source_doc: number | null; confidence: number; created_at: string;
 };
 
-export type EvalConfig = "nothing" | "rag" | "rag_vector" | "rag_vector_kp" | "kp";
+export type EvalConfig = "nothing" | "rag" | "rag_vector";
 
-export const EVAL_CONFIGS: EvalConfig[] = ["nothing", "rag", "rag_vector", "rag_vector_kp", "kp"];
+export const EVAL_CONFIGS: EvalConfig[] = ["nothing", "rag", "rag_vector"];
 
 export const EVAL_CONFIG_LABELS: Record<EvalConfig, string> = {
   nothing: "Nothing",
   rag: "RAG only",
   rag_vector: "RAG + Vector DB",
-  rag_vector_kp: "RAG + Vector + KP LLM",
-  kp: "KP LLM only",
 };
 
 export type EvalQuestion = {
