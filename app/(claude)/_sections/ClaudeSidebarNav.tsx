@@ -7,7 +7,7 @@ import { usePathname } from "next/navigation";
 import {
     LayoutDashboard, FolderOpen, Coins, DollarSign,
     BookOpen, Settings,
-    Brain, Sparkles, Terminal, Blocks, Server, SquareTerminal,
+    Sparkles, Terminal, Blocks, Server, SquareTerminal,
     Menu, X, ChevronDown, ChevronLeft, ChevronRight, Monitor, PanelLeftClose, PanelLeftOpen,
     Bot,
     Search, DatabaseZap, FileText, SlidersHorizontal, Wand2,
@@ -37,7 +37,6 @@ export const NAV_SECTIONS: NavSection[] = [
         // RAG + local vector search are opt-in (NEXT_PUBLIC_RAG_ENABLED=1).
         ...(RAG_ENABLED ? [
             { href: "/rag",      label: "RAG",       Icon: DatabaseZap,     exact: false, color: "#FF3B30" },
-            { href: "/context",  label: "Context",   Icon: Brain,           exact: false, color: "#FF6347" },
         ] : []),
         { href: "/global",   label: "CLAUDE.md", Icon: BookOpen,        exact: false, color: "#FF9500" },
     ]},
@@ -275,7 +274,6 @@ export default function ClaudeSidebarNav() {
                 ...prev,
                 "/dashboard": brain.totalProjects ?? 0,
                 "/global": skills.summary?.claudeMd ?? 0,
-                "/context": rag.preferences ?? 0,
                 "/mcp": skills.summary?.mcp ?? 0,
                 "/cli": CLI_TOOL_COUNT,
                 "/skills": skills.summary?.skills ?? 0,

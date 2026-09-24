@@ -118,7 +118,7 @@ export default function OverviewSection() {
     interface MainData { stats: Stats; allTokens: Token[]; allSessionProjects: ProjectSessions[] }
     const EMPTY_STATS: Stats = {
         sessions: 0, activeSessions: 0, skills: 0, commands: 0, hooks: 0, mcp: 0, mcpMine: 0,
-        mcpShipped: 0, plugins: 0, claudeMd: 0, memory: 0, memCategories: 0, settings: 0, rules: 0,
+        mcpShipped: 0, plugins: 0, claudeMd: 0, memory: 0, settings: 0, rules: 0,
         tokens: { input: 0, output: 0, cacheRead: 0, cost: 0 },
     };
     const urlSessions = apiBase("/api/claude/sessions");
@@ -154,7 +154,6 @@ export default function OverviewSection() {
                     plugins: skills?.summary?.plugins ?? 0,
                     claudeMd: skills?.summary?.claudeMd ?? 0,
                     memory: brain?.categoryCounts?.memory ?? brain?.totalFiles ?? 0,
-                    memCategories: Object.keys(brain?.categoryCounts ?? {}).length,
                     settings: settingsCount,
                     rules: (brain?.globalRules ?? []).length,
                     tokens: {
