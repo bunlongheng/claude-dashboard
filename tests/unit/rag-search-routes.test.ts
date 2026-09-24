@@ -273,11 +273,10 @@ describe("POST /api/rag/context", () => {
     expect(res.status).toBe(400);
   });
 
-  it("assembles preferences + matching chunks into the context block", async () => {
+  it("assembles the matching chunks into the context block", async () => {
     await freshDb();
     const dbMod = await import("@/lib/rag-db");
     const db = dbMod.getDb();
-    db.prepare("INSERT INTO preferences (category, key, value) VALUES (?, ?, ?)").run("style", "dashes", "hyphens only");
     const docId = db.prepare(
       `INSERT INTO documents (source_path, source_type, project, title, content, content_hash) VALUES (?, ?, ?, ?, ?, ?)`
     ).run("/tmp/ctx.md", "memory", "demoapp", "Ctx Doc", "widget setup notes", "hash-ctx").lastInsertRowid as number;
@@ -293,11 +292,9 @@ describe("POST /api/rag/context", () => {
     const res = await POST(req as unknown as Parameters<typeof POST>[0], {} as never);
     expect(res.status).toBe(200);
     const data = await res.json();
-    expect(data.context).toContain("Your Preferences");
-    expect(data.context).toContain("hyphens only");
-    expect(data.context).toContain("Relevant Context");
+    expect(data.context).toContain("[demoapp/Ctx Doc]");
     expect(data.context).toContain("widget setup notes for demoapp");
-    expect(data.meta).toMatchObject({ prefs: 1, chunks: 1 });
+    expect(data.meta).toMatchObject({ chunks: 1 });
     expect(data.meta.size).toBe(data.context.length);
 
     const logged = db.prepare("SELECT COUNT(*) as c FROM context_log WHERE project = ?").get("demoapp") as { c: number };
@@ -340,48 +337,6 @@ describe("GET /api/rag/preferences", () => {
     expect(Array.isArray(data)).toBe(true);
     expect(data[0]).toHaveProperty("category");
     expect(data[0]).not.toHaveProperty("value");
-  });
-});
-
-// ─── GET/POST /api/rag/mode ─────────────────────────────────────────────────
-
-describe("GET/POST /api/rag/mode", () => {
-  it("GET returns null mode before anything is set", async () => {
-    await freshDb();
-    const { GET } = await import("@/app/api/rag/mode/route");
-    const res = await GET(new Request("http://localhost/"), {} as never);
-    const data = await res.json();
-    expect(data.mode).toBeNull();
-  });
-
-  it("POST sets a valid mode and GET reflects it", async () => {
-    await freshDb();
-    const { POST, GET } = await import("@/app/api/rag/mode/route");
-    const postReq = new Request("http://localhost/api/rag/mode", { method: "POST", body: JSON.stringify({ mode: "rag_vector" }) });
-    const postRes = await POST(postReq as unknown as Parameters<typeof POST>[0], {} as never);
-    expect(postRes.status).toBe(200);
-    const postData = await postRes.json();
-    expect(postData).toEqual({ ok: true, mode: "rag_vector" });
-
-    const getData = await (await GET(new Request("http://localhost/"), {} as never)).json();
-    expect(getData.mode).toBe("rag_vector");
-  });
-
-  it("POST rejects an invalid mode with 400", async () => {
-    await freshDb();
-    const { POST } = await import("@/app/api/rag/mode/route");
-    const req = new Request("http://localhost/api/rag/mode", { method: "POST", body: JSON.stringify({ mode: "not-a-real-mode" }) });
-    const res = await POST(req as unknown as Parameters<typeof POST>[0], {} as never);
-    expect(res.status).toBe(400);
-  });
-
-  it("POST with mode:null clears the setting back to null", async () => {
-    await freshDb();
-    const { POST } = await import("@/app/api/rag/mode/route");
-    await POST(new Request("http://localhost/api/rag/mode", { method: "POST", body: JSON.stringify({ mode: "kp" }) }) as unknown as Parameters<typeof POST>[0], {} as never);
-    const res = await POST(new Request("http://localhost/api/rag/mode", { method: "POST", body: JSON.stringify({ mode: null }) }) as unknown as Parameters<typeof POST>[0], {} as never);
-    const data = await res.json();
-    expect(data.mode).toBeNull();
   });
 });
 

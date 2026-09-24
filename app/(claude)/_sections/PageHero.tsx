@@ -6,7 +6,6 @@ import { NAV_ITEMS, NAV_SECTIONS } from "./ClaudeSidebarNav";
 const PAGE_SUBTITLES: Record<string, string> = {
     "/dashboard": "Dashboard & monitoring",
     "/global":   "Identity, rules & instructions",
-    "/context":  "Your memory graph - preferences by category",
     "/settings": "settings.json & settings.local.json",
     "/mcp":      "MCP server connections",
     "/plugins":  "Installed plugins & extensions",

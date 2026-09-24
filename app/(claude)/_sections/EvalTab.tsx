@@ -4,14 +4,12 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { FlaskConical, Play, Trophy, Clock, DollarSign, FileText, ChevronDown, ChevronRight } from "lucide-react";
 
-type ConfigKey = "nothing" | "rag" | "rag_vector" | "rag_vector_kp" | "kp";
+type ConfigKey = "nothing" | "rag" | "rag_vector";
 
 const CONFIG_META: Record<ConfigKey, { label: string; color: string }> = {
     nothing: { label: "Nothing", color: "#6b7280" },
     rag: { label: "RAG only", color: "#10b981" },
     rag_vector: { label: "RAG + Vector", color: "#3b82f6" },
-    rag_vector_kp: { label: "RAG + Vector + KP", color: "#8b5cf6" },
-    kp: { label: "KP LLM only", color: "#f59e0b" },
 };
 
 type ConfigReport = {
@@ -76,7 +74,7 @@ export default function EvalTab({ apiBase }: { apiBase: (p: string) => string })
                         <h2 style={{ fontSize: 15, fontWeight: 700, color: "#fff", margin: 0 }}>Memory Benchmark</h2>
                     </div>
                     <p style={{ fontSize: 12, color: "rgba(255,255,255,0.52)", margin: "4px 0 0" }}>
-                        {questions.length} questions x 5 configs. LLM-judged 0-5 on accuracy.
+                        {questions.length} questions x {Object.keys(CONFIG_META).length} configs. LLM-judged 0-5 on accuracy.
                     </p>
                 </div>
                 <button
@@ -99,7 +97,7 @@ export default function EvalTab({ apiBase }: { apiBase: (p: string) => string })
                 <div style={{ textAlign: "center", padding: "48px 0", border: "1px dashed rgba(255,255,255,0.1)", borderRadius: 12 }}>
                     <FlaskConical size={28} style={{ color: "rgba(255,255,255,0.45)", margin: "0 auto 10px" }} />
                     <p style={{ color: "rgba(255,255,255,0.52)", fontSize: 13 }}>No benchmark run yet</p>
-                    <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, marginTop: 4 }}>Click Run benchmark to compare all 5 memory configs.</p>
+                    <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, marginTop: 4 }}>Click Run benchmark to compare the memory configs.</p>
                 </div>
             )}
 

@@ -25,7 +25,7 @@ export async function runBenchmark(opts?: { configs?: EvalConfig[]; questionIds?
   const configs = opts?.configs ?? EVAL_CONFIGS;
 
   // Ensure vectors exist if any config needs them.
-  if (configs.some(c => c === "rag_vector" || c === "rag_vector_kp")) {
+  if (configs.includes("rag_vector")) {
     await indexChunks();
   }
 
@@ -51,8 +51,7 @@ export async function runBenchmark(opts?: { configs?: EvalConfig[]; questionIds?
       const ans = await answer(q.question, asm.context);
       const grade = await judge(q.question, q.expected, ans.text);
 
-      // Total cost/tokens = assembly (KP synth) + answering + judging.
-      const totals = sumUsage([...asm.extraUsage, ans.usage, grade.usage]);
+      const totals = sumUsage([ans.usage, grade.usage]);
 
       insert.run(
         batchId, q.id, config, ans.text, grade.score, grade.reason,
@@ -98,6 +97,10 @@ interface BatchDetailRow {
   judge_reason: string;
 }
 
+// Older batches carry rows for configs that no longer exist (the KP modes).
+// They stay in the table as history but never reach the report.
+const CONFIG_LIST = EVAL_CONFIGS.map(c => `'${c}'`).join(", ");
+
 // Aggregate a batch (or the latest) into per-config rows for the report UI.
 export function getReport(batchId?: string): { batchId: string | null; configs: ConfigReport[]; questionCount: number } {
   const db = getDb();
@@ -114,7 +117,7 @@ export function getReport(batchId?: string): { batchId: string | null; configs: 
       SUM(tokens_out) as totalTokensOut,
       SUM(cost_usd) as totalCostUsd,
       AVG(context_size) as avgContextSize
-    FROM eval_runs WHERE batch_id = ?
+    FROM eval_runs WHERE batch_id = ? AND config IN (${CONFIG_LIST})
     GROUP BY config
   `).all(bid) as ConfigAggRow[];
 
@@ -147,7 +150,7 @@ export function getBatchDetail(batchId: string) {
   const rows = db.prepare(`
     SELECT r.question_id, q.question, q.expected, r.config, r.response, r.judge_score, r.judge_reason
     FROM eval_runs r JOIN eval_questions q ON q.id = r.question_id
-    WHERE r.batch_id = ? ORDER BY r.question_id, r.config
+    WHERE r.batch_id = ? AND r.config IN (${CONFIG_LIST}) ORDER BY r.question_id, r.config
   `).all(batchId) as BatchDetailRow[];
   return rows;
 }

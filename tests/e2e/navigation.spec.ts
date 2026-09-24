@@ -3,7 +3,7 @@ import { test, expect } from "@playwright/test";
 const GOTO = { waitUntil: "domcontentloaded" as const };
 
 const ROUTES = [
-  "/dashboard", "/agents", "/rag", "/context", "/global", "/mcp", "/skills",
+  "/dashboard", "/agents", "/rag", "/global", "/mcp", "/skills",
   "/cli", "/extensions", "/settings", "/sessions", "/tokens", "/usage", "/jev", "/hooks",
   "/commands", "/plugins",
   "/rag/search", "/rag/preferences", "/rag/documents",
@@ -37,7 +37,7 @@ test("clicking each nav item navigates to its route", async ({ page }) => {
   await page.goto("/dashboard", GOTO);
   const aside = page.locator("aside").first();
   const targets: [string, RegExp][] = [
-    ["Agents", /\/agents/], ["RAG", /\/rag/], ["Context", /\/context/],
+    ["Agents", /\/agents/], ["RAG", /\/rag/],
     ["CLAUDE.md", /\/global/], ["MCP", /\/mcp/], ["Skills", /\/skills/],
     ["CLI", /\/cli/], ["Extensions", /\/extensions/], ["Settings", /\/settings/],
     ["Sessions", /\/sessions/], ["Tokens", /\/tokens/], ["Jev", /\/jev/],

@@ -1,5 +1,4 @@
 import { getDb } from "./rag-db";
-import Anthropic from "@anthropic-ai/sdk";
 
 // ── Query Expansion ──────────────────────────────────────────────────────────
 
@@ -170,44 +169,6 @@ export function entitySearch(query: string, limit = 10): SearchResult[] {
   } catch {
     return [];
   }
-}
-
-export async function searchWithRerank(query: string, limit = 5): Promise<SearchResult[]> {
-  // Multi-signal: FTS + entity search
-  const ftsResults = ftsSearch(query, 20);
-  const entityResults = entitySearch(query, 10);
-
-  // Merge and deduplicate
-  const seen = new Set<number>();
-  const candidates: SearchResult[] = [];
-  for (const r of [...ftsResults, ...entityResults]) {
-    if (!seen.has(r.chunk_id)) { seen.add(r.chunk_id); candidates.push(r); }
-  }
-
-  if (candidates.length <= limit) return candidates;
-  if (!process.env.ANTHROPIC_API_KEY) return candidates.slice(0, limit);
-
-  const anthropic = new Anthropic();
-  const numbered = candidates.slice(0, 20).map((c, i) =>
-    `[${i}] (${c.project}/${c.title}): ${c.content.slice(0, 300)}`
-  ).join("\n\n");
-
-  const msg = await anthropic.messages.create({
-    model: "claude-haiku-4-5-20251001",
-    max_tokens: 200,
-    messages: [{
-      role: "user",
-      content: `Given this query: "${query}"\n\nPick the ${limit} most relevant chunks. Return ONLY a JSON array of indices, e.g. [2, 0, 5, 1, 4]. Most relevant first.\n\n${numbered}`,
-    }],
-  });
-
-  const text = msg.content.find(b => b.type === "text")?.text ?? "[]";
-  const match = text.match(/\[[\d,\s]+\]/);
-  if (!match) return candidates.slice(0, limit);
-
-  let indices: number[];
-  try { indices = JSON.parse(match[0]); } catch { return candidates.slice(0, limit); }
-  return indices.filter(i => i >= 0 && i < candidates.length).slice(0, limit).map(i => candidates[i]);
 }
 
 // ── Health Checks ────────────────────────────────────────────────────────────
