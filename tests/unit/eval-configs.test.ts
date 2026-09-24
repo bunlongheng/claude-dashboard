@@ -8,15 +8,11 @@ const TMP_DB = path.join(os.tmpdir(), `eval-configs-test-${Date.now()}-${Math.ra
 process.env.RAG_DB_PATH = TMP_DB;
 
 const mockVectorSearch = vi.fn();
-const mockKpSynthesize = vi.fn();
 
-// configs.ts imports these via "./vectors" and "./llm"; mocking by the "@/"
-// alias resolves to the same absolute module files.
+// configs.ts imports this via "./vectors"; mocking by the "@/" alias resolves
+// to the same absolute module file.
 vi.mock("@/lib/eval/vectors", () => ({
   vectorSearch: mockVectorSearch,
-}));
-vi.mock("@/lib/eval/llm", () => ({
-  kpSynthesize: mockKpSynthesize,
 }));
 
 type ConfigsMod = typeof import("@/lib/eval/configs");
@@ -38,10 +34,6 @@ beforeAll(async () => {
   const d1 = insertDoc.run("p/auth1", "memory", "claude", "Auth One", "authentication oauth setup one", "h1").lastInsertRowid as number;
   const d2 = insertDoc.run("p/auth2", "memory", "claude", "Auth Two", "authentication oauth setup two", "h2").lastInsertRowid as number;
   const d3 = insertDoc.run("p/auth3", "memory", "claude", "Auth Three", "authentication oauth setup three", "h3").lastInsertRowid as number;
-  insertDoc.run("p/wiki1", "global_rules", "claude", "Wiki Rule", "always use hyphens not dashes", "h4");
-  insertDoc.run("p/wiki2", "claude_md", "claude", "Wiki Md", "port 3003 for the claude dashboard", "h5");
-  // Not a memory/global_rules/claude_md doc - must be excluded from wikiCorpus.
-  insertDoc.run("p/convo", "conversation", "claude", "Convo", "chit chat not part of the wiki", "h6");
 
   const insertChunk = conn.prepare("INSERT INTO chunks (doc_id, chunk_index, content, token_count) VALUES (?, ?, ?, ?)");
   const c1 = insertChunk.run(d1, 0, "authentication oauth setup one detail", 6).lastInsertRowid as number;
@@ -55,19 +47,18 @@ beforeAll(async () => {
 describe("lib/eval/configs - assembleContext branches", () => {
   beforeEach(() => {
     mockVectorSearch.mockClear();
-    mockKpSynthesize.mockClear();
   });
 
-  it("'nothing' returns empty context with no usage", async () => {
+  it("'nothing' returns an empty context", async () => {
     const result = await configs.assembleContext("nothing", "authentication");
-    expect(result).toEqual({ context: "", size: 0, extraUsage: [] });
+    expect(result).toEqual({ context: "", size: 0, chunks: 0 });
   });
 
-  it("'rag' returns formatted FTS hits and no extra usage", async () => {
+  it("'rag' returns formatted FTS hits and counts them", async () => {
     const result = await configs.assembleContext("rag", "authentication");
     expect(result.context).toContain("authentication oauth setup");
     expect(result.size).toBe(result.context.length);
-    expect(result.extraUsage).toEqual([]);
+    expect(result.chunks).toBe(3);
   });
 
   it("'rag' sanitizes FTS-special characters out of the question (sanitizeForFts)", async () => {
@@ -103,79 +94,13 @@ describe("lib/eval/configs - assembleContext branches", () => {
     expect(result.context).not.toContain("dup of fts[0]");
     expect(result.context).toContain("vector only one");
     // Capped at 6 total merged hits.
-    const entryCount = result.context.split("\n\n").length;
-    expect(entryCount).toBeLessThanOrEqual(6);
-    expect(result.extraUsage).toEqual([]);
+    expect(result.chunks).toBeLessThanOrEqual(6);
+    expect(result.context.split("\n\n").length).toBe(result.chunks);
   });
 
   it("'rag_vector' handles vector hits shorter than FTS hits (the `!r` branch on the vector side)", async () => {
     mockVectorSearch.mockResolvedValueOnce([]);
     const result = await configs.assembleContext("rag_vector", "authentication oauth setup");
     expect(result.context).toContain("authentication oauth setup");
-  });
-
-  it("'rag_vector_kp' synthesizes a brief from the merged hits", async () => {
-    mockVectorSearch.mockResolvedValueOnce([]);
-    mockKpSynthesize.mockResolvedValueOnce({
-      brief: "tight brief",
-      usage: { model: "m", tokensIn: 1, tokensOut: 1, costUsd: 0, latencyMs: 0 },
-    });
-    const result = await configs.assembleContext("rag_vector_kp", "authentication oauth setup");
-    expect(result.context).toBe("tight brief");
-    expect(result.size).toBe("tight brief".length);
-    expect(result.extraUsage).toEqual([{ model: "m", tokensIn: 1, tokensOut: 1, costUsd: 0, latencyMs: 0 }]);
-    const rawPassed = mockKpSynthesize.mock.calls[0][1] as string;
-    expect(rawPassed).toContain("authentication oauth setup");
-  });
-
-  it("'kp' synthesizes over the full wiki corpus, including preferences when present", async () => {
-    const conn = db.getDb();
-    conn.prepare("INSERT INTO preferences (category, key, value) VALUES (?, ?, ?)").run("stack", "framework", "Next.js 16");
-
-    mockKpSynthesize.mockResolvedValueOnce({
-      brief: "wiki brief",
-      usage: { model: "m", tokensIn: 2, tokensOut: 2, costUsd: 0, latencyMs: 0 },
-    });
-    const result = await configs.assembleContext("kp", "anything");
-    expect(result.context).toBe("wiki brief");
-    expect(mockVectorSearch).not.toHaveBeenCalled();
-
-    const rawPassed = mockKpSynthesize.mock.calls[0][1] as string;
-    expect(rawPassed).toContain("PREFERENCES:");
-    expect(rawPassed).toContain("framework: Next.js 16");
-    expect(rawPassed).toContain("always use hyphens not dashes");
-    expect(rawPassed).toContain("port 3003 for the claude dashboard");
-    // Only memory/global_rules/claude_md docs are included, not conversation docs.
-    expect(rawPassed).not.toContain("chit chat not part of the wiki");
-  });
-
-  it("'kp' omits the PREFERENCES block when there are no preference rows", async () => {
-    const conn = db.getDb();
-    conn.prepare("DELETE FROM preferences").run();
-
-    mockKpSynthesize.mockResolvedValueOnce({
-      brief: "wiki brief no prefs",
-      usage: { model: "m", tokensIn: 1, tokensOut: 1, costUsd: 0, latencyMs: 0 },
-    });
-    await configs.assembleContext("kp", "anything");
-    const rawPassed = mockKpSynthesize.mock.calls[0][1] as string;
-    expect(rawPassed).not.toContain("PREFERENCES:");
-  });
-
-  it("'kp' caps the wiki corpus at EVAL_WIKI_MAX_CHARS", async () => {
-    const prev = process.env.EVAL_WIKI_MAX_CHARS;
-    process.env.EVAL_WIKI_MAX_CHARS = "20";
-    try {
-      mockKpSynthesize.mockResolvedValueOnce({
-        brief: "capped",
-        usage: { model: "m", tokensIn: 1, tokensOut: 1, costUsd: 0, latencyMs: 0 },
-      });
-      await configs.assembleContext("kp", "anything");
-      const rawPassed = mockKpSynthesize.mock.calls[0][1] as string;
-      expect(rawPassed.length).toBeLessThanOrEqual(20);
-    } finally {
-      if (prev === undefined) delete process.env.EVAL_WIKI_MAX_CHARS;
-      else process.env.EVAL_WIKI_MAX_CHARS = prev;
-    }
   });
 });

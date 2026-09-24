@@ -105,34 +105,3 @@ export async function judge(
     },
   };
 }
-
-// KP synthesis: compile retrieved chunks / wiki into a tight brief.
-const KP_SYSTEM = `You compile raw memory snippets into a single tight brief for answering a question.
-Merge overlapping facts, drop irrelevant ones, resolve contradictions (prefer the most specific/recent).
-Output a short factual brief (no preamble, no headings). This is Karpathy-style synthesis: distill, don't list.`;
-
-export async function kpSynthesize(question: string, raw: string): Promise<{ brief: string; usage: Usage }> {
-  const start = Date.now();
-  if (!raw.trim()) {
-    return { brief: "", usage: { model: ANSWER_MODEL, tokensIn: 0, tokensOut: 0, costUsd: 0, latencyMs: 0 } };
-  }
-  const msg = await anthropic().messages.create({
-    model: ANSWER_MODEL,
-    max_tokens: 512,
-    system: KP_SYSTEM,
-    messages: [{ role: "user", content: `Question: ${question}\n\nRaw memory:\n${raw}` }],
-  });
-  const brief = msg.content.find(b => b.type === "text")?.text ?? "";
-  const tokensIn = msg.usage.input_tokens;
-  const tokensOut = msg.usage.output_tokens;
-  return {
-    brief,
-    usage: {
-      model: ANSWER_MODEL,
-      tokensIn,
-      tokensOut,
-      costUsd: cost(ANSWER_MODEL, tokensIn, tokensOut),
-      latencyMs: Date.now() - start,
-    },
-  };
-}

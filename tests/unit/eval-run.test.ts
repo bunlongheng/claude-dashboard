@@ -30,7 +30,7 @@ let run: RunMod;
 let db: RagDb;
 
 function defaultMocks() {
-  mockAssembleContext.mockResolvedValue({ context: "ctx", size: 3, extraUsage: [] });
+  mockAssembleContext.mockResolvedValue({ context: "ctx", size: 3, chunks: 1 });
   mockAnswer.mockResolvedValue({
     text: "an answer",
     usage: { model: "claude-haiku-4-5-20251001", tokensIn: 10, tokensOut: 5, costUsd: 0.001, latencyMs: 50 },
@@ -85,13 +85,6 @@ describe("lib/eval/run - runBenchmark", () => {
     expect(mockIndexChunks).toHaveBeenCalledTimes(1);
   });
 
-  it("indexes vectors when rag_vector_kp is among the configs", async () => {
-    defaultMocks();
-    mockIndexChunks.mockClear();
-    await run.runBenchmark({ configs: ["rag_vector_kp"] });
-    expect(mockIndexChunks).toHaveBeenCalledTimes(1);
-  });
-
   it("runs every question for every config when no questionIds filter is given", async () => {
     defaultMocks();
     const conn = db.getDb();
@@ -118,17 +111,13 @@ describe("lib/eval/run - runBenchmark", () => {
     const conn = db.getDb();
     const [first] = conn.prepare("SELECT id FROM eval_questions ORDER BY id").all() as { id: number }[];
     const { runs } = await run.runBenchmark({ questionIds: [first.id] });
-    // EVAL_CONFIGS has 5 entries and includes rag_vector/rag_vector_kp.
-    expect(runs).toBe(5);
+    // EVAL_CONFIGS has 3 entries and includes rag_vector.
+    expect(runs).toBe(3);
     expect(mockIndexChunks).toHaveBeenCalledTimes(1);
   });
 
-  it("inserts a fully-populated eval_runs row combining assembly + answer + judge usage", async () => {
-    mockAssembleContext.mockResolvedValue({
-      context: "ctx",
-      size: 42,
-      extraUsage: [{ model: "m", tokensIn: 1, tokensOut: 1, costUsd: 0.0001, latencyMs: 5 }],
-    });
+  it("inserts a fully-populated eval_runs row combining answer + judge usage", async () => {
+    mockAssembleContext.mockResolvedValue({ context: "ctx", size: 42, chunks: 1 });
     mockAnswer.mockResolvedValue({
       text: "the answer text",
       usage: { model: "claude-haiku-4-5-20251001", tokensIn: 10, tokensOut: 5, costUsd: 0.001, latencyMs: 50 },
@@ -152,11 +141,11 @@ describe("lib/eval/run - runBenchmark", () => {
     expect(row.judge_reason).toBe("correct");
     expect(row.context_size).toBe(42);
     expect(row.model).toBe("claude-haiku-4-5-20251001");
-    // Totals = extraUsage + answer usage + judge usage.
-    expect(row.tokens_in).toBe(1 + 10 + 20);
-    expect(row.tokens_out).toBe(1 + 5 + 8);
-    expect(row.latency_ms).toBe(5 + 50 + 70);
-    expect(row.cost_usd).toBeCloseTo(0.0001 + 0.001 + 0.002, 6);
+    // Totals = answer usage + judge usage.
+    expect(row.tokens_in).toBe(10 + 20);
+    expect(row.tokens_out).toBe(5 + 8);
+    expect(row.latency_ms).toBe(50 + 70);
+    expect(row.cost_usd).toBeCloseTo(0.001 + 0.002, 6);
   });
 });
 
@@ -207,11 +196,30 @@ describe("lib/eval/run - getReport", () => {
         (batch_id, question_id, config, response, judge_score, judge_reason,
          latency_ms, tokens_in, tokens_out, cost_usd, context_size, model)
       VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?)
-    `).run(nullBatch, first.id, "kp", "resp", "no score", 10, 1, 1, 0, 5, "m");
+    `).run(nullBatch, first.id, "rag", "resp", "no score", 10, 1, 1, 0, 5, "m");
 
     const report = run.getReport(nullBatch);
     expect(report.configs.length).toBe(1);
     expect(report.configs[0].avgScore).toBe(0);
+  });
+
+  it("leaves rows from retired configs out of the report and the detail", async () => {
+    // Batches from before the KP modes were removed still carry their rows.
+    const conn = db.getDb();
+    const [first] = conn.prepare("SELECT id FROM eval_questions ORDER BY id").all() as { id: number }[];
+    const legacyBatch = "legacy-kp-batch";
+    const insert = conn.prepare(`
+      INSERT INTO eval_runs
+        (batch_id, question_id, config, response, judge_score, judge_reason,
+         latency_ms, tokens_in, tokens_out, cost_usd, context_size, model)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    insert.run(legacyBatch, first.id, "kp", "resp", 1, "weak", 10, 1, 1, 0, 5, "m");
+    insert.run(legacyBatch, first.id, "rag", "resp", 4, "good", 10, 1, 1, 0, 5, "m");
+
+    const report = run.getReport(legacyBatch);
+    expect(report.configs.map(c => c.config)).toEqual(["rag"]);
+    expect(run.getBatchDetail(legacyBatch).map(r => r.config)).toEqual(["rag"]);
   });
 });
 
