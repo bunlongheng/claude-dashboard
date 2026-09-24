@@ -7,7 +7,6 @@ import * as fs from "fs";
 // data/rag.db is never touched. rag-db reads RAG_DB_PATH at import time.
 const TMP_DB = path.join(os.tmpdir(), `rag-test-${Date.now()}-${Math.random().toString(36).slice(2)}.db`);
 process.env.RAG_DB_PATH = TMP_DB;
-delete process.env.ANTHROPIC_API_KEY; // force the no-LLM rerank path
 
 type RagDb = typeof import("@/lib/rag-db");
 type RagSearch = typeof import("@/lib/rag-search");
@@ -102,11 +101,6 @@ describe("rag-search", () => {
     expect(Array.isArray(search.entitySearch("cognito"))).toBe(true);
   });
 
-  it("searchWithRerank returns candidates without an API key", async () => {
-    const out = await search.searchWithRerank("authentication", 5);
-    expect(Array.isArray(out)).toBe(true);
-  });
-
   it("runHealthChecks flags the seeded issues and returns an array", () => {
     const checks = search.runHealthChecks();
     expect(Array.isArray(checks)).toBe(true);
@@ -136,13 +130,13 @@ describe("rag-search", () => {
 });
 
 describe("rag-context", () => {
-  it("buildContext assembles preferences + relevant chunks and logs the injection", async () => {
+  it("buildContext returns the top FTS hits and logs the injection", async () => {
     const { context: ctx, meta } = await context.buildContext("authentication oauth", "claude");
-    expect(typeof ctx).toBe("string");
-    expect(ctx).toContain("Your Preferences");
-    expect(meta.prefs).toBe(3);
+    expect(ctx).toContain("[claude/Auth Notes]");
+    expect(ctx).toContain("authentication oauth login with cognito");
+    expect(meta.chunks).toBe(1);
     expect(meta.size).toBe(ctx.length);
-    const logged = (db.getDb().prepare("SELECT COUNT(*) as c FROM context_log").get() as { c: number }).c;
-    expect(logged).toBeGreaterThan(0);
+    const logged = db.getDb().prepare("SELECT project, chunks_count, context_size FROM context_log ORDER BY rowid DESC LIMIT 1").get();
+    expect(logged).toEqual({ project: "claude", chunks_count: 1, context_size: ctx.length });
   });
 });
