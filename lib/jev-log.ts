@@ -92,6 +92,15 @@ export interface JevAggregate {
     recent: JevRow[];
 }
 
+// What /api/claude/jev and the server-side prefetch both hand the page.
+export interface JevPayload extends JevAggregate {
+    days: number;
+    project: string | null;
+    projects: string[];
+    logPath: string;
+    hookPath: string;
+}
+
 // ── Parsing ──────────────────────────────────────────────────────────────────
 
 // The hook writes local timestamps with an offset ("2026-09-24T11:50:58-0400"),

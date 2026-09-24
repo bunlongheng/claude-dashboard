@@ -2,8 +2,10 @@ import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
 import { cache } from "react";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import SessionProgressClient from "./SessionProgressClient";
+import { readJevLog, aggregateJev, type JevSession } from "@/lib/jev-log";
 
 export const dynamic = "force-dynamic";
 
@@ -119,6 +121,48 @@ const loadSessionMeta = cache(function loadSessionMeta(sessionId: string): Sessi
     };
 });
 
+// The router hook logs a line per prompt keyed by session id, so a session that
+// was routed can show what tier it kept landing on. Sessions with no rows (the
+// hook was off, or the log has rolled past them) render nothing.
+function loadJevSession(sessionId: string): JevSession | null {
+    const { sessions } = aggregateJev(readJevLog(90));
+    return sessions.find(s => s.session_id === sessionId) ?? null;
+}
+
+const TIER_COLORS: Record<string, string> = {
+    haiku: "#22C55E", sonnet: "#4A9EFF", opus: "#A855F7", fable: "#F97316",
+};
+
+function JevCard({ jev }: { jev: JevSession }) {
+    const tierColor = jev.topTier ? TIER_COLORS[jev.topTier] ?? "#0EA5E9" : "#0EA5E9";
+    const stats: { label: string; value: string; color?: string }[] = [
+        { label: "Messages", value: String(jev.messages) },
+        { label: "Routed", value: String(jev.routed), color: "#22C55E" },
+        { label: "Top tier", value: jev.topTier ?? "-", color: tierColor },
+        { label: "Avg conf", value: jev.avgConf == null ? "-" : jev.avgConf.toFixed(2) },
+    ];
+    return (
+        <div style={{
+            display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap",
+            margin: "12px 16px 0", padding: "10px 16px", borderRadius: 12,
+            background: "rgba(255,255,255,0.02)",
+            border: "1px solid rgba(255,255,255,0.06)",
+            borderLeft: "3px solid #0EA5E9",
+        }}>
+            <Link href="/jev" style={{
+                fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase",
+                color: "#0EA5E9", textDecoration: "none",
+            }}>Jev</Link>
+            {stats.map(s => (
+                <div key={s.label} style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+                    <span style={{ fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.32)" }}>{s.label}</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: s.color ?? "#fff", fontVariantNumeric: "tabular-nums" }}>{s.value}</span>
+                </div>
+            ))}
+        </div>
+    );
+}
+
 export async function generateMetadata({
     params,
 }: {
@@ -143,5 +187,12 @@ export default async function SessionProgressPage({
     const meta = loadSessionMeta(sessionId);
     if (!meta) notFound();
 
-    return <SessionProgressClient meta={meta} />;
+    const jev = loadJevSession(sessionId);
+
+    return (
+        <>
+            {jev && <JevCard jev={jev} />}
+            <SessionProgressClient meta={meta} />
+        </>
+    );
 }
