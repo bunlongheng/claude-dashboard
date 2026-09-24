@@ -1,13 +1,3 @@
-<div align="center">
-  <img src="docs/icon.png" alt="Claude Dashboard" width="96" height="96" />
-  <h1>Claude Dashboard</h1>
-  <p><em>Self-learning RAG memory that mines sessions into searchable vectors</em></p>
-  <p><a href="https://github.com/bunlongheng/claude">Repo</a> &middot; <a href="https://bunlongheng.com/projects?name=claude-dashboard">Portfolio</a></p>
-  <img src="docs/social-preview.png" alt="Claude Dashboard - preview" width="820" />
-</div>
-
----
-
 <p align="center">
   <img src="public/claude-logo.png" width="80" height="80" alt="Claude Dashboard" style="image-rendering: pixelated;" />
 </p>
@@ -15,12 +5,9 @@
 <h1 align="center">Claude Dashboard</h1>
 
 <p align="center">
-  <strong>The missing GUI for Claude Code.</strong>
-</p>
-
-<p align="center">
-  Monitor sessions, tokens, context windows, memory, model routing, rules, skills, hooks, MCP servers, and more<br/>
-  from one local-first dashboard. Zero config - it reads <code>~/.claude/</code> directly.
+  <strong>The missing GUI for Claude Code.</strong><br/>
+  Sessions, tokens, context, memory, model routing, skills, hooks and MCP servers in one local-first dashboard.<br/>
+  Zero config - it reads <code>~/.claude/</code> directly and nothing leaves your machine.
 </p>
 
 <p align="center">
@@ -30,290 +17,115 @@
   <img src="https://img.shields.io/badge/Zero_Config-orange?style=flat" alt="Zero Config" />
 </p>
 
-<br/>
-
 <p align="center">
   <img src="public/screenshot.png" width="820" alt="Claude Dashboard - overview" style="border-radius: 12px;" />
 </p>
 
-<br/>
-
 ## Get Started
-
-**One command** - clones, installs, and starts the dashboard:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/bunlongheng/claude-dashboard/main/install.sh | bash
 ```
 
-Or clone it yourself and run the single setup script:
+Or `git clone` and `npm run setup`. Open **http://localhost:3003**. Needs [Node.js 20.9+](https://nodejs.org/) and an existing `~/.claude/` from [Claude Code](https://docs.anthropic.com/en/docs/claude-code).
 
-```bash
-git clone https://github.com/bunlongheng/claude-dashboard.git
-cd claude-dashboard
-npm run setup   # installs deps, then starts on :3003
-```
-
-Open **http://localhost:3003** - done. No config, no database, no account.
-
-> **Requires:** [Node.js 20.9+](https://nodejs.org/) and [Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed (`~/.claude/` must exist with session data)
-
-<br/>
-
-## Features
-
-| Feature | Description |
-|---------|-------------|
-| **Token Analytics** | Daily stacked charts, per-model pricing (Opus/Sonnet/Haiku), plan-aware cost (API/Pro/Max/Max 20x), cost by model and project tables |
-| **Context Window** | Live per-session context usage bars with cache/input/create breakdown, color-coded thresholds |
-| **Overview Dashboard** | 12 stat cards, configuration donut, top sessions by tokens, context window visualizer, 7-day breakdown |
-| **Activity Heatmap** | GitHub-style contribution calendar with active days, longest/current streak, most active day, top model |
-| **Session Monitor** | Live session viewer with thinking state, tool calls, SSE streaming, custom title sync |
-| **Multi-Machine** *(opt-in)* | Switch between machines (laptop, Mac mini, Pi, VPS) from one UI; peer data read via a same-origin proxy, no remote exec. Set `MACHINES=host:port,...` |
-| **RAG Memory** *(opt-in)* | Local FTS5 search over memory and session transcripts, always on once enabled, preference/insight extraction, and a benchmark that judges memory configs on your own questions. Off by default - enable with `NEXT_PUBLIC_RAG_ENABLED=1` |
-| **CLAUDE.md Editor** | View and edit global instructions Claude reads on every startup |
-| **MCP Servers** | Connection status, tools list, configuration viewer for all MCP servers |
-| **Skills** | Browse all custom skills and reusable prompt workflows |
-| **Commands** | Slash commands across all projects with source file locations |
-| **Hooks** | Event-driven automation hooks - PreToolUse, PostToolUse, Notification, etc. |
-| **Jev Router** *(opt-in)* | Observability for the Jev model-routing hook: every prompt logged with its tier (haiku / sonnet / opus / fable), agent, confidence, latency and cost; calls per hour and per day, tier split, sessions and messages; an on/off switch that pins every session to 1 tier. Needs the hook from [claude-code](https://github.com/bunlongheng/claude-code) |
-| **Plugins** | Installed plugin directories and marketplace status |
-| **Settings** | Global and local Claude Code settings editor (settings.json, settings.local.json) |
-| **Agents** | 12 color-coded specialist agents (research, fix, UI, build, cleanup, storage, analytics, perf, QA, architecture, security) plus subagent run history parsed from transcripts - status, duration, success rate |
-| **Usage & Tokens** | Per-model cost, plan comparison, daily rollups, turns-by-hour punchcard |
-| **Session Export** | Export any session as clean Markdown |
-| **Global Search** | Cmd+K search across sessions, memory, skills, and settings |
-| **QR Code LAN** | Share dashboard access via QR code on your local network |
-| **Mobile Responsive** | Full mobile support with adaptive layouts |
-| **Active Session Pills** | Top bar shows all running Claude sessions with live status |
-
-<br/>
-
-## All Pages
+## What You Get
 
 | Page | What it shows |
 |------|--------------|
-| **Dashboard** | Stat cards, config donut, top sessions, context window, activity heatmap, 7-day breakdown |
-| **Global** | Global CLAUDE.md instructions Claude reads on every startup |
-| **Sessions** | Complete session history with live monitoring |
-| **Agents** | Live/background agent activity |
-| **CLI** | CLI usage and command history |
-| **Commands** | Slash commands across all projects |
-| **Extensions** | Installed extensions |
-| **Hooks** | Event-driven automation hooks |
-| **Jev** *(opt-in)* | Router hook activity - status tiles, calls per hour/day, tier split, latency, sessions, messages, and the router switch |
-| **MCP** | Model Context Protocol server configs and tools |
-| **Plugins** | Installed plugin directories |
-| **RAG** *(opt-in)* | Local knowledge base with document ingestion, FTS search, preferences extraction |
-| **Settings** | Global and local Claude Code settings |
-| **Skills** | Reusable prompts and workflows |
-| **Tokens** | Daily charts, cost by model/project, plan comparison, glossary |
-| **Usage** | Usage analytics across sessions and projects |
+| **Dashboard** | 12 stat cards, config donut, top sessions, live context window bars, activity heatmap, 7-day breakdown |
+| **Sessions** | Every session with live thinking state, tool calls, streaming, and Markdown export |
+| **Tokens / Usage** | Daily stacked charts, per-model and per-project cost, plan-aware pricing (API / Pro / Max), punchcard |
+| **Agents** | 12 color-coded specialist agents and subagent run history: status, duration, success rate |
+| **Jev** *(opt-in)* | Model-routing hook: tier and agent per prompt, confidence, latency, cost, and an on/off switch |
+| **RAG** *(opt-in)* | Local FTS5 memory over transcripts and CLAUDE.md, preference extraction, benchmark |
+| **Global / Settings** | Edit CLAUDE.md, settings.json and settings.local.json in place |
+| **Skills / Commands / Hooks / MCP / Plugins / Extensions** | Everything installed, with source locations and MCP connection status |
 
-<br/>
+Plus Cmd+K global search, a QR code for LAN access, a machine switcher, and active-session pills in the top bar. Mobile works.
 
 ## How It Works
-
-## Architecture
 
 ```mermaid
 flowchart LR
     FS["~/.claude data<br>transcripts, memory, settings"]
-    WALK["jsonl-walk + safe-read<br>tail-reads session files"]
     API["Next.js API routes<br>/api/claude/*"]
-    INGEST["RAG ingest<br>lib/rag-ingest-sessions"]
     DB["SQLite data/rag.db<br>full-text search"]
-    RAGAPI["RAG API<br>/api/rag"]
     JEV["Jev router hook<br>~/.claude/logs/jev.jsonl"]
-    WS["WS server on port 7878<br>scripts/ws-server.mjs"]
-    PEERS["Peer dashboards<br>MACHINES list"]
-    PROXY["Same-origin proxy<br>/api/proxy"]
+    WS["WS watcher<br>port 7878"]
     UI["Dashboard UI<br>React Query + Recharts"]
 
-    FS --> WALK --> API --> UI
-    FS --> INGEST --> DB --> RAGAPI --> UI
+    FS --> API --> UI
+    FS -->|ingest| DB --> API
     JEV -->|1 line per prompt| API
-    FS -->|file watch| WS -->|live session updates| UI
-    PEERS -->|read-only fetch| PROXY --> UI
+    FS -->|file watch| WS -->|live updates| UI
 ```
 
-*Local `~/.claude` files flow through Next.js API routes, a SQLite RAG index, and a live WebSocket watcher into the dashboard UI - nothing ever leaves your machine.*
-
-
-```
-~/.claude/                        Your Claude Code data (already exists)
-  CLAUDE.md                       Global instructions
-  settings.json                   Your preferences
-  projects/
-    your-project/
-      memory/                     What Claude remembers
-      *.jsonl                     Session transcripts
-```
-
-The dashboard reads these files directly. **Nothing is uploaded. Nothing leaves your machine.**
-
-<br/>
+Tail-reads your `~/.claude` files, indexes them into a local SQLite file, and streams changes to the UI. No upload, no account, no database server.
 
 ## Multi-Machine (optional)
 
-Run the dashboard on more than one machine (laptop, Mac mini, Pi, VPS) and switch
-between them from a single UI. It is **off by default** - the dashboard is
-single-machine until you opt in.
-
-```bash
-# On each machine
-git clone https://github.com/bunlongheng/claude-dashboard.git
-cd claude-dashboard && npm install && PORT=3003 npm run prod
-# For LAN/iPad access, use: npm run dev:lan   (binds 0.0.0.0)
-```
-
-On your main machine, list the peers in `.env.local`:
+Run it on each machine (`PORT=3003 npm run prod`) and list the peers on your main one:
 
 ```
+# .env.local
 MACHINES=mac-mini.local:3003,raspberrypi.local:3003
 ```
 
-They appear in the machine switcher. Cross-machine data is fetched read-only
-through a same-origin proxy on your main machine - there is no remote command
-execution and no shared token.
-
-<br/>
+Peer data is fetched read-only through a same-origin proxy. No remote exec, no shared token.
 
 ## RAG Memory (optional)
-
-A local knowledge base built from your own `~/.claude` files: session
-transcripts, memory, CLAUDE.md and preferences are ingested into a SQLite FTS5
-index (`data/rag.db`), and 2 hooks feed the loop - `SessionStart` asks the
-dashboard for context, `Stop` ingests the session that just ended. Nothing is
-sent anywhere; the model that answers is the one already running in your
-terminal. **Off by default.**
 
 ```
 # .env.local
 NEXT_PUBLIC_RAG_ENABLED=1
 ```
 
-Then open `/rag` and click **Re-ingest**. There is 1 memory mode and it is
-always on: FTS5 keyword retrieval, which won the benchmark against vectors
-(4.4 vs 4.1 of 5) with 0 dependencies. The **Benchmark** tab re-runs that
-comparison on your own questions with an LLM judge (needs `ANTHROPIC_API_KEY`;
-the vector config also needs `npm install @huggingface/transformers`). The
-hooks live in [claude-code](https://github.com/bunlongheng/claude-code)
-`hooks/hooks.json`.
-
-<br/>
+Open `/rag` and click **Re-ingest**. Transcripts, memory and CLAUDE.md go into a SQLite FTS5 index. 2 hooks close the loop: `SessionStart` asks the dashboard for context, `Stop` ingests the session that just ended. FTS5 is the only mode because it won the benchmark against vectors (4.4 vs 4.1 of 5) with 0 dependencies. The **Benchmark** tab re-runs that on your own questions (needs `ANTHROPIC_API_KEY`).
 
 ## Jev Router (optional)
 
-[Jev](https://typesafe.ai) is a tiny decision model. A `UserPromptSubmit` hook
-asks it, for every prompt, which model tier can solve the request (haiku,
-sonnet, opus or fable) and which specialist agent owns that kind of work, then
-injects the answer as context so the main model delegates cheaply. Each call
-costs about $0.00002 and appends 1 JSON line to `~/.claude/logs/jev.jsonl`.
-The **Jev** page reads that file: nothing else is needed for the charts.
+[Jev](https://typesafe.ai) is a tiny decision model. A `UserPromptSubmit` hook asks it, per prompt, which model tier (haiku, sonnet, opus, fable) and which specialist agent the request needs, then injects the answer so the main model delegates cheaply. About $0.00002 a call, 1 JSON line per prompt, and the **Jev** page charts it.
 
 ```bash
-# 1. get the hook, the agent roles, and the settings entries
 git clone https://github.com/bunlongheng/claude-code.git ~/.claude
 python3 ~/.claude/scripts/install-hooks.py
-
-# 2. give the hook a key (either one), in your shell profile
-export AI_GATEWAY_API_KEY=...     # Vercel AI Gateway
-# or
-export TYPESAFE_API_KEY=...       # TypeSafe direct
+export AI_GATEWAY_API_KEY=...   # or TYPESAFE_API_KEY
 ```
 
-Without a key the hook is silent and the page shows its empty state. The switch
-at the top of the page writes `~/.claude/jev-router.json`: **on** lets Jev pick
-per prompt, **off** pins every prompt in every open session to 1 tier - useful
-when you want to spend remaining quota on the strongest model before a reset.
+The switch on the page writes `~/.claude/jev-router.json`: **on** lets Jev pick, **off** pins every open session to 1 tier.
 
-### Agent squad - who does what
+### Agent squad
 
-Jev does not only pick a tier, it picks a specialist. 12 color-coded agents ship
-as subagent definitions in `~/.claude/agents/` (1 file per role: what it owns,
-what it refuses, who it hands off to, and its model on the ladder). The router
-answers `agent=venus (0.99), tier=sonnet (0.77)` and the main model delegates
-to `subagent_type=venus`. Below 0.5 confidence it stays quiet and the main
-model decides. Questions, diff reviews and ranking findings map to `none` and
-never leave the main thread.
+12 agents ship as subagent definitions in `~/.claude/agents/`, 1 file per role. Jev answers `agent=venus (0.99), tier=sonnet (0.77)` and the main model delegates to `subagent_type=venus`. Below 0.5 confidence the main model decides; questions, diff reviews and ranking findings never leave the main thread.
 
-| Agent | Role | Color | Model | Owns |
-|-------|------|-------|-------|------|
-| Snow | Commander / Research | `#ffffff` | haiku | explore, find, study how something works; the catch-all |
-| Rock | Investigate | `#7a7a7a` | haiku | status checks, counts, batch comparisons |
-| Blitz | Fix / Code | `#0099ff` | sonnet | surgical patches, lint and type errors, updates |
-| Venus | UI / Frontend | `#ff8800` | sonnet | styling, layout, dark mode, icons, images |
-| Pulse | Create / Build | `#9933ff` | sonnet | new features, pages, scaffolding, seeding |
-| Earth | Cleanup | `#00ff00` | sonnet | dead code, duplicates, import cleanup |
-| Sand | Storage | `#cc6633` | sonnet | SQLite, Postgres, migrations, indexes |
-| Frost | Analytics | `#00ffff` | sonnet | charts, stat cards, aggregation |
-| Zap | Performance | `#ffdd00` | sonnet | bundle, render, caching, Lighthouse |
-| Arrow | QA / Audit | `#ff66cc` | sonnet | test runs, E2E, visual diff, verification |
-| Blaze | Architecture | `#ff3333` | opus | plans, schemas, boundaries, tradeoffs |
-| Shadow | Security | `#888888` | fable | CSP, auth, secrets, exposure, ranking findings |
-
-The same roster and colors show on the **Agents** page, and every routed prompt
-on the **Jev** page carries the agent Jev picked.
-
-<br/>
+| Agent | Role | Model | Owns |
+|-------|------|-------|------|
+| <img src="public/agents/1.webp" width="22" align="absmiddle" /> <img src="docs/agents/snow.svg" width="10" /> **Snow** | Commander / Research | haiku | explore, find, study how something works; the catch-all |
+| <img src="public/agents/12.webp" width="22" align="absmiddle" /> <img src="docs/agents/rock.svg" width="10" /> **Rock** | Investigate | haiku | status checks, counts, batch comparisons |
+| <img src="public/agents/7.webp" width="22" align="absmiddle" /> <img src="docs/agents/blitz.svg" width="10" /> **Blitz** | Fix / Code | sonnet | surgical patches, lint and type errors, updates |
+| <img src="public/agents/4.webp" width="22" align="absmiddle" /> <img src="docs/agents/venus.svg" width="10" /> **Venus** | UI / Frontend | sonnet | styling, layout, dark mode, icons, images |
+| <img src="public/agents/9.webp" width="22" align="absmiddle" /> <img src="docs/agents/pulse.svg" width="10" /> **Pulse** | Create / Build | sonnet | new features, pages, scaffolding, seeding |
+| <img src="public/agents/8.webp" width="22" align="absmiddle" /> <img src="docs/agents/earth.svg" width="10" /> **Earth** | Cleanup | sonnet | dead code, duplicates, import cleanup |
+| <img src="public/agents/10.webp" width="22" align="absmiddle" /> <img src="docs/agents/sand.svg" width="10" /> **Sand** | Storage | sonnet | SQLite, Postgres, migrations, indexes |
+| <img src="public/agents/6.webp" width="22" align="absmiddle" /> <img src="docs/agents/frost.svg" width="10" /> **Frost** | Analytics | sonnet | charts, stat cards, aggregation |
+| <img src="public/agents/5.webp" width="22" align="absmiddle" /> <img src="docs/agents/zap.svg" width="10" /> **Zap** | Performance | sonnet | bundle, render, caching, Lighthouse |
+| <img src="public/agents/3.webp" width="22" align="absmiddle" /> <img src="docs/agents/arrow.svg" width="10" /> **Arrow** | QA / Audit | sonnet | test runs, E2E, visual diff, verification |
+| <img src="public/agents/2.webp" width="22" align="absmiddle" /> <img src="docs/agents/blaze.svg" width="10" /> **Blaze** | Architecture | opus | plans, schemas, boundaries, tradeoffs |
+| <img src="public/agents/11.webp" width="22" align="absmiddle" /> <img src="docs/agents/shadow.svg" width="10" /> **Shadow** | Security | fable | CSP, auth, secrets, exposure, ranking findings |
 
 ## Inspired By
 
-Features inspired by these excellent open-source projects:
-
-**Dashboard & Token Analytics**
-
-| Project | What we learned |
-|---------|----------------|
-| [phuryn/claude-usage](https://github.com/phuryn/claude-usage) | Token analytics, daily charts, per-model pricing, cost tracking |
-| [nateherkai/token-dashboard](https://github.com/nateherkai/token-dashboard) | Plan-aware pricing (API/Pro/Max), token glossary, top tools chart |
-
-**RAG & Memory Systems**
-
-| Project | What we learned |
-|---------|----------------|
-| [affaan-m/everything-claude-code](https://github.com/affaan-m/everything-claude-code) | Hook-driven lifecycle (SessionStart/Stop), instinct-based learning, continuous pattern extraction |
-| [MemPalace/mempalace](https://github.com/MemPalace/mempalace) | Hybrid BM25 + semantic search, temporal knowledge graph, pluggable backends |
-| [thedotmack/claude-mem](https://github.com/thedotmack/claude-mem) | Progressive 3-layer disclosure, structured observation compiler, worker service architecture |
-| [coleam00/claude-memory-compiler](https://github.com/coleam00/claude-memory-compiler) | Karpathy-inspired compile-not-search pattern, article-first knowledge organization, lint health checks |
-| [lyonzin/knowledge-rag](https://github.com/lyonzin/knowledge-rag) | Query expansion, keyword routing, cross-encoder reranking, multi-format parsers |
-| [HKUDS/LightRAG](https://github.com/HKUDS/LightRAG) | Knowledge graph entity extraction, dual-mode retrieval (local + global graph) |
-| [Ricardo-Kaminski/local-rag](https://github.com/Ricardo-Kaminski/local-rag) | MCP as first-class integration, document checkpointing, file watcher daemon |
-| [doobidoo/mcp-memory-service](https://github.com/doobidoo/mcp-memory-service) | Turn-level storage, decay/compression consolidation, quality scoring |
-| [mem0ai/mem0](https://github.com/mem0ai/mem0) | Multi-level memory taxonomy, entity linking, multi-signal retrieval |
-
-Thank you to these creators for sharing their work with the community.
-
-<br/>
-
-## Built With
-
-[Next.js 16](https://nextjs.org/) | [Tailwind CSS](https://tailwindcss.com/) | [Lucide Icons](https://lucide.dev/)
-
-<br/>
+Token analytics from [phuryn/claude-usage](https://github.com/phuryn/claude-usage) and [nateherkai/token-dashboard](https://github.com/nateherkai/token-dashboard). Memory ideas from [affaan-m/everything-claude-code](https://github.com/affaan-m/everything-claude-code), [MemPalace/mempalace](https://github.com/MemPalace/mempalace), [thedotmack/claude-mem](https://github.com/thedotmack/claude-mem), [coleam00/claude-memory-compiler](https://github.com/coleam00/claude-memory-compiler), [lyonzin/knowledge-rag](https://github.com/lyonzin/knowledge-rag), [HKUDS/LightRAG](https://github.com/HKUDS/LightRAG), [Ricardo-Kaminski/local-rag](https://github.com/Ricardo-Kaminski/local-rag), [doobidoo/mcp-memory-service](https://github.com/doobidoo/mcp-memory-service) and [mem0ai/mem0](https://github.com/mem0ai/mem0). Thank you.
 
 ## Contributing
 
-```bash
-git clone https://github.com/bunlongheng/claude-dashboard.git
-cd claude-dashboard && npm install && npm run dev
-```
-
-1. Fork the repo
-2. Create your branch (`git checkout -b feature/awesome`)
-3. Make your changes
-4. Push and open a PR
-
-<br/>
+Fork, branch (`feature/awesome`), `npm run dev`, open a PR.
 
 ## License
 
-[PolyForm Noncommercial 1.0.0](LICENSE) - free to use, modify, and share for any
-**noncommercial** purpose. You may not sell it or use it commercially.
-
----
+[PolyForm Noncommercial 1.0.0](LICENSE) - free for any noncommercial use.
 
 <p align="center">
-  <sub>Built by <a href="https://bunlongheng.com">Bunlong Heng</a> for the Claude Code community &middot; <a href="https://bunlongheng.com/projects/claude-dashboard">See it in my portfolio &rarr;</a></sub>
+  <sub>Built by <a href="https://bunlongheng.com">Bunlong Heng</a> for the Claude Code community &middot; <a href="https://bunlongheng.com/projects/claude-dashboard">Portfolio &rarr;</a></sub>
 </p>
