@@ -19,6 +19,7 @@ const PAGE_SUBTITLES: Record<string, string> = {
     "/agents":   "Background agents, peers, tool logs",
     "/tokens":   "Token usage & cost tracking",
     "/usage":    "Per-model spend breakdown in exact USD",
+    "/jev":      "Router hook activity - per message, per session, per day",
     "/rag":              "Personal knowledge base & retrieval",
     "/rag/documents":    "All indexed documents",
     "/rag/search":       "Search your knowledge base",
