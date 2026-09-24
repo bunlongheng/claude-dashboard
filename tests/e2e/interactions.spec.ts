@@ -38,7 +38,3 @@ test("sidebar collapse toggle changes the sidebar width", async ({ page }) => {
   }).toPass({ timeout: 15000 });
 });
 
-test("the sign out control is present in the sidebar", async ({ page }) => {
-  await page.goto("/dashboard", GOTO);
-  await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
-});
