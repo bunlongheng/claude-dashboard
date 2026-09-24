@@ -18,6 +18,8 @@ export const JEV_COST_PER_CALL = 0.00002;
 const MAX_BYTES = 5 * 1024 * 1024; // 5 MB tail
 const RECENT_LIMIT = 200;
 const LIVE_MS = 15 * 60 * 1000;
+const HOUR_MS = 60 * 60 * 1000;
+const HOURLY_WINDOW = 24; // always a full day of buckets, however few are filled
 
 export const JEV_TIERS = ["haiku", "sonnet", "opus", "fable"] as const;
 export type JevTier = (typeof JEV_TIERS)[number];
@@ -70,6 +72,16 @@ export interface JevDay {
     tokens: number;
 }
 
+export interface JevHour {
+    hour: string; // "2026-09-24T14", local to the machine that ran the hook
+    label: string; // "14:00"
+    routed: number;
+    skipped: number;
+    errors: number;
+    avgLatencyMs: number;
+    tokens: number;
+}
+
 export interface JevSession {
     session_id: string;
     project: string;
@@ -87,6 +99,7 @@ export interface JevAggregate {
     totals: JevTotals;
     health: JevHealth;
     daily: JevDay[];
+    hourly: JevHour[];
     tiers: Record<JevTier, number>;
     sessions: JevSession[];
     recent: JevRow[];
@@ -108,6 +121,21 @@ export interface JevPayload extends JevAggregate {
 // that string keeps days aligned to the user's clock rather than the server's.
 export function dayOf(ts: string): string {
     return ts.slice(0, 10);
+}
+
+// Same reasoning one level down: the first 13 chars are the local hour the
+// prompt was typed, so "2026-09-24T14" buckets 2pm as 2pm regardless of where
+// the dashboard is running.
+export function hourOf(ts: string): string {
+    return ts.slice(0, 13);
+}
+
+// The rows carry local hour keys, so the window they are compared against has
+// to be built in local time too - a UTC walk back would offset every bucket.
+function localHourKey(ms: number): string {
+    const d = new Date(ms);
+    const p = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}`;
 }
 
 function isRow(v: unknown): v is JevRow {
@@ -173,6 +201,7 @@ export function aggregateJev(rows: JevRow[], now: number = Date.now()): JevAggre
     const latencies: number[] = [];
     const tiers: Record<JevTier, number> = { haiku: 0, sonnet: 0, opus: 0, fable: 0 };
     const dayMap = new Map<string, { routed: number; skipped: number; errors: number; lat: number[]; tokens: number }>();
+    const hourMap = new Map<string, { routed: number; skipped: number; errors: number; lat: number[]; tokens: number }>();
     const sessionMap = new Map<string, JevSession & { tierCounts: Map<string, number>; confs: number[] }>();
     let lastRoutedTs: string | null = null;
 
@@ -201,6 +230,14 @@ export function aggregateJev(rows: JevRow[], now: number = Date.now()): JevAggre
         if (status === "routed") d.routed++; else if (status === "error") d.errors++; else d.skipped++;
         if (lat !== null) d.lat.push(lat);
         d.tokens += tokensIn + tokensOut;
+
+        // ── per hour ──
+        const hour = hourOf(row.ts);
+        let h = hourMap.get(hour);
+        if (!h) { h = { routed: 0, skipped: 0, errors: 0, lat: [], tokens: 0 }; hourMap.set(hour, h); }
+        if (status === "routed") h.routed++; else if (status === "error") h.errors++; else h.skipped++;
+        if (lat !== null) h.lat.push(lat);
+        h.tokens += tokensIn + tokensOut;
 
         // ── per session ──
         const sid = row.session_id || "unknown";
@@ -261,6 +298,24 @@ export function aggregateJev(rows: JevRow[], now: number = Date.now()): JevAggre
         }))
         .sort((a, b) => a.day.localeCompare(b.day));
 
+    // Always exactly 24 buckets ending at the current hour, zero-filled. A gap
+    // in the day is information - "nothing happened at 4am" is the shape the
+    // chart is there to show - so quiet hours stay in rather than collapsing.
+    const hourly: JevHour[] = [];
+    for (let i = HOURLY_WINDOW - 1; i >= 0; i--) {
+        const hour = localHourKey(now - i * HOUR_MS);
+        const h = hourMap.get(hour);
+        hourly.push({
+            hour,
+            label: `${hour.slice(11)}:00`,
+            routed: h?.routed ?? 0,
+            skipped: h?.skipped ?? 0,
+            errors: h?.errors ?? 0,
+            avgLatencyMs: mean(h?.lat ?? []),
+            tokens: h?.tokens ?? 0,
+        });
+    }
+
     const sessions: JevSession[] = [...sessionMap.values()]
         .map(s => {
             let topTier: string | null = null;
@@ -281,5 +336,5 @@ export function aggregateJev(rows: JevRow[], now: number = Date.now()): JevAggre
 
     const recent = sorted.slice(-RECENT_LIMIT).reverse();
 
-    return { totals, health, daily, tiers, sessions, recent };
+    return { totals, health, daily, hourly, tiers, sessions, recent };
 }
