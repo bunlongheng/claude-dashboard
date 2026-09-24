@@ -7,6 +7,8 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useMachine } from "./MachineContext";
 import { type MemMode } from "./MemoryGraph";
 
+type ModeStatus = { key: MemMode; available: boolean; reason?: string };
+
 const MODES: { key: MemMode; label: string; color: string; blurb: string }[] = [
     { key: "nothing", label: "Nothing", color: "#6b7280", blurb: "Control. No memory loaded - Claude starts cold from the repo path only." },
     { key: "rag", label: "RAG", color: "#10b981", blurb: "Keyword retrieval (FTS5/BM25) over preferences + docs. The baseline memory." },
@@ -14,6 +16,8 @@ const MODES: { key: MemMode; label: string; color: string; blurb: string }[] = [
     { key: "rag_vector_kp", label: "RAG + Vector + KP", color: "#8b5cf6", blurb: "Retrieval, then synthesized into a compact brief. ~38x smaller context." },
     { key: "kp", label: "KP only", color: "#f59e0b", blurb: "Whole wiki synthesized, no retrieval. Loses specific facts (benchmarked 1.4/5)." },
 ];
+
+const MODE_LABELS: Record<string, string> = Object.fromEntries(MODES.map(m => [m.key, m.label]));
 
 // The mode picker portals into PageHero's right-side slot, a sibling DOM node
 // (id="page-hero-slot") this component has no props/ref access to. Read it
@@ -30,8 +34,15 @@ export default function ContextSection() {
 
     const { data: modeData } = useQuery({
         queryKey: ["rag", "mode", machine],
-        queryFn: () => fetch(apiBase("/api/rag/mode")).then(r => r.json()) as Promise<{ mode?: MemMode }>,
+        queryFn: () => fetch(apiBase("/api/rag/mode")).then(r => r.json()) as Promise<{ mode?: MemMode; modes?: ModeStatus[] }>,
     });
+
+    // Only offer what this install can run. A mode whose dependency is missing
+    // would 500 the SessionStart hook, and the hook discards errors, so picking
+    // one costs every new session its memory with nothing on screen to show it.
+    const statuses = modeData?.modes;
+    const selectable = statuses ? MODES.filter(m => statuses.find(s => s.key === m.key)?.available !== false) : MODES;
+    const hidden = statuses ? statuses.filter(s => !s.available) : [];
 
     // Local override so a user edit shows immediately without waiting on a
     // refetch, while still resetting back to the server value when the
@@ -55,7 +66,7 @@ export default function ContextSection() {
         modeMutation.mutate(m);
     }
 
-    const active = MODES.find(m => m.key === mode)!;
+    const active = MODES.find(m => m.key === mode) ?? MODES[1];
 
     // Mode picker + active-mode blurb — rendered into the shared page hero's right-side slot.
     const modeControl = (
@@ -68,7 +79,7 @@ export default function ContextSection() {
                             background: `${active.color}1f`, border: `1px solid ${active.color}`, color: active.color,
                             fontSize: 12, fontWeight: 700, padding: "9px 36px 9px 14px", borderRadius: 10, cursor: "pointer",
                         }}>
-                        {MODES.map(m => (
+                        {selectable.map(m => (
                             <option key={m.key} value={m.key} style={{ background: "#15151c", color: "#fff" }}>{m.label}</option>
                         ))}
                     </select>
@@ -84,6 +95,11 @@ export default function ContextSection() {
                 <span style={{ fontSize: 11, fontWeight: 800, color: active.color, textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>{active.label}</span>
                 <span style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }}>{active.blurb}</span>
             </div>
+            {hidden.length > 0 && (
+                <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.35)", textAlign: "right", lineHeight: 1.5 }}>
+                    {hidden.length} mode{hidden.length > 1 ? "s" : ""} hidden: {hidden.map(h => `${MODE_LABELS[h.key] ?? h.key} ${h.reason}`).join(", ")}
+                </div>
+            )}
         </div>
     );
 
