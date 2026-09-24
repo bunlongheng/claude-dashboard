@@ -8,16 +8,6 @@ import * as fs from "fs";
 // lib/rag-context.ts, and lib/rag-db.ts without touching rag.test.ts.
 const TMP_DB = path.join(os.tmpdir(), `rag-extra-test-${Date.now()}-${Math.random().toString(36).slice(2)}.db`);
 process.env.RAG_DB_PATH = TMP_DB;
-delete process.env.ANTHROPIC_API_KEY;
-
-// Mocked so the LLM rerank path in searchWithRerank can be exercised without
-// ever hitting the real Anthropic API.
-const mockCreate = vi.fn();
-vi.mock("@anthropic-ai/sdk", () => ({
-  default: vi.fn().mockImplementation(function (this: any) {
-    this.messages = { create: mockCreate };
-  }),
-}));
 
 type RagDb = typeof import("@/lib/rag-db");
 type RagSearch = typeof import("@/lib/rag-search");
@@ -34,54 +24,23 @@ beforeAll(async () => {
   db.getDb();
 });
 
-// ── rag-context: memory_mode routing (lines 13-19 of rag-context.ts) ────────
+// ── rag-context: the single retrieval path ──────────────────────────────────
+// Must run before any other describe block seeds chunks so the "empty" case
+// below actually observes an empty index.
 
-describe("rag-context: mode-routed assembly", () => {
-  it("routes through assembleContext when memory_mode is set, with a project", async () => {
-    db.setSetting("memory_mode", "nothing");
-    const { context: ctx, meta } = await context.buildContext("hello world", "proj-a");
-    expect(ctx).toBe("");
-    expect(meta.size).toBe(0);
-    expect(meta.mode).toBe("nothing");
-  });
-
-  it("routes through assembleContext when memory_mode is set, without a project", async () => {
-    const { context: ctx, meta } = await context.buildContext("hello world");
-    expect(ctx).toBe("");
-    expect(meta.mode).toBe("nothing");
-  });
-
-  afterAll(() => {
-    // Restore legacy (mode-unset) behavior for the tests below.
-    db.getDb().prepare("DELETE FROM app_settings WHERE key = ?").run("memory_mode");
-  });
-});
-
-// ── rag-context: legacy assembly edge cases ─────────────────────────────────
-// Must run before any other describe block seeds preferences/chunks so the
-// "empty" case below actually observes an empty database.
-
-describe("rag-context: legacy assembly edge cases", () => {
-  it("omits Preferences/Context sections when both are empty", async () => {
+describe("rag-context: single retrieval path", () => {
+  it("returns an empty context when nothing matches, and still logs the request", async () => {
     const { context: ctx, meta } = await context.buildContext("nothing matches anything", "emptyproj");
-    expect(ctx).not.toContain("Your Preferences");
-    expect(ctx).not.toContain("Relevant Context");
-    expect(meta.prefs).toBe(0);
-    expect(meta.chunks).toBe(0);
-  });
-
-  it("groups multiple preferences under the same category", async () => {
-    const conn = db.getDb();
-    conn.prepare("INSERT INTO preferences (category, key, value) VALUES (?, ?, ?)").run("dup", "first", "a");
-    conn.prepare("INSERT INTO preferences (category, key, value) VALUES (?, ?, ?)").run("dup", "second", "b");
-    const { context: ctx, meta } = await context.buildContext("anything", "proj-b");
-    expect(ctx).toContain("Your Preferences");
-    expect(meta.prefs).toBe(2);
+    expect(ctx).toBe("");
+    expect(meta).toEqual({ chunks: 0, size: 0 });
+    const row = db.getDb().prepare("SELECT project, chunks_count FROM context_log ORDER BY rowid DESC LIMIT 1").get();
+    expect(row).toEqual({ project: "emptyproj", chunks_count: 0 });
   });
 
   it("defaults the logged project to an empty string when omitted", async () => {
-    const { meta } = await context.buildContext("anything without a project");
-    expect(meta.prefs).toBe(2);
+    await context.buildContext("anything without a project");
+    const row = db.getDb().prepare("SELECT project FROM context_log ORDER BY rowid DESC LIMIT 1").get() as { project: string };
+    expect(row.project).toBe("");
   });
 });
 
@@ -146,64 +105,6 @@ describe("rag-search: FTS/entity error fallbacks", () => {
     });
     expect(search.entitySearch("cognito")).toEqual([]);
     spy.mockRestore();
-  });
-});
-
-// ── searchWithRerank: candidate merging + LLM rerank path ───────────────────
-
-describe("searchWithRerank: candidate merging and LLM rerank", () => {
-  beforeAll(() => {
-    const conn = db.getDb();
-    const insertDoc = conn.prepare(
-      "INSERT INTO documents (source_path, source_type, project, title, content, content_hash) VALUES (?, ?, ?, ?, ?, ?)"
-    );
-    const insertChunk = conn.prepare("INSERT INTO chunks (doc_id, chunk_index, content, token_count) VALUES (?, ?, ?, ?)");
-    const docIds: number[] = [];
-    for (let i = 0; i < 8; i++) {
-      const id = insertDoc.run(`rerank/doc${i}`, "memory", "rerank", `Rerank Doc ${i}`, `widgetcandidate content number ${i}`, `rrh${i}`).lastInsertRowid as number;
-      insertChunk.run(id, 0, `widgetcandidate content number ${i}`, 5);
-      docIds.push(id);
-    }
-    db.syncFts(conn);
-
-    // Entity link overlapping an existing fts doc, to exercise dedup.
-    const e1 = conn.prepare("INSERT INTO entities (name, type) VALUES (?, ?)").run("widgetcandidate", "concept").lastInsertRowid as number;
-    const e2 = conn.prepare("INSERT INTO entities (name, type) VALUES (?, ?)").run("othertag", "concept").lastInsertRowid as number;
-    conn.prepare("INSERT INTO entity_links (source_id, target_id, relation, doc_id) VALUES (?, ?, ?, ?)").run(e1, e2, "related", docIds[0]);
-  });
-
-  afterAll(() => {
-    delete process.env.ANTHROPIC_API_KEY;
-    mockCreate.mockReset();
-  });
-
-  it("falls back to a plain slice when there is no API key, even with many candidates", async () => {
-    delete process.env.ANTHROPIC_API_KEY;
-    const out = await search.searchWithRerank("widgetcandidate", 5);
-    expect(out.length).toBe(5);
-    expect(mockCreate).not.toHaveBeenCalled();
-  });
-
-  it("uses the LLM ranking to reorder and filter out-of-range indices", async () => {
-    process.env.ANTHROPIC_API_KEY = "test-key";
-    mockCreate.mockResolvedValueOnce({ content: [{ type: "text", text: "Best picks: [2, 0, 20, 4]" }] });
-    const out = await search.searchWithRerank("widgetcandidate", 5);
-    expect(mockCreate).toHaveBeenCalledTimes(1);
-    expect(out.length).toBe(3); // index 20 is out of range and filtered out
-  });
-
-  it("falls back to slice when the response has no text block", async () => {
-    process.env.ANTHROPIC_API_KEY = "test-key";
-    mockCreate.mockResolvedValueOnce({ content: [{ type: "other" }] });
-    const out = await search.searchWithRerank("widgetcandidate", 5);
-    expect(out.length).toBe(5);
-  });
-
-  it("falls back to slice when the response has malformed JSON", async () => {
-    process.env.ANTHROPIC_API_KEY = "test-key";
-    mockCreate.mockResolvedValueOnce({ content: [{ type: "text", text: "[1,2,]" }] });
-    const out = await search.searchWithRerank("widgetcandidate", 5);
-    expect(out.length).toBe(5);
   });
 });
 

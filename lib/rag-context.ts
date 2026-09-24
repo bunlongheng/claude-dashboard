@@ -1,61 +1,17 @@
-import { getDb, getSetting } from "./rag-db";
-import { searchWithRerank } from "./rag-search";
+import { getDb } from "./rag-db";
 import { assembleContext } from "./eval/configs";
-import type { Preference, EvalConfig } from "./rag-db";
 
-export async function buildContext(prompt: string, project?: string): Promise<{ context: string; meta: { prefs: number; chunks: number; size: number; mode?: EvalConfig } }> {
+// One memory mode, always on: keyword retrieval (FTS5) over the local index.
+// It won the benchmark (4.4/5 against 4.1 for vectors and 1.4 for synthesis),
+// needs no key and no model, and cannot fail for a missing dependency - which
+// matters because the SessionStart hook discards errors.
+export async function buildContext(prompt: string, project?: string): Promise<{ context: string; meta: { chunks: number; size: number } }> {
   const db = getDb();
+  const { context, size, chunks } = await assembleContext("rag", prompt);
 
-  // When a memory mode is selected on the /context page, route through the same
-  // per-mode assembly the benchmark uses, so the dropdown is a real live switch.
-  // Unset = legacy behavior below (all prefs + reranked chunks).
-  const mode = getSetting("memory_mode") as EvalConfig | null;
-  if (mode) {
-    const { context, size } = await assembleContext(mode, prompt);
-    db.prepare("INSERT INTO context_log (project, prompt, prefs_count, chunks_count, context_size) VALUES (?, ?, ?, ?, ?)")
-      .run(project || "", prompt.slice(0, 200), 0, 0, size);
-    db.prepare("INSERT INTO search_log (query, results_count) VALUES (?, ?)").run(prompt.slice(0, 200), 0);
-    return { context, meta: { prefs: 0, chunks: 0, size, mode } };
-  }
-
-  // 1. Get all preferences
-  const prefs = db.prepare("SELECT * FROM preferences ORDER BY category, key").all() as Preference[];
-
-  // 2. Search for relevant chunks
-  const results = await searchWithRerank(prompt, 5);
-
-  // 3. Assemble context block
-  const sections: string[] = [];
-
-  if (prefs.length > 0) {
-    const grouped: Record<string, Preference[]> = {};
-    for (const p of prefs) {
-      if (!grouped[p.category]) grouped[p.category] = [];
-      grouped[p.category].push(p);
-    }
-    sections.push("## Your Preferences\n");
-    for (const [cat, items] of Object.entries(grouped)) {
-      sections.push(`### ${cat}`);
-      for (const p of items) {
-        sections.push(`- ${p.key}: ${p.value}`);
-      }
-    }
-  }
-
-  if (results.length > 0) {
-    sections.push("\n## Relevant Context\n");
-    for (const r of results) {
-      sections.push(`### ${r.title} (${r.project})\n${r.content}\n`);
-    }
-  }
-
-  const context = sections.join("\n");
-
-  // 4. Log this context injection
   db.prepare("INSERT INTO context_log (project, prompt, prefs_count, chunks_count, context_size) VALUES (?, ?, ?, ?, ?)")
-    .run(project || "", prompt.slice(0, 200), prefs.length, results.length, context.length);
+    .run(project || "", prompt.slice(0, 200), 0, chunks, size);
+  db.prepare("INSERT INTO search_log (query, results_count) VALUES (?, ?)").run(prompt.slice(0, 200), chunks);
 
-  db.prepare("INSERT INTO search_log (query, results_count) VALUES (?, ?)").run(prompt.slice(0, 200), results.length);
-
-  return { context, meta: { prefs: prefs.length, chunks: results.length, size: context.length } };
+  return { context, meta: { chunks, size } };
 }

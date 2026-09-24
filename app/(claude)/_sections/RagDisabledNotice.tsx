@@ -1,6 +1,6 @@
 import { DatabaseZap } from "lucide-react";
 
-// Shown on /rag and /context when RAG is not enabled. RAG is opt-in in the
+// Shown on /rag when RAG is not enabled. RAG is opt-in in the
 // open-source edition (see lib/features.ts).
 export default function RagDisabledNotice({ feature = "RAG" }: { feature?: string }) {
     return (
