@@ -4,8 +4,9 @@ import { useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 import Link from "next/link";
 import { Activity, MessageSquare, Route, Timer, Coins, DollarSign, AlertTriangle, type LucideIcon } from "lucide-react";
 import {
-    BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-    PieChart, Pie, Cell, LineChart, Line, Legend,
+    ComposedChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+    PieChart, Pie, Cell, LineChart, Line, Legend, LabelList,
+    type PieLabelRenderProps,
 } from "recharts";
 import { cardShell } from "@/lib/ui-tokens";
 import { fmtNum, timeAgo } from "./shared";
@@ -188,8 +189,8 @@ function CallsChart({ daily, hourly }: { daily: JevAggregate["daily"]; hourly: J
     // is the short tick, tip is the long label the tooltip shows.
     const data = useMemo(() => (
         byHour
-            ? hourly.map(h => ({ axis: h.label, tip: fmtHourLabel(h.hour), routed: h.routed, skipped: h.skipped, errors: h.errors }))
-            : daily.map(d => ({ axis: d.day.slice(5), tip: d.day, routed: d.routed, skipped: d.skipped, errors: d.errors }))
+            ? hourly.map(h => ({ axis: h.label, tip: fmtHourLabel(h.hour), routed: h.routed, skipped: h.skipped, errors: h.errors, total: h.routed + h.skipped + h.errors }))
+            : daily.map(d => ({ axis: d.day.slice(5), tip: d.day, routed: d.routed, skipped: d.skipped, errors: d.errors, total: d.routed + d.skipped + d.errors }))
     ), [byHour, hourly, daily]);
 
     const tips = useMemo(() => new Map(data.map(d => [d.axis, d.tip])), [data]);
@@ -223,7 +224,7 @@ function CallsChart({ daily, hourly }: { daily: JevAggregate["daily"]; hourly: J
                 </div>
             </div>
             <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={data} barCategoryGap={byHour ? "14%" : "22%"} maxBarSize={byHour ? 26 : 44}>
+                <ComposedChart data={data} barCategoryGap={byHour ? "14%" : "22%"} maxBarSize={byHour ? 26 : 44}>
                     <CartesianGrid stroke="rgba(255,255,255,0.04)" vertical={false} />
                     <XAxis dataKey="axis" tick={AXIS_TICK} interval={byHour ? 1 : 0} axisLine={false} tickLine={false} />
                     <YAxis tick={AXIS_TICK} width={28} axisLine={false} tickLine={false} allowDecimals={false} />
@@ -235,7 +236,12 @@ function CallsChart({ daily, hourly }: { daily: JevAggregate["daily"]; hourly: J
                     <Bar dataKey="routed" stackId="a" fill={STATUS_COLORS.routed} name="routed" />
                     <Bar dataKey="skipped" stackId="a" fill={STATUS_COLORS.skipped} name="skipped" />
                     <Bar dataKey="errors" stackId="a" fill={STATUS_COLORS.error} name="error" radius={[3, 3, 0, 0]} />
-                </BarChart>
+                    {/* Invisible line at the stack height carries the total, so every bar
+                        gets its number even when its top segment is 0 and has no box to label. */}
+                    <Line dataKey="total" stroke="none" dot={false} activeDot={false} legendType="none" tooltipType="none" isAnimationActive={false}>
+                        <LabelList dataKey="total" position="top" offset={4} fill="rgba(255,255,255,0.55)" fontSize={9} formatter={(v: unknown) => (Number(v) > 0 ? String(v) : "")} />
+                    </Line>
+                </ComposedChart>
             </ResponsiveContainer>
             <div style={{ display: "flex", gap: 14, justifyContent: "center", marginTop: 6 }}>
                 {Object.entries(STATUS_COLORS).map(([k, v]) => (
@@ -250,6 +256,20 @@ function CallsChart({ daily, hourly }: { daily: JevAggregate["daily"]; hourly: J
 }
 
 // ── 3. Tier split ────────────────────────────────────────────────────────────
+// Count drawn inside the ring at the slice's mid-angle. Slices under 6% are
+// too thin for a 2-digit number, so they stay unlabeled and the legend covers them.
+function sliceLabel(p: PieLabelRenderProps) {
+    if ((p.percent ?? 0) < 0.06) return null;
+    // The ring's middle radius, which recharts already hands over.
+    const r = p.middleRadius ?? (Number(p.innerRadius) + Number(p.outerRadius)) / 2;
+    const a = (-(p.midAngle ?? 0) * Math.PI) / 180;
+    return (
+        <text x={Number(p.cx) + r * Math.cos(a)} y={Number(p.cy) + r * Math.sin(a)} fill="#0b0c10" fontSize={10} fontWeight={800} textAnchor="middle" dominantBaseline="central">
+            {p.value}
+        </text>
+    );
+}
+
 function TierSplit({ tiers }: { tiers: JevAggregate["tiers"] }) {
     const data = TIER_ORDER
         .map(t => ({ name: t, value: tiers[t], fill: TIER_COLORS[t] }))
@@ -262,7 +282,7 @@ function TierSplit({ tiers }: { tiers: JevAggregate["tiers"] }) {
             <div style={{ position: "relative" }}>
                 <ResponsiveContainer width="100%" height={200}>
                     <PieChart>
-                        <Pie data={data} cx="50%" cy="50%" innerRadius={54} outerRadius={82} paddingAngle={3} dataKey="value" strokeWidth={0}>
+                        <Pie data={data} cx="50%" cy="50%" innerRadius={54} outerRadius={82} paddingAngle={3} dataKey="value" strokeWidth={0} labelLine={false} label={sliceLabel}>
                             {data.map(d => <Cell key={d.name} fill={d.fill} />)}
                         </Pie>
                         <Tooltip {...TOOLTIP} />
@@ -282,6 +302,7 @@ function TierSplit({ tiers }: { tiers: JevAggregate["tiers"] }) {
                         <span style={{ width: 8, height: 8, borderRadius: 999, background: TIER_COLORS[t] }} />
                         <span style={{ fontSize: 9, color: "rgba(255,255,255,0.45)" }}>{t}</span>
                         <span style={{ fontSize: 9, fontWeight: 700, color: TIER_COLORS[t] }}>{tiers[t]}</span>
+                        {total > 0 && tiers[t] > 0 && <span style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>{Math.round((tiers[t] / total) * 100)}%</span>}
                     </div>
                 ))}
             </div>
