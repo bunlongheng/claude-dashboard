@@ -99,20 +99,20 @@ The switch on the page writes `~/.claude/jev-router.json`: **on** lets Jev pick,
 
 12 agents ship as subagent definitions in `~/.claude/agents/`, 1 file per role. Jev answers `agent=venus (0.99), tier=sonnet (0.77)` and the main model delegates to `subagent_type=venus`. Below 0.5 confidence the main model decides; questions, diff reviews and ranking findings never leave the main thread.
 
-| Agent | Role | Model | Owns |
-|-------|------|-------|------|
-| <img src="public/agents/1.webp" width="22" align="absmiddle" />&nbsp;<img src="docs/agents/snow.svg" width="10" />&nbsp;**Snow** | Research | haiku | explore, find, study how something works; the catch-all |
-| <img src="public/agents/12.webp" width="22" align="absmiddle" />&nbsp;<img src="docs/agents/rock.svg" width="10" />&nbsp;**Rock** | Investigate | haiku | status checks, counts, batch comparisons |
-| <img src="public/agents/7.webp" width="22" align="absmiddle" />&nbsp;<img src="docs/agents/blitz.svg" width="10" />&nbsp;**Blitz** | Fix / Code | sonnet | surgical patches, lint and type errors, updates |
-| <img src="public/agents/4.webp" width="22" align="absmiddle" />&nbsp;<img src="docs/agents/venus.svg" width="10" />&nbsp;**Venus** | UI / Frontend | sonnet | styling, layout, dark mode, icons, images |
-| <img src="public/agents/9.webp" width="22" align="absmiddle" />&nbsp;<img src="docs/agents/pulse.svg" width="10" />&nbsp;**Pulse** | Create / Build | sonnet | new features, pages, scaffolding, seeding |
-| <img src="public/agents/8.webp" width="22" align="absmiddle" />&nbsp;<img src="docs/agents/earth.svg" width="10" />&nbsp;**Earth** | Cleanup | sonnet | dead code, duplicates, import cleanup |
-| <img src="public/agents/10.webp" width="22" align="absmiddle" />&nbsp;<img src="docs/agents/sand.svg" width="10" />&nbsp;**Sand** | Storage | sonnet | SQLite, Postgres, migrations, indexes |
-| <img src="public/agents/6.webp" width="22" align="absmiddle" />&nbsp;<img src="docs/agents/frost.svg" width="10" />&nbsp;**Frost** | Analytics | sonnet | charts, stat cards, aggregation |
-| <img src="public/agents/5.webp" width="22" align="absmiddle" />&nbsp;<img src="docs/agents/zap.svg" width="10" />&nbsp;**Zap** | Performance | sonnet | bundle, render, caching, Lighthouse |
-| <img src="public/agents/3.webp" width="22" align="absmiddle" />&nbsp;<img src="docs/agents/arrow.svg" width="10" />&nbsp;**Arrow** | QA / Audit | sonnet | test runs, E2E, visual diff, verification |
-| <img src="public/agents/2.webp" width="22" align="absmiddle" />&nbsp;<img src="docs/agents/blaze.svg" width="10" />&nbsp;**Blaze** | Architecture | opus | plans, schemas, boundaries, tradeoffs |
-| <img src="public/agents/11.webp" width="22" align="absmiddle" />&nbsp;<img src="docs/agents/shadow.svg" width="10" />&nbsp;**Shadow** | Security | fable | CSP, auth, secrets, exposure, ranking findings |
+| | Agent | Role | Model | Owns |
+|---|-------|------|-------|------|
+| <img src="public/agents/1.webp" width="22" align="absmiddle" /> <img src="docs/agents/snow.svg" width="10" /> | **Snow** | Research | haiku | explore, find, study how something works; the catch-all |
+| <img src="public/agents/12.webp" width="22" align="absmiddle" /> <img src="docs/agents/rock.svg" width="10" /> | **Rock** | Investigate | haiku | status checks, counts, batch comparisons |
+| <img src="public/agents/7.webp" width="22" align="absmiddle" /> <img src="docs/agents/blitz.svg" width="10" /> | **Blitz** | Fix / Code | sonnet | surgical patches, lint and type errors, updates |
+| <img src="public/agents/4.webp" width="22" align="absmiddle" /> <img src="docs/agents/venus.svg" width="10" /> | **Venus** | UI / Frontend | sonnet | styling, layout, dark mode, icons, images |
+| <img src="public/agents/9.webp" width="22" align="absmiddle" /> <img src="docs/agents/pulse.svg" width="10" /> | **Pulse** | Create / Build | sonnet | new features, pages, scaffolding, seeding |
+| <img src="public/agents/8.webp" width="22" align="absmiddle" /> <img src="docs/agents/earth.svg" width="10" /> | **Earth** | Cleanup | sonnet | dead code, duplicates, import cleanup |
+| <img src="public/agents/10.webp" width="22" align="absmiddle" /> <img src="docs/agents/sand.svg" width="10" /> | **Sand** | Storage | sonnet | SQLite, Postgres, migrations, indexes |
+| <img src="public/agents/6.webp" width="22" align="absmiddle" /> <img src="docs/agents/frost.svg" width="10" /> | **Frost** | Analytics | sonnet | charts, stat cards, aggregation |
+| <img src="public/agents/5.webp" width="22" align="absmiddle" /> <img src="docs/agents/zap.svg" width="10" /> | **Zap** | Performance | sonnet | bundle, render, caching, Lighthouse |
+| <img src="public/agents/3.webp" width="22" align="absmiddle" /> <img src="docs/agents/arrow.svg" width="10" /> | **Arrow** | QA / Audit | sonnet | test runs, E2E, visual diff, verification |
+| <img src="public/agents/2.webp" width="22" align="absmiddle" /> <img src="docs/agents/blaze.svg" width="10" /> | **Blaze** | Architecture | opus | plans, schemas, boundaries, tradeoffs |
+| <img src="public/agents/11.webp" width="22" align="absmiddle" /> <img src="docs/agents/shadow.svg" width="10" /> | **Shadow** | Security | fable | CSP, auth, secrets, exposure, ranking findings |
 
 ## Inspired By
 
