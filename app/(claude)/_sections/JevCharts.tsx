@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 import Link from "next/link";
+import { Activity, MessageSquare, Route, Timer, Coins, DollarSign, AlertTriangle, type LucideIcon } from "lucide-react";
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     PieChart, Pie, Cell, LineChart, Line, Legend,
@@ -143,62 +144,34 @@ function HealthStrip({ data }: { data: JevAggregate }) {
     const todayRow = daily.find(d => d.day === todayKey());
     const callsToday = todayRow ? todayRow.routed + todayRow.skipped + todayRow.errors : 0;
 
-    const cells: { label: string; value: string; sub?: string; color?: string }[] = [
-        { label: "Calls today", value: String(callsToday), sub: `${totals.calls} in range` },
-        { label: "Routed", value: `${totals.routedPct}%`, sub: `${totals.routed} of ${totals.calls}`, color: STATUS_COLORS.routed },
-        { label: "Avg latency", value: `${totals.avgLatencyMs}ms`, sub: `p95 ${totals.p95LatencyMs}ms` },
-        { label: "Tokens today", value: fmtNum(todayRow?.tokens ?? 0), sub: `${fmtNum(totals.inputTokens + totals.outputTokens)} in range` },
-        { label: "Est. cost", value: fmtCost(totals.estCostUsd), sub: `${totals.sessions} sessions` },
-        { label: "Errors", value: String(totals.errors), sub: totals.errors > 0 ? "check the log" : "clean", color: totals.errors > 0 ? STATUS_COLORS.error : undefined },
+    // Same tile as the RAG overview: icon + label, 1 big number, 1 line under.
+    const tiles: { label: string; value: string; sub: string; icon: LucideIcon; color: string; pulse?: boolean }[] = [
+        { label: "Status", value: h.label, sub: totals.lastCallTs ? `${timeAgo(totals.lastCallTs)} - ${h.note}` : h.note, icon: Activity, color: h.color, pulse: health === "live" },
+        { label: "Calls today", value: String(callsToday), sub: `${totals.calls} in range`, icon: MessageSquare, color: "#4A9EFF" },
+        { label: "Routed", value: `${totals.routedPct}%`, sub: `${totals.routed} of ${totals.calls}`, icon: Route, color: STATUS_COLORS.routed },
+        { label: "Avg latency", value: `${totals.avgLatencyMs}ms`, sub: `p95 ${totals.p95LatencyMs}ms`, icon: Timer, color: "#E8A23B" },
+        { label: "Tokens today", value: fmtNum(todayRow?.tokens ?? 0), sub: `${fmtNum(totals.inputTokens + totals.outputTokens)} in range`, icon: Coins, color: "#A855F7" },
+        { label: "Est. cost", value: fmtCost(totals.estCostUsd), sub: `${totals.sessions} sessions`, icon: DollarSign, color: "#F97316" },
+        { label: "Errors", value: String(totals.errors), sub: totals.errors > 0 ? "check the log" : "clean", icon: AlertTriangle, color: totals.errors > 0 ? STATUS_COLORS.error : STATUS_COLORS.skipped },
     ];
 
     return (
-        <div style={{
-            ...cardShell,
-            padding: 0,
-            overflow: "hidden",
-            display: "flex",
-            flexWrap: "wrap",
-            alignItems: "stretch",
-            borderColor: `${h.color}2E`,
-        }}>
+        <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-7 gap-3">
             <style>{`@keyframes jevPulse { 0%,100% { opacity:1; transform:scale(1) } 50% { opacity:.35; transform:scale(.72) } }`}</style>
-
-            {/* Status */}
-            <div style={{
-                display: "flex", alignItems: "center", gap: 12,
-                padding: "18px 24px", minWidth: 260, flex: "1 1 260px",
-                background: `linear-gradient(90deg, ${h.color}14 0%, transparent 100%)`,
-            }}>
-                <span style={{
-                    width: 9, height: 9, borderRadius: 999, background: h.color, flexShrink: 0,
-                    boxShadow: `0 0 12px ${h.color}`,
-                    animation: health === "live" ? "jevPulse 1.8s ease-in-out infinite" : "none",
-                }} />
-                <div style={{ minWidth: 0 }}>
-                    <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-                        <span style={{ fontSize: 20, fontWeight: 800, letterSpacing: "0.04em", color: h.color, lineHeight: 1 }}>{h.label}</span>
-                        <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>
-                            {totals.lastCallTs ? timeAgo(totals.lastCallTs) : "no calls"}
-                        </span>
+            {tiles.map(t => (
+                <div key={t.label} style={{
+                    padding: "16px 18px", borderRadius: 12, minWidth: 0,
+                    background: `linear-gradient(135deg, ${t.color}08 0%, rgba(255,255,255,0.02) 100%)`,
+                    border: `1px solid ${t.color}20`,
+                }}>
+                    <div className="flex items-center gap-2 mb-2">
+                        <t.icon size={16} style={{ color: t.color, flexShrink: 0, animation: t.pulse ? "jevPulse 1.8s ease-in-out infinite" : "none" }} />
+                        <span style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.5)" }}>{t.label}</span>
                     </div>
-                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.38)", marginTop: 4 }}>{h.note}</div>
+                    <div style={{ fontSize: 24, fontWeight: 800, color: t.color, lineHeight: 1, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>{t.value}</div>
+                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", marginTop: 6, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.sub}</div>
                 </div>
-            </div>
-
-            {/* Metrics */}
-            <div style={{ display: "flex", flexWrap: "wrap", flex: "3 1 560px" }}>
-                {cells.map(c => (
-                    <div key={c.label} style={{
-                        flex: "1 1 120px", padding: "18px 18px",
-                        borderLeft: "1px solid rgba(255,255,255,0.05)",
-                    }}>
-                        <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.35)" }}>{c.label}</div>
-                        <div style={{ fontSize: 19, fontWeight: 700, lineHeight: 1.3, color: c.color ?? "#fff", fontVariantNumeric: "tabular-nums" }}>{c.value}</div>
-                        {c.sub && <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>{c.sub}</div>}
-                    </div>
-                ))}
-            </div>
+            ))}
         </div>
     );
 }
