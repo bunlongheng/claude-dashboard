@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 import Link from "next/link";
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -60,22 +60,64 @@ function CardLabel({ title, sub }: { title: string; sub: string }) {
     );
 }
 
-function Pill({ text, color, dim = false }: { text: string; color: string; dim?: boolean }) {
+function Pill({ text, color, dim = false, icon }: { text: string; color: string; dim?: boolean; icon?: ReactNode }) {
     return (
         <span style={{
+            display: "inline-flex", alignItems: "center", gap: 5,
             fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase",
             padding: "2px 7px", borderRadius: 6, whiteSpace: "nowrap",
             background: dim ? "rgba(255,255,255,0.05)" : `${color}1F`,
             color: dim ? "rgba(255,255,255,0.45)" : color,
             border: `1px solid ${dim ? "rgba(255,255,255,0.08)" : `${color}33`}`,
-        }}>{text}</span>
+        }}>{icon}{text}</span>
     );
+}
+
+function TierPill({ tier }: { tier: string }) {
+    const color = TIER_COLORS[tier] ?? "#6B7280";
+    return <Pill text={tier} color={color} icon={<TierMark tier={tier} color={color} />} />;
 }
 
 function fmtTime(ts: string): string {
     const d = new Date(ts);
     if (Number.isNaN(d.getTime())) return ts;
     return d.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", hour12: true });
+}
+
+// "2026-09-24T14" reads as "Wed 2 PM". The bucket key is already local, so it
+// is split by hand rather than parsed - Date would re-apply an offset to it.
+function fmtHourLabel(hour: string): string {
+    const day = new Date(`${hour.slice(0, 10)}T00:00:00`);
+    const h = Number(hour.slice(11));
+    if (Number.isNaN(day.getTime()) || !Number.isFinite(h)) return hour;
+    const suffix = h < 12 ? "AM" : "PM";
+    const hour12 = h % 12 === 0 ? 12 : h % 12;
+    return `${day.toLocaleDateString("en-US", { weekday: "short" })} ${hour12} ${suffix}`;
+}
+
+// The 4 tiers are all Claude models, so a model logo would be the same glyph on
+// every row and say nothing. This says the one thing the word alone does not:
+// where the tier sits on the cheap to expensive ladder, filled bars = rank.
+const TIER_RANK: Record<string, number> = { haiku: 1, sonnet: 2, opus: 3, fable: 4 };
+
+function TierMark({ tier, color }: { tier: string; color: string }) {
+    const rank = TIER_RANK[tier] ?? 0;
+    return (
+        <svg width="11" height="9" viewBox="0 0 11 9" aria-hidden="true" style={{ flexShrink: 0 }}>
+            {[0, 1, 2, 3].map(i => (
+                <rect
+                    key={i}
+                    x={i * 3}
+                    y={9 - (i + 1) * 2 - 1}
+                    width="2"
+                    height={(i + 1) * 2 + 1}
+                    rx="0.5"
+                    fill={color}
+                    opacity={i < rank ? 1 : 0.22}
+                />
+            ))}
+        </svg>
+    );
 }
 
 // The router costs fractions of a cent per call, so 2 decimals reads as $0.00
@@ -162,17 +204,62 @@ function HealthStrip({ data }: { data: JevAggregate }) {
     );
 }
 
-// ── 2. Calls per day ─────────────────────────────────────────────────────────
-function CallsPerDay({ daily }: { daily: JevAggregate["daily"] }) {
+// ── 2. Calls per day / per hour ──────────────────────────────────────────────
+// One bar per day is a single bar until the log spans a week, so the card opens
+// on the 24 hour view - the shape of a working day is readable from the first
+// session, and the daily view takes over once there is a week to compare.
+function CallsChart({ daily, hourly }: { daily: JevAggregate["daily"]; hourly: JevAggregate["hourly"] }) {
+    const [mode, setMode] = useState<"hour" | "day">(daily.length > 1 ? "day" : "hour");
+    const byHour = mode === "hour";
+
+    // Both views collapse to the same row shape so the chart has one type: axis
+    // is the short tick, tip is the long label the tooltip shows.
+    const data = useMemo(() => (
+        byHour
+            ? hourly.map(h => ({ axis: h.label, tip: fmtHourLabel(h.hour), routed: h.routed, skipped: h.skipped, errors: h.errors }))
+            : daily.map(d => ({ axis: d.day.slice(5), tip: d.day, routed: d.routed, skipped: d.skipped, errors: d.errors }))
+    ), [byHour, hourly, daily]);
+
+    const tips = useMemo(() => new Map(data.map(d => [d.axis, d.tip])), [data]);
+
     return (
         <div style={cardShell}>
-            <CardLabel title="Calls per day" sub="Every prompt the hook saw, by outcome" />
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+                <div>
+                    <CardLabel
+                        title={byHour ? "Calls per hour" : "Calls per day"}
+                        sub={byHour ? "Last 24 hours, by outcome" : "Every prompt the hook saw, by outcome"}
+                    />
+                </div>
+                <div style={{ display: "flex", gap: 6 }}>
+                    {(["hour", "day"] as const).map(m => {
+                        const active = mode === m;
+                        return (
+                            <button key={m} onClick={() => setMode(m)}
+                                style={{
+                                    cursor: "pointer", fontSize: 9, fontWeight: 700, letterSpacing: "0.06em",
+                                    textTransform: "uppercase", padding: "4px 9px", borderRadius: 7,
+                                    background: active ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.03)",
+                                    color: active ? "#fff" : "rgba(255,255,255,0.4)",
+                                    border: `1px solid ${active ? "rgba(255,255,255,0.18)" : "rgba(255,255,255,0.06)"}`,
+                                    transition: "all 0.15s ease",
+                                }}>
+                                {m === "hour" ? "24h" : "Daily"}
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>
             <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={daily} barCategoryGap="22%" maxBarSize={44}>
+                <BarChart data={data} barCategoryGap={byHour ? "14%" : "22%"} maxBarSize={byHour ? 26 : 44}>
                     <CartesianGrid stroke="rgba(255,255,255,0.04)" vertical={false} />
-                    <XAxis dataKey="day" tick={AXIS_TICK} tickFormatter={(v: string) => v.slice(5)} axisLine={false} tickLine={false} />
+                    <XAxis dataKey="axis" tick={AXIS_TICK} interval={byHour ? 1 : 0} axisLine={false} tickLine={false} />
                     <YAxis tick={AXIS_TICK} width={28} axisLine={false} tickLine={false} allowDecimals={false} />
-                    <Tooltip {...TOOLTIP} cursor={{ fill: "rgba(255,255,255,0.03)" }} />
+                    <Tooltip
+                        {...TOOLTIP}
+                        cursor={{ fill: "rgba(255,255,255,0.03)" }}
+                        labelFormatter={label => tips.get(String(label)) ?? String(label)}
+                    />
                     <Bar dataKey="routed" stackId="a" fill={STATUS_COLORS.routed} name="routed" />
                     <Bar dataKey="skipped" stackId="a" fill={STATUS_COLORS.skipped} name="skipped" />
                     <Bar dataKey="errors" stackId="a" fill={STATUS_COLORS.error} name="error" radius={[3, 3, 0, 0]} />
@@ -299,7 +386,7 @@ function SessionTable({ sessions }: { sessions: JevSession[] }) {
                                 <td style={NUM}>{s.messages}</td>
                                 <td style={{ ...NUM, color: STATUS_COLORS.routed }}>{s.routed}</td>
                                 <td style={{ ...NUM, color: s.errors > 0 ? STATUS_COLORS.error : "rgba(255,255,255,0.25)" }}>{s.errors}</td>
-                                <td style={TD}>{s.topTier ? <Pill text={s.topTier} color={TIER_COLORS[s.topTier] ?? "#6B7280"} /> : <span style={{ color: "rgba(255,255,255,0.2)" }}>-</span>}</td>
+                                <td style={TD}>{s.topTier ? <TierPill tier={s.topTier} /> : <span style={{ color: "rgba(255,255,255,0.2)" }}>-</span>}</td>
                                 <td style={NUM}>{s.avgConf == null ? "-" : s.avgConf.toFixed(2)}</td>
                                 <td style={{ ...TD, color: "rgba(255,255,255,0.4)" }}>{fmtTime(s.firstTs)}</td>
                                 <td style={{ ...TD, color: "rgba(255,255,255,0.4)" }}>{fmtTime(s.lastTs)}</td>
@@ -392,7 +479,7 @@ function MessageTable({ recent }: { recent: JevRow[] }) {
                                     <td style={TD}>{r.project ?? "-"}</td>
                                     <td style={{ ...TD, fontFamily: "ui-monospace, monospace", color: "rgba(255,255,255,0.4)" }}>{(r.session_id ?? "").slice(0, 8) || "-"}</td>
                                     <td style={TD}><Pill text={status === "skipped" && r.reason ? `${status} ${r.reason}` : status} color={STATUS_COLORS[status]} dim={status === "skipped"} /></td>
-                                    <td style={TD}>{r.tier ? <Pill text={r.tier} color={TIER_COLORS[r.tier] ?? "#6B7280"} /> : <span style={{ color: "rgba(255,255,255,0.2)" }}>-</span>}</td>
+                                    <td style={TD}>{r.tier ? <TierPill tier={r.tier} /> : <span style={{ color: "rgba(255,255,255,0.2)" }}>-</span>}</td>
                                     <td style={NUM}>{typeof r.conf === "number" ? r.conf.toFixed(2) : "-"}</td>
                                     <td style={NUM}>{typeof r.latency_ms === "number" ? `${r.latency_ms}ms` : "-"}</td>
                                     <td style={NUM}>{(r.input_tokens ?? 0) || (r.output_tokens ?? 0) ? `${fmtNum(r.input_tokens ?? 0)} / ${fmtNum(r.output_tokens ?? 0)}` : "-"}</td>
@@ -439,7 +526,7 @@ export default function JevCharts({ data }: { data: JevAggregate & { logPath: st
             ) : (
                 <>
                     <div className="grid gap-3 grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-                        <CallsPerDay daily={data.daily} />
+                        <CallsChart daily={data.daily} hourly={data.hourly} />
                         <TierSplit tiers={data.tiers} />
                     </div>
                     <LatencyPerDay daily={data.daily} />
