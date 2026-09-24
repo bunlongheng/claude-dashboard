@@ -19,7 +19,7 @@
 </p>
 
 <p align="center">
-  Monitor sessions, tokens, context windows, memory, rules, skills, hooks, MCP servers, and more<br/>
+  Monitor sessions, tokens, context windows, memory, model routing, rules, skills, hooks, MCP servers, and more<br/>
   from one local-first dashboard. Zero config - it reads <code>~/.claude/</code> directly.
 </p>
 
@@ -76,9 +76,10 @@ Open **http://localhost:3003** - done. No config, no database, no account.
 | **Skills** | Browse all custom skills and reusable prompt workflows |
 | **Commands** | Slash commands across all projects with source file locations |
 | **Hooks** | Event-driven automation hooks - PreToolUse, PostToolUse, Notification, etc. |
+| **Jev Router** *(opt-in)* | Observability for the Jev model-routing hook: every prompt logged with its tier (haiku / sonnet / opus / fable), agent, confidence, latency and cost; calls per hour and per day, tier split, sessions and messages; an on/off switch that pins every session to 1 tier. Needs the hook from [claude-code](https://github.com/bunlongheng/claude-code) |
 | **Plugins** | Installed plugin directories and marketplace status |
 | **Settings** | Global and local Claude Code settings editor (settings.json, settings.local.json) |
-| **Agents** | Subagent run history parsed from transcripts - status, duration, success rate |
+| **Agents** | 12 color-coded specialist agents (research, fix, UI, build, cleanup, storage, analytics, perf, QA, architecture, security) plus subagent run history parsed from transcripts - status, duration, success rate |
 | **Usage & Tokens** | Per-model cost, plan comparison, daily rollups, turns-by-hour punchcard |
 | **Session Export** | Export any session as clean Markdown |
 | **Global Search** | Cmd+K search across sessions, memory, skills, and settings |
@@ -100,6 +101,7 @@ Open **http://localhost:3003** - done. No config, no database, no account.
 | **Commands** | Slash commands across all projects |
 | **Extensions** | Installed extensions |
 | **Hooks** | Event-driven automation hooks |
+| **Jev** *(opt-in)* | Router hook activity - status tiles, calls per hour/day, tier split, latency, sessions, messages, and the router switch |
 | **MCP** | Model Context Protocol server configs and tools |
 | **Plugins** | Installed plugin directories |
 | **RAG** *(opt-in)* | Local knowledge base with document ingestion, FTS search, preferences extraction |
@@ -123,6 +125,7 @@ flowchart LR
     INGEST["RAG ingest<br>lib/rag-ingest-sessions"]
     DB["SQLite data/rag.db<br>full-text search"]
     RAGAPI["RAG API<br>/api/rag"]
+    JEV["Jev router hook<br>~/.claude/logs/jev.jsonl"]
     WS["WS server on port 7878<br>scripts/ws-server.mjs"]
     PEERS["Peer dashboards<br>MACHINES list"]
     PROXY["Same-origin proxy<br>/api/proxy"]
@@ -130,6 +133,7 @@ flowchart LR
 
     FS --> WALK --> API --> UI
     FS --> INGEST --> DB --> RAGAPI --> UI
+    JEV -->|1 line per prompt| API
     FS -->|file watch| WS -->|live session updates| UI
     PEERS -->|read-only fetch| PROXY --> UI
 ```
@@ -173,6 +177,83 @@ MACHINES=mac-mini.local:3003,raspberrypi.local:3003
 They appear in the machine switcher. Cross-machine data is fetched read-only
 through a same-origin proxy on your main machine - there is no remote command
 execution and no shared token.
+
+<br/>
+
+## RAG Memory (optional)
+
+A local knowledge base built from your own `~/.claude` files: session
+transcripts, memory, CLAUDE.md and preferences are ingested into a SQLite FTS5
+index (`data/rag.db`), and 2 hooks feed the loop - `SessionStart` asks the
+dashboard for context, `Stop` ingests the session that just ended. Nothing is
+sent anywhere; the model that answers is the one already running in your
+terminal. **Off by default.**
+
+```
+# .env.local
+NEXT_PUBLIC_RAG_ENABLED=1
+```
+
+Then open `/rag`, click **Re-ingest**, and use the **Benchmark** tab to compare
+memory configs on your own questions with an LLM judge (needs `ANTHROPIC_API_KEY`).
+Optional vector search: `npm install @huggingface/transformers` (about 10 MB,
+runs on CPU). The hooks live in
+[claude-code](https://github.com/bunlongheng/claude-code) `hooks/hooks.json`.
+
+<br/>
+
+## Jev Router (optional)
+
+[Jev](https://typesafe.ai) is a tiny decision model. A `UserPromptSubmit` hook
+asks it, for every prompt, which model tier can solve the request (haiku,
+sonnet, opus or fable) and which specialist agent owns that kind of work, then
+injects the answer as context so the main model delegates cheaply. Each call
+costs about $0.00002 and appends 1 JSON line to `~/.claude/logs/jev.jsonl`.
+The **Jev** page reads that file: nothing else is needed for the charts.
+
+```bash
+# 1. get the hook, the agent roles, and the settings entries
+git clone https://github.com/bunlongheng/claude-code.git ~/.claude
+python3 ~/.claude/scripts/install-hooks.py
+
+# 2. give the hook a key (either one), in your shell profile
+export AI_GATEWAY_API_KEY=...     # Vercel AI Gateway
+# or
+export TYPESAFE_API_KEY=...       # TypeSafe direct
+```
+
+Without a key the hook is silent and the page shows its empty state. The switch
+at the top of the page writes `~/.claude/jev-router.json`: **on** lets Jev pick
+per prompt, **off** pins every prompt in every open session to 1 tier - useful
+when you want to spend remaining quota on the strongest model before a reset.
+
+### Agent squad - who does what
+
+Jev does not only pick a tier, it picks a specialist. 12 color-coded agents ship
+as subagent definitions in `~/.claude/agents/` (1 file per role: what it owns,
+what it refuses, who it hands off to, and its model on the ladder). The router
+answers `agent=venus (0.99), tier=sonnet (0.77)` and the main model delegates
+to `subagent_type=venus`. Below 0.5 confidence it stays quiet and the main
+model decides. Questions, diff reviews and ranking findings map to `none` and
+never leave the main thread.
+
+| Agent | Role | Color | Model | Owns |
+|-------|------|-------|-------|------|
+| Snow | Commander / Research | `#ffffff` | haiku | explore, find, study how something works; the catch-all |
+| Rock | Investigate | `#7a7a7a` | haiku | status checks, counts, batch comparisons |
+| Blitz | Fix / Code | `#0099ff` | sonnet | surgical patches, lint and type errors, updates |
+| Venus | UI / Frontend | `#ff8800` | sonnet | styling, layout, dark mode, icons, images |
+| Pulse | Create / Build | `#9933ff` | sonnet | new features, pages, scaffolding, seeding |
+| Earth | Cleanup | `#00ff00` | sonnet | dead code, duplicates, import cleanup |
+| Sand | Storage | `#cc6633` | sonnet | SQLite, Postgres, migrations, indexes |
+| Frost | Analytics | `#00ffff` | sonnet | charts, stat cards, aggregation |
+| Zap | Performance | `#ffdd00` | sonnet | bundle, render, caching, Lighthouse |
+| Arrow | QA / Audit | `#ff66cc` | sonnet | test runs, E2E, visual diff, verification |
+| Blaze | Architecture | `#ff3333` | opus | plans, schemas, boundaries, tradeoffs |
+| Shadow | Security | `#888888` | fable | CSP, auth, secrets, exposure, ranking findings |
+
+The same roster and colors show on the **Agents** page, and every routed prompt
+on the **Jev** page carries the agent Jev picked.
 
 <br/>
 
