@@ -27,7 +27,7 @@ export function PolarChart({ segments, size = 130 }: { segments: { value: number
                     const x2 = cx + r * Math.cos(end), y2 = cy + r * Math.sin(end);
                     const path = `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${step > Math.PI ? 1 : 0} 1 ${x2} ${y2} Z`;
                     return (
-                        <path key={seg.label} d={path} fill={seg.color} fillOpacity={0.55} stroke={seg.color} strokeWidth={1.25} strokeLinejoin="round" style={{ transformOrigin: `${cx}px ${cy}px` }}>
+                        <path key={seg.label} d={path} fill={seg.color} fillOpacity={0.7} stroke={seg.color} strokeWidth={1} strokeLinejoin="round" style={{ transformOrigin: `${cx}px ${cy}px` }}>
                             <animate attributeName="opacity" from="0" to="1" dur="0.5s" begin={`${i * 0.1}s`} fill="freeze" />
                         </path>
                     );
@@ -42,10 +42,6 @@ export function PolarChart({ segments, size = 130 }: { segments: { value: number
                         <span style={{ fontSize: 10, fontWeight: 700, color: s.color, marginLeft: "auto" }}>{s.value}</span>
                     </div>
                 ))}
-                <div className="flex items-center gap-2" style={{ paddingTop: 4, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-                    <span style={{ fontSize: 10, color: "rgba(255,255,255,0.35)" }}>total</span>
-                    <span style={{ fontSize: 10, fontWeight: 800, color: "white", marginLeft: "auto" }}>{total}</span>
-                </div>
             </div>
         </div>
     );
