@@ -24,9 +24,9 @@ const HEALTH: Record<JevPayload["health"], { color: string; label: string }> = {
 
 function Stat({ label, value, color }: { label: string; value: string; color: string }) {
     return (
-        <div style={{ textAlign: "center", minWidth: 0, padding: "8px 4px", borderRadius: 8, background: `${color}14`, border: `1px solid ${color}33` }}>
-            <div style={{ fontSize: 20, fontWeight: 800, color, lineHeight: 1.1, fontVariantNumeric: "tabular-nums" }}>{value}</div>
-            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "rgba(255,255,255,0.75)", marginTop: 4 }}>{label}</div>
+        <div style={{ textAlign: "center", minWidth: 0, padding: "6px 4px", borderRadius: 8, background: `${color}14`, border: `1px solid ${color}33` }}>
+            <div style={{ fontSize: 16, fontWeight: 800, color, lineHeight: 1.1, fontVariantNumeric: "tabular-nums" }}>{value}</div>
+            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "rgba(255,255,255,0.7)", marginTop: 3 }}>{label}</div>
         </div>
     );
 }
