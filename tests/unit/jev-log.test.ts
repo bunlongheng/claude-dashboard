@@ -22,7 +22,7 @@ vi.mock("os", async (importOriginal) => {
 
 // Imported after the mock is wired, not statically above it: a static import
 // evaluates lib/jev-log (and so calls homedir) before `overrides` exists.
-const { parseJevLines, aggregateJev, dayOf, JEV_COST_PER_CALL } = await import("@/lib/jev-log");
+const { parseJevLines, aggregateJev, dayOf, hourOf, JEV_COST_PER_CALL } = await import("@/lib/jev-log");
 
 // ── Fixtures: the 3 row shapes the hook actually writes ─────────────────────
 const ROUTED = {
@@ -202,6 +202,75 @@ describe("aggregateJev daily", () => {
         const { daily } = aggregateJev([SKIPPED], NOW);
         expect(daily[0].avgLatencyMs).toBe(0);
         expect(daily[0].p95LatencyMs).toBe(0);
+    });
+});
+
+// ── hourly ──────────────────────────────────────────────────────────────────
+describe("hourOf", () => {
+    it("keeps the local hour the hook wrote, offset and all", () => {
+        expect(hourOf("2026-09-24T14:48:23-0400")).toBe("2026-09-24T14");
+        expect(hourOf("2026-09-24T00:05:00-0400")).toBe("2026-09-24T00");
+    });
+});
+
+describe("aggregateJev hourly", () => {
+    // The window is built from the clock in local time, so the fixtures are
+    // written the way the hook writes them - local, with the real offset - and
+    // the suite passes in any zone rather than only in -0400.
+    function localTs(ms: number): string {
+        const d = new Date(ms);
+        const p = (n: number) => String(n).padStart(2, "0");
+        const off = -d.getTimezoneOffset();
+        const sign = off < 0 ? "-" : "+";
+        const abs = Math.abs(off);
+        return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:00`
+            + `${sign}${p(Math.floor(abs / 60))}${p(abs % 60)}`;
+    }
+
+    const HOUR = 60 * 60 * 1000;
+
+    it("always returns exactly 24 buckets ending at the current hour", () => {
+        const { hourly } = aggregateJev([], NOW);
+        expect(hourly).toHaveLength(24);
+        expect(hourly[23].hour).toBe(hourOf(localTs(NOW)));
+    });
+
+    it("zero-fills the quiet hours instead of dropping them", () => {
+        const rows: JevRow[] = [
+            { ts: localTs(NOW), status: "routed", tier: "haiku", latency_ms: 100, input_tokens: 10, output_tokens: 5 },
+        ];
+        const { hourly } = aggregateJev(rows, NOW);
+        expect(hourly).toHaveLength(24);
+        expect(hourly[23]).toMatchObject({ routed: 1, skipped: 0, errors: 0, avgLatencyMs: 100, tokens: 15 });
+        expect(hourly.slice(0, 23).every(h => h.routed === 0 && h.skipped === 0 && h.errors === 0)).toBe(true);
+    });
+
+    it("splits outcomes into the hour each prompt landed in", () => {
+        const rows: JevRow[] = [
+            { ts: localTs(NOW - 2 * HOUR), status: "routed", tier: "sonnet", latency_ms: 200 },
+            { ts: localTs(NOW - 2 * HOUR), status: "error", latency_ms: 400 },
+            { ts: localTs(NOW - 1 * HOUR), status: "skipped", reason: "slash" },
+        ];
+        const { hourly } = aggregateJev(rows, NOW);
+        expect(hourly[21]).toMatchObject({ routed: 1, skipped: 0, errors: 1, avgLatencyMs: 300 });
+        expect(hourly[22]).toMatchObject({ routed: 0, skipped: 1, errors: 0, avgLatencyMs: 0 });
+    });
+
+    it("drops rows older than the 24 hour window from the buckets", () => {
+        const rows: JevRow[] = [
+            { ts: localTs(NOW - 40 * HOUR), status: "routed", tier: "opus" },
+        ];
+        const { hourly, totals } = aggregateJev(rows, NOW);
+        expect(totals.routed).toBe(1);
+        expect(hourly.reduce((s, h) => s + h.routed, 0)).toBe(0);
+    });
+
+    it("labels each bucket with its zero-padded hour", () => {
+        const { hourly } = aggregateJev([], NOW);
+        for (const h of hourly) {
+            expect(h.label).toBe(`${h.hour.slice(11)}:00`);
+            expect(h.label).toMatch(/^\d{2}:00$/);
+        }
     });
 });
 
