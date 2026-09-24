@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { cardShell } from "@/lib/ui-tokens";
 import { useMachine } from "../MachineContext";
 import { safeFetch } from "../shared";
-import { DonutChart } from "./DonutChart";
+import { PolarChart } from "./PolarChart";
 // Type-only: jev-log reads files, so a value import would pull fs into the bundle.
 import type { JevPayload } from "@/lib/jev-log";
 
@@ -60,7 +60,7 @@ export function JevCard() {
             {routed > 0 && t ? (
                 <>
                     <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", minHeight: 120 }}>
-                        <DonutChart segments={segments} size={120} />
+                        <PolarChart segments={segments} size={170} />
                     </div>
                     <div className="grid grid-cols-3" style={{ gap: 6, marginTop: 12, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
                         <Stat label="Routed" value={`${Math.round(t.routedPct)}%`} color="#22C55E" />
