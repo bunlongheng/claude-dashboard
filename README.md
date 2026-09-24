@@ -70,7 +70,7 @@ Open **http://localhost:3003** - done. No config, no database, no account.
 | **Activity Heatmap** | GitHub-style contribution calendar with active days, longest/current streak, most active day, top model |
 | **Session Monitor** | Live session viewer with thinking state, tool calls, SSE streaming, custom title sync |
 | **Multi-Machine** *(opt-in)* | Switch between machines (laptop, Mac mini, Pi, VPS) from one UI; peer data read via a same-origin proxy, no remote exec. Set `MACHINES=host:port,...` |
-| **RAG Memory** *(opt-in)* | Local semantic + FTS search over memory and session transcripts, preference/insight extraction, eval harness. Off by default - enable with `NEXT_PUBLIC_RAG_ENABLED=1`. Vector search also needs `npm install @huggingface/transformers` |
+| **RAG Memory** *(opt-in)* | Local FTS5 search over memory and session transcripts, always on once enabled, preference/insight extraction, and a benchmark that judges memory configs on your own questions. Off by default - enable with `NEXT_PUBLIC_RAG_ENABLED=1` |
 | **CLAUDE.md Editor** | View and edit global instructions Claude reads on every startup |
 | **MCP Servers** | Connection status, tools list, configuration viewer for all MCP servers |
 | **Skills** | Browse all custom skills and reusable prompt workflows |
@@ -105,7 +105,6 @@ Open **http://localhost:3003** - done. No config, no database, no account.
 | **MCP** | Model Context Protocol server configs and tools |
 | **Plugins** | Installed plugin directories |
 | **RAG** *(opt-in)* | Local knowledge base with document ingestion, FTS search, preferences extraction |
-| **Context** *(opt-in)* | Memory graph and per-session context window usage |
 | **Settings** | Global and local Claude Code settings |
 | **Skills** | Reusable prompts and workflows |
 | **Tokens** | Daily charts, cost by model/project, plan comparison, glossary |
@@ -194,11 +193,13 @@ terminal. **Off by default.**
 NEXT_PUBLIC_RAG_ENABLED=1
 ```
 
-Then open `/rag`, click **Re-ingest**, and use the **Benchmark** tab to compare
-memory configs on your own questions with an LLM judge (needs `ANTHROPIC_API_KEY`).
-Optional vector search: `npm install @huggingface/transformers` (about 10 MB,
-runs on CPU). The hooks live in
-[claude-code](https://github.com/bunlongheng/claude-code) `hooks/hooks.json`.
+Then open `/rag` and click **Re-ingest**. There is 1 memory mode and it is
+always on: FTS5 keyword retrieval, which won the benchmark against vectors
+(4.4 vs 4.1 of 5) with 0 dependencies. The **Benchmark** tab re-runs that
+comparison on your own questions with an LLM judge (needs `ANTHROPIC_API_KEY`;
+the vector config also needs `npm install @huggingface/transformers`). The
+hooks live in [claude-code](https://github.com/bunlongheng/claude-code)
+`hooks/hooks.json`.
 
 <br/>
 
