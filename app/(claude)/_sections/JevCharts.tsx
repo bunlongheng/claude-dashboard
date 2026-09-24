@@ -78,9 +78,11 @@ function fmtTime(ts: string): string {
     return d.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", hour12: true });
 }
 
+// The router costs fractions of a cent per call, so 2 decimals reads as $0.00
+// until the log is enormous. Widen the precision instead of lying about it.
 function fmtCost(usd: number): string {
     if (usd === 0) return "$0";
-    if (usd < 0.01) return `$${usd.toFixed(4)}`;
+    if (usd < 0.01) return `$${usd.toFixed(5).replace(/0+$/, "").replace(/\.$/, "")}`;
     return `$${usd.toFixed(2)}`;
 }
 
@@ -166,7 +168,7 @@ function CallsPerDay({ daily }: { daily: JevAggregate["daily"] }) {
         <div style={cardShell}>
             <CardLabel title="Calls per day" sub="Every prompt the hook saw, by outcome" />
             <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={daily} barCategoryGap="22%">
+                <BarChart data={daily} barCategoryGap="22%" maxBarSize={44}>
                     <CartesianGrid stroke="rgba(255,255,255,0.04)" vertical={false} />
                     <XAxis dataKey="day" tick={AXIS_TICK} tickFormatter={(v: string) => v.slice(5)} axisLine={false} tickLine={false} />
                     <YAxis tick={AXIS_TICK} width={28} axisLine={false} tickLine={false} allowDecimals={false} />
