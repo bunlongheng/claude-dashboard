@@ -24,9 +24,9 @@ const HEALTH: Record<JevPayload["health"], { color: string; label: string }> = {
 
 function Stat({ label, value, color }: { label: string; value: string; color: string }) {
     return (
-        <div style={{ textAlign: "center", minWidth: 0 }}>
-            <div style={{ fontSize: 15, fontWeight: 800, color, lineHeight: 1.1, fontVariantNumeric: "tabular-nums" }}>{value}</div>
-            <div style={{ fontSize: 8, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.4)", marginTop: 3 }}>{label}</div>
+        <div style={{ textAlign: "center", minWidth: 0, padding: "8px 4px", borderRadius: 8, background: `${color}14`, border: `1px solid ${color}33` }}>
+            <div style={{ fontSize: 20, fontWeight: 800, color, lineHeight: 1.1, fontVariantNumeric: "tabular-nums" }}>{value}</div>
+            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "rgba(255,255,255,0.75)", marginTop: 4 }}>{label}</div>
         </div>
     );
 }
@@ -62,7 +62,7 @@ export function JevCard() {
                     <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", minHeight: 120 }}>
                         <PolarChart segments={segments} size={170} />
                     </div>
-                    <div className="grid grid-cols-3" style={{ gap: 6, marginTop: 12, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                    <div className="grid grid-cols-3" style={{ gap: 8, marginTop: 12 }}>
                         <Stat label="Routed" value={`${Math.round(t.routedPct)}%`} color="#22C55E" />
                         <Stat label="Avg ms" value={String(Math.round(t.avgLatencyMs))} color="#4A9EFF" />
                         <Stat label="Cost" value={cost} color="#F97316" />
