@@ -5,12 +5,14 @@ import { useQuery } from "@tanstack/react-query";
 import { SegmentedTabs, safeFetch } from "./shared";
 import { useMachine } from "./MachineContext";
 import JevCharts from "./JevCharts";
+import JevRouterSwitch from "./JevRouterSwitch";
 import type { JevPayload } from "@/lib/jev-log";
+import type { JevRouterState } from "@/lib/jev-router-state";
 
 const DAY_RANGES = ["7", "30", "90"] as const;
 const ALL_PROJECTS = "__all__";
 
-export default function JevSection({ initial }: { initial: JevPayload }) {
+export default function JevSection({ initial, router }: { initial: JevPayload; router: JevRouterState }) {
     const { machine, apiBase } = useMachine();
     const [days, setDays] = useState<string>(String(initial.days));
     const [project, setProject] = useState<string>(initial.project ?? ALL_PROJECTS);
@@ -60,6 +62,9 @@ export default function JevSection({ initial }: { initial: JevPayload }) {
                 <span style={{ marginLeft: "auto", fontSize: 9, color: "rgba(255,255,255,0.25)", fontFamily: "ui-monospace, monospace" }}>
                     {payload.logPath}
                 </span>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+                <JevRouterSwitch initial={router} />
             </div>
             <JevCharts data={payload} />
         </div>
