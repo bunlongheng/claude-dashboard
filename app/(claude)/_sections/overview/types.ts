@@ -33,21 +33,6 @@ export interface DayBucket {
     sessions: number;
 }
 
-export interface CtxSession {
-    sessionId: string;
-    project: string;
-    model: string;
-    contextUsed: number;
-    contextMax: number;
-    inputTokens: number;
-    cacheRead: number;
-    cacheCreate: number;
-    outputTokens: number;
-    turns: number;
-    lastActive: string;
-    customTitle: string | null;
-}
-
 // Return shape of the Overview's `heatmapData` useMemo - only the fields the
 // extracted activity-heatmap card actually reads from it.
 export interface HeatmapData {
