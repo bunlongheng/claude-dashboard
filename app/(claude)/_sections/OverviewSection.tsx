@@ -10,11 +10,11 @@ import SkillUsagePanel from "./SkillUsagePanel";
 import { HeroCardsGrid } from "./overview/HeroCardsGrid";
 import { ConfigDonutCard } from "./overview/ConfigDonutCard";
 import { TopSessionsCard } from "./overview/TopSessionsCard";
-import { ContextWindowCard } from "./overview/ContextWindowCard";
+import { JevCard } from "./overview/JevCard";
 import { ActivityHeatmapCard } from "./overview/ActivityHeatmapCard";
 import { BreakdownCard } from "./overview/BreakdownCard";
 import { localYMD } from "./overview/utils";
-import type { Stats, RagStats, DayBucket, CtxSession } from "./overview/types";
+import type { Stats, RagStats, DayBucket } from "./overview/types";
 
 // Small local clock for the recent-activity cutoff below - re-derived every
 // 30s (not on every render) so the render body never calls the impure
@@ -50,16 +50,6 @@ export default function OverviewSection() {
     const windowDays = intervalTab === "24h" ? 1 : intervalTab === "7d" ? 7 : intervalTab === "30d" ? 30 : 999999;
     const now = useNow(30_000);
     const windowCutoff = now - windowDays * 86400_000;
-
-    // Context window data - refresh every 30s (fast)
-    interface ContextResponse { sessions: CtxSession[] }
-    const ctxUrl = apiBase("/api/claude/context");
-    const ctxQuery = useQuery<ContextResponse>({
-        queryKey: ["overview-context", ctxUrl],
-        queryFn: () => safeFetch<ContextResponse>(ctxUrl, { sessions: [] }, () => setDataError(true)),
-        refetchInterval: 30_000,
-    });
-    const ctxSessions = ctxQuery.data?.sessions ?? [];
 
     // Daily data - loaded once per machine (slow endpoint, ~3s)
     interface DailyModelBucket { model: string; input: number; output: number; cache_read: number; cache_creation: number; turns: number }
@@ -177,7 +167,6 @@ export default function OverviewSection() {
 
     const handleRetry = () => {
         setDataError(false);
-        ctxQuery.refetch();
         dailyQuery.refetch();
         if (RAG_ENABLED) ragQuery.refetch();
         toolUsageQuery.refetch();
@@ -341,12 +330,12 @@ export default function OverviewSection() {
                 Order + colors mirror the left nav gradient (red -> indigo, no white). */}
             <HeroCardsGrid stats={stats} ragStats={ragStats} liveSessions={liveSessions} totalTokens={totalTokens} />
 
-            {/* Row 4 — 4 columns: config, top sessions, context window, skill usage */}
+            {/* Row 4 - 4 columns: config, top sessions, Jev router, skill usage */}
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
                 <ConfigDonutCard segments={configSegments} />
                 <TopSessionsCard tokensBySessionWindowed={tokensBySessionWindowed} intervalTabsEl={intervalTabsEl} />
-                <ContextWindowCard ctxSessions={ctxSessions} />
-                {/* Skill usage - compact col next to Context Window */}
+                <JevCard />
+                {/* Skill usage - compact col next to the Jev card */}
                 <SkillUsagePanel />
             </div>
 
