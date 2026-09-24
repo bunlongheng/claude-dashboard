@@ -58,16 +58,16 @@ export function JevCard() {
                 </Link>
             </div>
             {routed > 0 && t ? (
-                <>
-                    <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", minHeight: 120, paddingTop: 12 }}>
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 120, padding: "8px 0" }}>
                         <PolarChart segments={segments} size={156} />
                     </div>
-                    <div className="grid grid-cols-3" style={{ gap: 8, marginTop: 12 }}>
+                    <div className="grid grid-cols-3" style={{ gap: 8, marginTop: 8 }}>
                         <Stat label="Routed" value={`${Math.round(t.routedPct)}%`} color="#22C55E" />
                         <Stat label="Avg ms" value={String(Math.round(t.avgLatencyMs))} color="#4A9EFF" />
                         <Stat label="Cost" value={cost} color="#F97316" />
                     </div>
-                </>
+                </div>
             ) : (
                 <p style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", margin: 0 }}>
                     {q.isPending ? "Loading" : "No routed prompts in the last 7 days."} <Link href="/jev" style={{ color: "rgba(255,255,255,0.7)" }}>Open Jev</Link>
