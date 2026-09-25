@@ -4,7 +4,7 @@
 
 A local-first dashboard that reads your `~/.claude/` folder directly and shows sessions, tokens, context, memory, model routing, skills, hooks and MCP servers in 1 place. Zero config, no account, nothing leaves your machine.
 
-![Claude Dashboard - overview](docs/screenshots/hero.png)
+![Claude Dashboard - overview](docs/screenshots/hero.webp)
 
 ![Next.js](https://img.shields.io/badge/Next.js-16-000000?style=flat&logo=nextdotjs&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-20232A?style=flat&logo=react&logoColor=61DAFB)
@@ -51,7 +51,7 @@ Tests: `npm test` (unit) and `npm run test:e2e` (Playwright).
 
 ## How it works
 
-<a href="https://flows-bheng.vercel.app/?id=78e3bf49-16a1-472e-bc66-52bc23a63328"><img src="https://flows-bheng.vercel.app/api/flows/78e3bf49-16a1-472e-bc66-52bc23a63328?format=gif" alt="How it works: ~/.claude files flow through Next.js API routes, a SQLite index and a WebSocket watcher into the dashboard UI" width="100%" /></a>
+<a href="https://flows-bheng.vercel.app/?id=78e3bf49-16a1-472e-bc66-52bc23a63328"><img src="https://flows-bheng.vercel.app/api/flows/78e3bf49-16a1-472e-bc66-52bc23a63328?format=gif&amp;w=1600" alt="How it works: ~/.claude files flow through Next.js API routes, a SQLite index and a WebSocket watcher into the dashboard UI" width="100%" /></a>
 
 Tail-reads your `~/.claude` files, indexes them into a local SQLite file, and streams changes to the UI over a WebSocket. No upload, no database server.
 
