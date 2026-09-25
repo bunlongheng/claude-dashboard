@@ -17,6 +17,9 @@ export default defineConfig({
   retries: 1,
   reporter: [["list"]],
   use: {
+    // public/sw.js serves GET requests itself, and service worker fetches bypass
+    // page.route(), so every API mock in the specs would be skipped without this.
+    serviceWorkers: "block",
     baseURL: BASE_URL,
     headless: true,
     trace: "on-first-retry",

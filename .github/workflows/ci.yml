@@ -17,6 +17,11 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          # gitleaks diffs <base>^..<head>. The default shallow clone has
+          # neither revision, so git writes to stderr and the action aborts
+          # with "failed to scan Git repository: stderr is not empty".
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:

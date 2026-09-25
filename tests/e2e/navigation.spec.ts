@@ -19,8 +19,12 @@ test.describe("every route loads", () => {
   }
 });
 
+// The RAG entry is opt-in (NEXT_PUBLIC_RAG_ENABLED=1, see lib/features.ts), so
+// it is only expected when the server under test was started with the flag.
+const RAG_NAV = process.env.NEXT_PUBLIC_RAG_ENABLED === "1";
+
 const PRIMARY_NAV = [
-  "Overview", "Agents", "RAG", "Memory", "CLAUDE.md", "MCP",
+  "Overview", "Agents", ...(RAG_NAV ? ["RAG"] : []), "Memory", "CLAUDE.md", "MCP",
   "Skills", "CLI", "Extensions", "Settings", "Sessions", "Tokens", "Jev",
 ];
 
@@ -37,7 +41,7 @@ test("clicking each nav item navigates to its route", async ({ page }) => {
   await page.goto("/dashboard", GOTO);
   const aside = page.locator("aside").first();
   const targets: [string, RegExp][] = [
-    ["Agents", /\/agents/], ["RAG", /\/rag/],
+    ["Agents", /\/agents/], ...(RAG_NAV ? [["RAG", /\/rag/] as [string, RegExp]] : []),
     ["CLAUDE.md", /\/global/], ["MCP", /\/mcp/], ["Skills", /\/skills/],
     ["CLI", /\/cli/], ["Extensions", /\/extensions/], ["Settings", /\/settings/],
     ["Sessions", /\/sessions/], ["Tokens", /\/tokens/], ["Jev", /\/jev/],

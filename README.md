@@ -23,7 +23,6 @@ A local-first dashboard that reads your `~/.claude/` folder directly and shows s
 - [Jev router](#jev-router-optional)
 - [API](#api)
 - [Tech stack](#tech-stack)
-- [Project layout](#project-layout)
 
 ## Features
 
@@ -128,29 +127,6 @@ All routes are local, read-only and unauthenticated by design. Bind to `127.0.0.
 - TanStack Query for client data, Recharts for charts, ws for the file watcher
 - Vitest, Testing Library and MSW for unit tests, Playwright for E2E
 - Runs on your machine only. No hosting, no account, no telemetry
-
-## Project layout
-
-```
-app/
-  (claude)/          pages: dashboard, sessions, tokens, usage, agents, jev, skills,
-                     hooks, commands, mcp, plugins, extensions, settings, rag
-    _sections/       client components for each page
-  api/
-    claude/          read-only routes over ~/.claude (sessions, token-stats, jev, search, ...)
-    proxy/           same-site guarded read-only proxy to MACHINES peers
-    qr/              QR code for opening the dashboard on a phone
-    rag/             opt-in RAG index and search
-lib/                 readers and aggregators: safe-read, jsonl-walk, live-sessions, jev-log, pricing
-  db/                SQLite adapter with a no-op fallback
-  eval/              RAG benchmark configs and runners
-scripts/             ws-server.mjs (file watcher), start-prod.sh, with-ws.sh, sync-icons.mjs
-tests/               unit (Vitest), e2e (Playwright), msw handlers
-docs/                icon, screenshots, agent avatars, api.md
-mcp-server.ts        MCP server that exposes the RAG memory to Claude Code
-middleware.ts        LAN CORS and frame-ancestors headers
-install.sh           1-line installer
-```
 
 ## Inspired by
 
