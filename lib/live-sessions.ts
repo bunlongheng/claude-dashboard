@@ -41,16 +41,35 @@ function newestJsonlIn(folder: string): string | null {
     }
 }
 
+// Claude Code names a project folder after the path it was launched from, while
+// lsof reports the real path. ~/Sites is a symlink to an external volume, so a
+// session started in ~/Sites/x has cwd /Volumes/.../Sites/x and would never match.
+// Try the launch-path spelling as well as the real one.
+const SITES = path.join(os.homedir(), "Sites");
+function sitesAliases(): string[] {
+    const out = [SITES + ".old"];
+    try { const real = fs.realpathSync(SITES); if (real !== SITES) out.push(real); } catch { /* no ~/Sites */ }
+    return out;
+}
+const SITES_ALIASES = sitesAliases();
+
+export function projectFoldersFor(cwd: string, aliases = SITES_ALIASES): string[] {
+    const keys = new Set([cwd]);
+    for (const alias of aliases) if (cwd.startsWith(alias + "/")) keys.add(SITES + cwd.slice(alias.length));
+    return [...keys].map(k => path.join(CLAUDE_DIR, k.replace(/\//g, "-")));
+}
+
 export async function getLiveSessionIds(): Promise<Set<string>> {
     const now = Date.now();
     if (cache && cache.expires > now) return cache.ids;
 
     const ids = new Set<string>();
     for (const cwd of await cwdsOfClaudeProcesses()) {
-        const folder = path.join(CLAUDE_DIR, cwd.replace(/\//g, "-"));
-        if (!fs.existsSync(folder)) continue;
-        const id = newestJsonlIn(folder);
-        if (id) ids.add(id);
+        for (const folder of projectFoldersFor(cwd)) {
+            if (!fs.existsSync(folder)) continue;
+            const id = newestJsonlIn(folder);
+            if (id) ids.add(id);
+        }
     }
     cache = { ids, expires: now + TTL_MS };
     return ids;
