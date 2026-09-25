@@ -51,7 +51,7 @@ Tests: `npm test` (unit) and `npm run test:e2e` (Playwright).
 
 ## How it works
 
-<a href="https://flows-bheng.vercel.app/?id=78e3bf49-16a1-472e-bc66-52bc23a63328"><img src="https://flows-bheng.vercel.app/api/flows/78e3bf49-16a1-472e-bc66-52bc23a63328?format=gif&amp;w=1600" alt="How it works: ~/.claude files flow through Next.js API routes, a SQLite index and a WebSocket watcher into the dashboard UI" width="100%" /></a>
+<a href="https://flows-bheng.vercel.app/?id=78e3bf49-16a1-472e-bc66-52bc23a63328"><img src="https://flows-bheng.vercel.app/api/flows/78e3bf49-16a1-472e-bc66-52bc23a63328?format=gif&amp;w=1920" alt="How it works: ~/.claude files flow through Next.js API routes, a SQLite index and a WebSocket watcher into the dashboard UI" width="100%" /></a>
 
 Tail-reads your `~/.claude` files, indexes them into a local SQLite file, and streams changes to the UI over a WebSocket. No upload, no database server.
 
