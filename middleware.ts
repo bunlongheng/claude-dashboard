@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isLocalHost } from "@/lib/is-local";
+import { frameHeaders } from "@/lib/frame-ancestors";
 
 // Cross-machine fetches: when the dashboard on one machine hits the API
 // on another machine over the LAN, the browser does CORS. Echo back
@@ -35,19 +36,19 @@ export async function middleware(req: NextRequest) {
 
     // ── Security Headers (OWASP Top 10) ────────────────────────────────────
     res.headers.set("X-Content-Type-Options", "nosniff");
-    // The graphify knowledge graph is embedded same-origin in the Context page,
-    // so it needs SAMEORIGIN; everything else stays DENY.
-    res.headers.set("X-Frame-Options", req.nextUrl.pathname.startsWith("/graphify") ? "SAMEORIGIN" : "DENY");
+    // Framing policy: DENY by default, SAMEORIGIN for the embedded graphify
+    // page, and an env allowlist (FRAME_ANCESTORS) for local embedding tools.
+    const frame = frameHeaders(req.nextUrl.pathname);
+    if (frame.xfo) res.headers.set("X-Frame-Options", frame.xfo);
     res.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
     res.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
     // Safe CSP subset: locks object/base-uri and modern clickjacking protection
     // without constraining script/style/img sources, so it can't break Next.js
     // hydration or the inline-styled UI. A nonce-based script-src is a follow-up.
     // (X-XSS-Protection dropped - deprecated and ignored by modern browsers.)
-    const frameAncestors = req.nextUrl.pathname.startsWith("/graphify") ? "'self'" : "'none'";
     res.headers.set(
         "Content-Security-Policy",
-        `object-src 'none'; base-uri 'self'; frame-ancestors ${frameAncestors}`
+        `object-src 'none'; base-uri 'self'; frame-ancestors ${frame.csp}`
     );
     // HSTS only over HTTPS (Caddy/Tailscale/Vercel) so plain-HTTP LAN use is
     // unaffected - browsers ignore HSTS on http anyway.

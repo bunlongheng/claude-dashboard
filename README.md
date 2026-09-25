@@ -67,6 +67,7 @@ Everything works with 0 config. Only set what you need in `.env.local`.
 | `NEXT_PUBLIC_RAG_ENABLED` | `1` enables the RAG page and hooks |
 | `AI_GATEWAY_API_KEY` | Jev router hook, see below (`TYPESAFE_API_KEY` also works) |
 | `ANTHROPIC_API_KEY` | RAG benchmark tab |
+| `FRAME_ANCESTORS` | Origins allowed to iframe the dashboard, default none |
 
 ## Jev router (optional)
 
