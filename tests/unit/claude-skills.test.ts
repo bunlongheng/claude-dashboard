@@ -80,6 +80,12 @@ describe("listClaudeSkills", () => {
     it("covers every frontmatter/heading fallback combination", () => {
       const tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "claude-skills-fixtures-"));
       const skillsRoot = path.join(tmpHome, ".claude", "skills");
+      fs.mkdirSync(skillsRoot, { recursive: true });
+
+      // A stray file next to the skill directories -> the non-directory skip.
+      // Without it this branch is only covered on machines whose real
+      // ~/.claude/skills happens to contain a loose file.
+      fs.writeFileSync(path.join(skillsRoot, "not-a-skill.txt"), "");
 
       // Frontmatter has description but no name key -> nameLine false branch.
       const noNameDir = path.join(skillsRoot, "skill-no-name");
