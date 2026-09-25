@@ -11,8 +11,8 @@ import {
     Menu, X, ChevronDown, ChevronLeft, ChevronRight, Monitor, PanelLeftClose, PanelLeftOpen,
     Bot,
     Search, DatabaseZap, FileText, SlidersHorizontal, Wand2,
-    Route,
 } from "lucide-react";
+import JevMark, { JEV_PINK } from "./JevMark";
 import { MACHINES, MACHINE_COLORS, ACCENT, fmtCompact, type ProjectSessions } from "./shared";
 import { CLI_ICON_MAP } from "./cliIcons";
 import { RAG_ENABLED } from "@/lib/features";
@@ -51,7 +51,7 @@ export const NAV_SECTIONS: NavSection[] = [
     { label: "Activity", items: [
         { href: "/sessions", label: "Sessions",  Icon: FolderOpen,      exact: false, color: "#007AFF" },
         { href: "/tokens",   label: "Tokens",    Icon: Coins,           exact: false, color: "#5856D6" },
-        { href: "/jev",      label: "Jev",       Icon: Route,           exact: false, color: "#0EA5E9" },
+        { href: "/jev",      label: "Jev",       Icon: JevMark,         exact: false, color: JEV_PINK },
         { href: "/usage",    label: "Usage",     Icon: DollarSign,      exact: false, color: "#FF6347" },
     ]},
 ];

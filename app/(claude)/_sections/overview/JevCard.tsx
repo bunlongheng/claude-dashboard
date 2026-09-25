@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { cardShell } from "@/lib/ui-tokens";
 import { useMachine } from "../MachineContext";
 import { safeFetch } from "../shared";
 import { PolarChart } from "./PolarChart";
+import JevMark, { JEV_PINK } from "../JevMark";
 // Type-only: jev-log reads files, so a value import would pull fs into the bundle.
 import type { JevPayload } from "@/lib/jev-log";
 
@@ -35,6 +37,7 @@ function Stat({ label, value, color }: { label: string; value: string; color: st
 // whether the hook is earning its keep. Drills into /jev for the rest.
 export function JevCard() {
     const { apiBase } = useMachine();
+    const router = useRouter();
     const url = `${apiBase("/api/claude/jev")}?days=7`;
     const q = useQuery<JevPayload | null>({
         queryKey: ["overview-jev", url],
@@ -51,7 +54,7 @@ export function JevCard() {
     return (
         <div style={{ ...cardShell, display: "flex", flexDirection: "column" }}>
             <div className="flex items-center justify-between" style={{ marginBottom: 12, gap: 8 }}>
-                <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.55)", margin: 0 }}>Jev Router <span style={{ color: "rgba(255,255,255,0.3)", fontWeight: 600 }}>7d{routed > 0 ? ` \u00b7 ${routed}` : ""}</span></p>
+                <p style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: JEV_PINK, margin: 0 }}><JevMark size={14} />Jev Router <span style={{ color: "rgba(255,255,255,0.3)", fontWeight: 600 }}>7d{routed > 0 ? ` \u00b7 ${routed}` : ""}</span></p>
                 <Link href="/jev" style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 9, fontWeight: 800, letterSpacing: "0.1em", color: health.color, textDecoration: "none" }}>
                     <span style={{ width: 6, height: 6, borderRadius: 999, background: health.color, boxShadow: `0 0 8px ${health.color}` }} />
                     {health.label}
@@ -60,7 +63,7 @@ export function JevCard() {
             {routed > 0 && t ? (
                 <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 120, padding: "8px 0" }}>
-                        <PolarChart segments={segments} size={156} />
+                        <PolarChart segments={segments} size={156} onSelect={tier => router.push(`/jev?days=7&tier=${tier}#tier-split`)} />
                     </div>
                     <div className="grid grid-cols-3" style={{ gap: 8, marginTop: 8 }}>
                         <Stat label="Routed" value={`${Math.round(t.routedPct)}%`} color="#22C55E" />

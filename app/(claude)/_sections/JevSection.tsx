@@ -12,7 +12,7 @@ import type { JevRouterState } from "@/lib/jev-router-state";
 const DAY_RANGES = ["7", "30", "90"] as const;
 const ALL_PROJECTS = "__all__";
 
-export default function JevSection({ initial, router }: { initial: JevPayload; router: JevRouterState }) {
+export default function JevSection({ initial, router, tier }: { initial: JevPayload; router: JevRouterState; tier?: string }) {
     const { machine, apiBase } = useMachine();
     const [days, setDays] = useState<string>(String(initial.days));
     const [project, setProject] = useState<string>(initial.project ?? ALL_PROJECTS);
@@ -66,7 +66,7 @@ export default function JevSection({ initial, router }: { initial: JevPayload; r
             <div style={{ marginBottom: 12 }}>
                 <JevRouterSwitch initial={router} />
             </div>
-            <JevCharts data={payload} />
+            <JevCharts data={payload} tier={tier} />
         </div>
     );
 }

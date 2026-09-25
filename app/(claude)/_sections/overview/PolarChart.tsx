@@ -3,7 +3,7 @@
 // Polar area chart: every segment gets the same angle, the value drives the
 // radius. Reads differently from the config donut next to it, and a tier that
 // is 65x another still stays visible because of the minimum radius.
-export function PolarChart({ segments, size = 130 }: { segments: { value: number; color: string; label: string }[]; size?: number }) {
+export function PolarChart({ segments, size = 130, onSelect }: { segments: { value: number; color: string; label: string }[]; size?: number; onSelect?: (label: string) => void }) {
     const total = segments.reduce((s, seg) => s + seg.value, 0);
     if (total === 0) return null;
     const max = Math.max(...segments.map(s => s.value));
@@ -27,7 +27,14 @@ export function PolarChart({ segments, size = 130 }: { segments: { value: number
                     const x2 = cx + r * Math.cos(end), y2 = cy + r * Math.sin(end);
                     const path = `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${step > Math.PI ? 1 : 0} 1 ${x2} ${y2} Z`;
                     return (
-                        <path key={seg.label} d={path} fill={seg.color} fillOpacity={0.7} stroke={seg.color} strokeWidth={1} strokeLinejoin="round" style={{ transformOrigin: `${cx}px ${cy}px` }}>
+                        <path key={seg.label} d={path} fill={seg.color} fillOpacity={0.7} stroke={seg.color} strokeWidth={1} strokeLinejoin="round"
+                            role={onSelect ? "link" : undefined} tabIndex={onSelect ? 0 : undefined} aria-label={onSelect ? `${seg.label}: ${seg.value}, open in Jev` : undefined}
+                            onClick={onSelect ? () => onSelect(seg.label) : undefined}
+                            onKeyDown={onSelect ? e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelect(seg.label); } } : undefined}
+                            style={{ transformOrigin: `${cx}px ${cy}px`, cursor: onSelect ? "pointer" : undefined, transition: "fill-opacity 0.15s ease" }}
+                            onMouseEnter={onSelect ? e => e.currentTarget.setAttribute("fill-opacity", "1") : undefined}
+                            onMouseLeave={onSelect ? e => e.currentTarget.setAttribute("fill-opacity", "0.7") : undefined}>
+                            <title>{`${seg.label}: ${seg.value}`}</title>
                             <animate attributeName="opacity" from="0" to="1" dur="0.5s" begin={`${i * 0.1}s`} fill="freeze" />
                         </path>
                     );
@@ -35,13 +42,17 @@ export function PolarChart({ segments, size = 130 }: { segments: { value: number
                 <circle cx={cx} cy={cy} r={2} fill="rgba(255,255,255,0.6)" />
             </svg>
             <div className="space-y-1">
-                {segments.map(s => (
-                    <div key={s.label} className="flex items-center gap-2">
-                        <span style={{ width: 8, height: 8, borderRadius: 2, background: s.color, flexShrink: 0 }} />
-                        <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>{s.label}</span>
-                        <span style={{ fontSize: 10, fontWeight: 700, color: s.color, marginLeft: "auto" }}>{s.value}</span>
-                    </div>
-                ))}
+                {segments.map(s => {
+                    const Row = onSelect ? "button" : "div";
+                    return (
+                        <Row key={s.label} className="flex items-center gap-2" onClick={onSelect ? () => onSelect(s.label) : undefined}
+                            style={onSelect ? { cursor: "pointer", width: "100%", background: "none", border: 0, padding: 0, textAlign: "left", font: "inherit" } : undefined}>
+                            <span style={{ width: 8, height: 8, borderRadius: 2, background: s.color, flexShrink: 0 }} />
+                            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>{s.label}</span>
+                            <span style={{ fontSize: 10, fontWeight: 700, color: s.color, marginLeft: "auto" }}>{s.value}</span>
+                        </Row>
+                    );
+                })}
             </div>
         </div>
     );
