@@ -20,6 +20,8 @@
 
 # production
 /build
+/dist
+/playwright-report
 
 # misc
 .DS_Store
@@ -58,3 +60,7 @@ public/graphify/
 
 # stray vitest coverage output that lands in the component tree
 app/(claude)/_sections/coverage/
+
+# written by next dev on every start (agent rules); not part of the project
+AGENTS.md
+CLAUDE.md

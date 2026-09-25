@@ -10,8 +10,20 @@ A local-first dashboard that reads your `~/.claude/` folder directly and shows s
 ![React](https://img.shields.io/badge/React-19-20232A?style=flat&logo=react&logoColor=61DAFB)
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat&logo=typescript&logoColor=white)
 ![SQLite](https://img.shields.io/badge/SQLite-003B57?style=flat&logo=sqlite&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-310%20unit%20%2B%2023%20e2e-3FB68B?style=flat)
-![License](https://img.shields.io/badge/License-PolyForm%20NC-blue?style=flat)
+![Tests](https://img.shields.io/badge/tests-343%20unit%20%2B%2023%20e2e-3FB68B?style=flat)
+[![License](https://img.shields.io/badge/License-PolyForm%20NC-blue?style=flat)](LICENSE)
+
+## Contents
+
+- [Features](#features)
+- [Read this before you clone](#read-this-before-you-clone)
+- [Quick start](#quick-start)
+- [How it works](#how-it-works)
+- [Configuration](#configuration)
+- [Jev router](#jev-router-optional)
+- [API](#api)
+- [Tech stack](#tech-stack)
+- [Project layout](#project-layout)
 
 ## Features
 
@@ -109,6 +121,37 @@ All routes are local, read-only and unauthenticated by design. Bind to `127.0.0.
 | `GET /api/claude/search?q=` | Cmd+K search across sessions, skills and config |
 | `GET /api/claude/machines` | Peers from `MACHINES` and their health |
 
+## Tech stack
+
+- Next.js 16 App Router, React 19, TypeScript, Tailwind
+- better-sqlite3 for the local session index, with a no-op fallback when the native module is missing
+- TanStack Query for client data, Recharts for charts, ws for the file watcher
+- Vitest, Testing Library and MSW for unit tests, Playwright for E2E
+- Runs on your machine only. No hosting, no account, no telemetry
+
+## Project layout
+
+```
+app/
+  (claude)/          pages: dashboard, sessions, tokens, usage, agents, jev, skills,
+                     hooks, commands, mcp, plugins, extensions, settings, rag
+    _sections/       client components for each page
+  api/
+    claude/          read-only routes over ~/.claude (sessions, token-stats, jev, search, ...)
+    proxy/           same-site guarded read-only proxy to MACHINES peers
+    qr/              QR code for opening the dashboard on a phone
+    rag/             opt-in RAG index and search
+lib/                 readers and aggregators: safe-read, jsonl-walk, live-sessions, jev-log, pricing
+  db/                SQLite adapter with a no-op fallback
+  eval/              RAG benchmark configs and runners
+scripts/             ws-server.mjs (file watcher), start-prod.sh, with-ws.sh, sync-icons.mjs
+tests/               unit (Vitest), e2e (Playwright), msw handlers
+docs/                icon, screenshots, agent avatars, api.md
+mcp-server.ts        MCP server that exposes the RAG memory to Claude Code
+middleware.ts        LAN CORS and frame-ancestors headers
+install.sh           1-line installer
+```
+
 ## Inspired by
 
 Token analytics from [phuryn/claude-usage](https://github.com/phuryn/claude-usage) and [nateherkai/token-dashboard](https://github.com/nateherkai/token-dashboard). Memory ideas from [affaan-m/everything-claude-code](https://github.com/affaan-m/everything-claude-code), [MemPalace/mempalace](https://github.com/MemPalace/mempalace), [thedotmack/claude-mem](https://github.com/thedotmack/claude-mem), [coleam00/claude-memory-compiler](https://github.com/coleam00/claude-memory-compiler), [lyonzin/knowledge-rag](https://github.com/lyonzin/knowledge-rag), [HKUDS/LightRAG](https://github.com/HKUDS/LightRAG), [Ricardo-Kaminski/local-rag](https://github.com/Ricardo-Kaminski/local-rag), [doobidoo/mcp-memory-service](https://github.com/doobidoo/mcp-memory-service) and [mem0ai/mem0](https://github.com/mem0ai/mem0).
@@ -116,10 +159,6 @@ Token analytics from [phuryn/claude-usage](https://github.com/phuryn/claude-usag
 ## Contributing
 
 Fork, branch (`feature/awesome`), `npm run dev`, open a PR.
-
-## License
-
-[PolyForm Noncommercial 1.0.0](LICENSE) (c) Bunlong Heng
 
 ---
 
