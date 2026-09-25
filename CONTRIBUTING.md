@@ -11,22 +11,32 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3003
+Open http://localhost:3003. `npm run dev:full` also starts the WebSocket watcher on 7878 (live agents feed).
 
-This project targets Node 20 (see .nvmrc). Run `nvm use` before installing.
+This project targets Node 20 (see .nvmrc). Run `nvm use` before installing so `better-sqlite3` builds against the right ABI (the app falls back to a no-op adapter when the native module is missing).
 
 ## How to Contribute
 
 1. **Fork** the repo
 2. **Create** a branch (`git checkout -b feature/my-feature`)
 3. **Make** your changes
-4. **Test** - run `npm run build` to verify
-5. **Commit** with a clear message
-6. **Push** and open a **Pull Request**
+4. **Verify** - the same gates CI runs, in this order:
+
+   | Command | Checks |
+   |---------|--------|
+   | `npm run lint` | ESLint, 0 warnings allowed |
+   | `npx tsc --noEmit` | Types |
+   | `npm test` | Vitest unit tests (Testing Library + MSW) |
+   | `npm run test:e2e` | Playwright, only for route or UI changes; needs `npm run dev` on 3003 |
+   | `npm run build` | Plain `next build`; icons sync separately via `npm run sync-icons` |
+
+5. **Enable the pre-push hook** once: `git config core.hooksPath .githooks`. It runs typecheck, lint and unit tests before every push (never the build or E2E)
+6. **Commit** with a clear message
+7. **Push** and open a **Pull Request**
 
 ## Guidelines
 
-- Keep PRs focused - one feature or fix per PR
+- Keep PRs focused - 1 feature or fix per PR
 - Follow existing code style
 - Test your changes locally before submitting
 - No breaking changes without discussion first
@@ -49,10 +59,6 @@ Want to add support for a new database (PostgreSQL, MySQL, etc.)?
 1. Create `lib/db/yourdb.ts` implementing the `DbAdapter` interface in `lib/db/types.ts`
 2. Add detection logic in `lib/db/index.ts`
 3. Submit a PR
-
-## License
-
-By contributing, you agree that your contributions will be licensed under the PolyForm Noncommercial License 1.0.0.
 
 ---
 
