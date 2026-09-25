@@ -1,0 +1,5 @@
+#!/bin/bash
+# core.hooksPath=.githooks would shadow the global hook, so chain to it explicitly.
+g="${XDG_CONFIG_HOME:-$HOME/.config}/git/hooks/commit-msg"
+[ -x "$g" ] && exec "$g" "$@"
+exit 0

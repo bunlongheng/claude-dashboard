@@ -55,19 +55,20 @@ elif command -v git &> /dev/null; then
     git clone --depth 1 "$REPO" "$DIR" --quiet
 else
     echo "  Downloading..."
-    curl -fsSL "$ZIP" -o /tmp/claude-dashboard.zip
-    unzip -q /tmp/claude-dashboard.zip -d /tmp
-    mv /tmp/claude-dashboard-main "$DIR"
-    rm /tmp/claude-dashboard.zip
+    TMP="$(mktemp -d)"
+    curl -fsSL "$ZIP" -o "$TMP/claude-dashboard.zip"
+    unzip -q "$TMP/claude-dashboard.zip" -d "$TMP"
+    mv "$TMP/claude-dashboard-main" "$DIR"
+    rm -rf "$TMP"
 fi
 
 cd "$DIR"
 
 echo "  Installing dependencies..."
-npm install --no-audit --loglevel=error || { echo "npm install failed - run: npm install (inside $DIR) to see the error"; exit 1; }
+npm ci --no-audit --loglevel=error || { echo "npm ci failed - run: npm ci (inside $DIR) to see the error"; exit 1; }
 
 echo ""
-echo "  Starting the dashboard on http://localhost:$PORT ..."
-echo "  (Ctrl+C to stop. Next time, run 'npm run dev' inside $DIR.)"
+echo "  Building and starting the dashboard on http://localhost:$PORT ..."
+echo "  (Ctrl+C to stop. Next time, run 'npm run prod' inside $DIR.)"
 echo ""
-exec npm run dev
+exec npm run prod

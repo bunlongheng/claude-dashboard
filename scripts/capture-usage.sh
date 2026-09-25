@@ -3,7 +3,9 @@
 # ~/.claude/usage-status.json — read by claude-dashboard.
 #
 # Supports:  ANTHROPIC_API_KEY env var  |  macOS keychain OAuth  |  Linux creds file
-# Install:   See README or run:  npm run install-hooks
+# Run:       npm run usage:capture  (schedule it via cron/launchd, e.g. every 5 min)
+# Note:      if count_tokens returns no rate-limit headers it falls back to a 1-token
+#            Haiku message, which is a real (tiny) paid API call.
 
 set -euo pipefail
 
