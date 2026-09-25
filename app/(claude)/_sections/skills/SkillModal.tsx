@@ -1,9 +1,9 @@
 "use client";
 
-import { memo, useState, useMemo, useCallback, createElement } from "react";
+import { memo, useState, useMemo, useCallback, useEffect, createElement } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Pencil, Save, X, Send, Copy, Eye, Code2, Download } from "lucide-react";
-import { marked } from "marked";
+import { safeMarkdown } from "@/lib/safe-markdown";
 import { useMachine, type MachineInfo } from "../MachineContext";
 import { getSkillIcon, cleanName } from "./skillIcons";
 import type { SkillInfo } from "./types";
@@ -81,7 +81,13 @@ function SkillModalImpl({ skill, color, onClose, currentMachine, otherMachines, 
         const m = content.match(/^---\n[\s\S]*?\n---\n?/);
         return m ? content.slice(m[0].length) : content;
     }, [content]);
-    const previewHtml = useMemo(() => marked.parse(bodyMd, { breaks: false, gfm: true }) as string, [bodyMd]);
+    const previewHtml = useMemo(() => safeMarkdown(bodyMd, { breaks: false, gfm: true }), [bodyMd]);
+
+    useEffect(() => {
+        const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+    }, [onClose]);
 
     async function syncTo(targetId: string) {
         try {
@@ -108,7 +114,7 @@ function SkillModalImpl({ skill, color, onClose, currentMachine, otherMachines, 
             background: "rgba(0,0,0,0.75)", backdropFilter: "blur(8px)",
             display: "flex", alignItems: "center", justifyContent: "center",
             padding: 20,
-        }} onClick={onClose}>
+        }} onClick={onClose} role="dialog" aria-modal="true">
             <div onClick={e => e.stopPropagation()} style={{
                 // Wider modal so multi-page skill READMEs actually
                 // breathe instead of word-wrapping every other token.
@@ -203,8 +209,8 @@ function SkillModalImpl({ skill, color, onClose, currentMachine, otherMachines, 
                             ? <p style={{ opacity: 0.3, fontSize: 12 }}>Loading...</p>
                             : <div className="skill-md"
                                 style={{ fontSize: 13, lineHeight: 1.7, color: "rgba(255,255,255,0.78)" }}
-                                // marked() output is trusted because it's our own local skill files,
-                                // not user input - same trust model as ClaudeMdHistory's renderer.
+                                // Sanitized by safeMarkdown (DOMPurify) - skill files can carry
+                                // markdown pulled from anywhere.
                                 dangerouslySetInnerHTML={{ __html: previewHtml || "<p style=\"opacity:.3\">(empty)</p>" }} />
                     )}
                     {tab === "code" && !editing && (

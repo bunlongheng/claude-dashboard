@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb, type EvalQuestion } from "@/lib/rag-db";
 import { withErrorHandler } from "@/lib/api-handler";
+import { requireSameSite } from "@/lib/route-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +13,8 @@ export const GET = withErrorHandler(async () => {
 
 // POST { questions: [{question, expected, tags}], replace?: boolean }
 export const POST = withErrorHandler(async (req: NextRequest) => {
+  const denied = requireSameSite(req);
+  if (denied) return denied;
   const db = getDb();
   const body = await req.json();
   const items: { question: string; expected?: string; tags?: string }[] = body.questions || [];
@@ -25,7 +28,9 @@ export const POST = withErrorHandler(async (req: NextRequest) => {
   return NextResponse.json({ ok: true, count });
 });
 
-export const DELETE = withErrorHandler(async () => {
+export const DELETE = withErrorHandler(async (req: Request) => {
+  const denied = requireSameSite(req);
+  if (denied) return denied;
   const db = getDb();
   db.exec("DELETE FROM eval_questions");
   return NextResponse.json({ ok: true });

@@ -5,6 +5,7 @@ import * as os from "os";
 import { safeRead } from "@/lib/safe-read";
 import { openMachinesDb, localMachineId as sharedLocalMachineId } from "@/lib/machines-db";
 import { withErrorHandler } from "@/lib/api-handler";
+import { requireSameSite } from "@/lib/route-guard";
 
 const HOME = os.homedir();
 const CLAUDE_DIR = path.join(HOME, ".claude");
@@ -324,6 +325,8 @@ function scanSettings(): { settings: unknown; localSettings: unknown } {
 }
 
 export const PUT = withErrorHandler(async (req: Request) => {
+    const denied = requireSameSite(req);
+    if (denied) return denied;
     const { filePath, content } = await req.json();
     if (!filePath || typeof filePath !== "string" || typeof content !== "string") {
         return NextResponse.json({ error: "missing filePath or content" }, { status: 400 });
@@ -331,7 +334,8 @@ export const PUT = withErrorHandler(async (req: Request) => {
     // Safety: only allow writing inside ~/.claude/ or project CLAUDE.md files
     const resolved = path.resolve(filePath);
     const isClaude = resolved.startsWith(CLAUDE_DIR + path.sep);
-    const isClaudeMd = resolved.endsWith("CLAUDE.md");
+    // Project CLAUDE.md: only the one GET lists (this repo's cwd), never any path on disk
+    const isClaudeMd = resolved.endsWith("CLAUDE.md") && (isClaude || resolved === path.join(process.cwd(), "CLAUDE.md"));
     const isCommandMd = resolved.endsWith(".md") && resolved.includes("/commands/");
     const isHooksJson = resolved.endsWith("hooks.json") && resolved.includes("/hooks/");
     if (!isClaude && !isClaudeMd) {
@@ -340,6 +344,11 @@ export const PUT = withErrorHandler(async (req: Request) => {
     if (!isClaudeMd && !isCommandMd && !isHooksJson) {
         return NextResponse.json({ error: "forbidden - only CLAUDE.md, command .md, or hooks.json" }, { status: 403 });
     }
+    try {
+        if (fs.lstatSync(resolved).isSymbolicLink()) {
+            return NextResponse.json({ error: "forbidden - symlink target" }, { status: 403 });
+        }
+    } catch { /* new file */ }
     try {
         fs.writeFileSync(resolved, content, "utf-8");
         scanCache.clear(); // edited config must show on the next GET, not after TTL
@@ -366,13 +375,16 @@ export const GET = withErrorHandler(async (req: Request) => {
     const url = new URL(req.url);
     const machine = url.searchParams.get("machine");
 
-    // If requesting a remote machine, proxy to its local-apps server
+    // If requesting a remote machine, proxy to the peer dashboard's own skills
+    // route (same peer model as sessions and /api/proxy), forwarding slim/path.
     const localMachineId = sharedLocalMachineId();
     if (machine && machine !== localMachineId) {
         const remote = getRemoteMachine(machine);
         if (!remote) return NextResponse.json({ error: "machine not found" }, { status: 404 });
+        const remoteUrl = new URL(`http://${remote.ip}:${remote.port}/api/claude/skills`);
+        url.searchParams.forEach((v, k) => { if (k !== "machine") remoteUrl.searchParams.set(k, v); });
         try {
-            const res = await fetch(`http://${remote.ip}:${remote.port}/api/claude/config`, {
+            const res = await fetch(remoteUrl, {
                 signal: AbortSignal.timeout(5000),
             });
             if (!res.ok) return NextResponse.json({ error: "remote fetch failed" }, { status: 502 });
