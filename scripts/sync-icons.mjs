@@ -14,7 +14,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
 const ICONS_DIR = join(ROOT, "public", "app-icons");
 const MANIFEST_PATH = join(ICONS_DIR, "manifest.json");
-const LOCAL_APPS_API = process.env.LOCAL_APPS_URL || "http://localhost:9876";
+const LOCAL_APPS_API = process.env.LOCAL_APPS_URL || "http://localhost:9875";
+// Client work never ships in this public repo: no icon, no manifest entry.
+const SKIP = new Set(["kactus", "kactus-qa", "distributor-portal", "partners", "pm2020", "pm2020-tools", "pm2026"]);
 
 mkdirSync(ICONS_DIR, { recursive: true });
 
@@ -44,6 +46,7 @@ async function sync() {
     let failed = 0;
 
     for (const [name, iconPath] of entries) {
+        if (SKIP.has(name)) continue;
         const url = `${LOCAL_APPS_API}${iconPath}`;
         const ext = iconPath.includes(".svg") ? ".svg" : ".png";
         const localPath = join(ICONS_DIR, `${name}${ext}`);

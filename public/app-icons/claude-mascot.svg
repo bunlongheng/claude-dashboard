@@ -9,8 +9,8 @@
   <rect x="5" y="4" width="2" height="2" fill="#1a1a1a"/>
   <!-- right eye -->
   <rect x="9" y="4" width="2" height="2" fill="#1a1a1a"/>
-  <!-- left leg (half height) -->
-  <rect x="5" y="10" width="2" height="2" fill="#cc6b45"/>
-  <!-- right leg (half height) -->
-  <rect x="9" y="10" width="2" height="2" fill="#cc6b45"/>
+  <!-- left leg -->
+  <rect x="5" y="10" width="2" height="4" fill="#cc6b45"/>
+  <!-- right leg -->
+  <rect x="9" y="10" width="2" height="4" fill="#cc6b45"/>
 </svg>
