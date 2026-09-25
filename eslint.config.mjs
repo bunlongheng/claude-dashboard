@@ -10,7 +10,6 @@ const eslintConfig = [
             "coverage/**",
             "public/**",
             "app/(claude)/_sections/coverage/**",
-            "scripts/**",
             "*.config.mjs",
             "*.config.ts",
             "*.config.js",
@@ -20,16 +19,17 @@ const eslintConfig = [
     },
     ...next,
     {
-        // Adopting lint on an existing codebase: the React-Compiler-style rules
-        // (react-hooks v6) flag many pre-existing patterns. Keep them visible as
-        // warnings so CI is not blocked; burn them down over time.
+        // The lint script runs --max-warnings 0, so a warning fails CI the same
+        // as an error. Keep the React-Compiler-style rules (react-hooks v6) at
+        // error so the config says what CI does.
+        files: ["**/*.ts", "**/*.tsx"],
         rules: {
-            "react-hooks/set-state-in-effect": "warn",
-            "react-hooks/purity": "warn",
-            "react-hooks/refs": "warn",
-            "react-hooks/static-components": "warn",
-            "react-hooks/immutability": "warn",
-            "react/no-unescaped-entities": "warn",
+            "react-hooks/set-state-in-effect": "error",
+            "react-hooks/purity": "error",
+            "react-hooks/refs": "error",
+            "react-hooks/static-components": "error",
+            "react-hooks/immutability": "error",
+            "react/no-unescaped-entities": "error",
             // Source is now any-free - keep it that way (0 sites; new any fails CI).
             "@typescript-eslint/no-explicit-any": "error",
         },

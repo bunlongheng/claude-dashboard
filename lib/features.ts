@@ -10,3 +10,10 @@
 // NEXT_PUBLIC_ vars are inlined at build time, so this constant is safe to read
 // from both server routes and client components.
 export const RAG_ENABLED = process.env.NEXT_PUBLIC_RAG_ENABLED === "1";
+
+// Route guard for the API layer: null when RAG is on, a 404 Response when it
+// is off, so /api/rag/* can gate on the same flag as the nav and page.
+export function requireRag(): Response | null {
+    if (RAG_ENABLED) return null;
+    return Response.json({ error: "RAG is disabled" }, { status: 404 });
+}

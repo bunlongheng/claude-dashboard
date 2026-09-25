@@ -10,19 +10,8 @@ import { PolarChart } from "./PolarChart";
 import JevMark, { JEV_PINK } from "../JevMark";
 // Type-only: jev-log reads files, so a value import would pull fs into the bundle.
 import type { JevPayload } from "@/lib/jev-log";
-
-// Same palette as the /jev page so a tier reads the same color everywhere.
-const TIERS: { key: "haiku" | "sonnet" | "opus" | "fable"; color: string }[] = [
-    { key: "haiku", color: "#22C55E" },
-    { key: "sonnet", color: "#4A9EFF" },
-    { key: "opus", color: "#A855F7" },
-    { key: "fable", color: "#F97316" },
-];
-const HEALTH: Record<JevPayload["health"], { color: string; label: string }> = {
-    live: { color: "#22C55E", label: "LIVE" },
-    stale: { color: "#E8A23B", label: "STALE" },
-    never: { color: "#6B7280", label: "NEVER" },
-};
+import { TIER_ORDER, TIER_COLORS, HEALTH_STYLE } from "@/lib/jev-palette";
+import { formatUsd } from "@/lib/format";
 
 function Stat({ label, value, color }: { label: string; value: string; color: string }) {
     return (
@@ -45,11 +34,11 @@ export function JevCard() {
         refetchInterval: 60_000,
     });
     const data = q.data ?? null;
-    const health = data ? HEALTH[data.health] : HEALTH.never;
-    const segments = data ? TIERS.map(t => ({ label: t.key, color: t.color, value: data.tiers[t.key] ?? 0 })) : [];
+    const health = data ? HEALTH_STYLE[data.health] : HEALTH_STYLE.never;
+    const segments = data ? TIER_ORDER.map(t => ({ label: t, color: TIER_COLORS[t], value: data.tiers[t] ?? 0 })) : [];
     const routed = segments.reduce((s, x) => s + x.value, 0);
     const t = data?.totals;
-    const cost = t ? (t.estCostUsd < 0.01 ? `${(t.estCostUsd * 100).toFixed(2)}c` : `$${t.estCostUsd.toFixed(2)}`) : "-";
+    const cost = t ? formatUsd(t.estCostUsd) : "-";
 
     return (
         <div style={{ ...cardShell, display: "flex", flexDirection: "column" }}>
