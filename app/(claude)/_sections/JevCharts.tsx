@@ -12,27 +12,13 @@ import { cardShell } from "@/lib/ui-tokens";
 import { fmtNum, timeAgo } from "./shared";
 import AppIcon from "./AppIcon";
 import type { JevAggregate, JevRow, JevSession } from "@/lib/jev-log";
-
-// Fixed tier colors - the ladder reads left to right cheapest first, so the
-// palette has to stay stable across every chart and pill on the page.
-const TIER_COLORS: Record<string, string> = {
-    haiku: "#22C55E",
-    sonnet: "#4A9EFF",
-    opus: "#A855F7",
-    fable: "#F97316",
-};
-const TIER_ORDER = ["haiku", "sonnet", "opus", "fable"] as const;
+import { TIER_ORDER, TIER_COLORS, HEALTH_STYLE } from "@/lib/jev-palette";
+import { formatUsd } from "@/lib/format";
 
 const STATUS_COLORS = {
     routed: "#22C55E",
     skipped: "#6B7280",
     error: "#EF4444",
-};
-
-const HEALTH_STYLE: Record<string, { color: string; label: string; note: string }> = {
-    live: { color: "#22C55E", label: "LIVE", note: "routed in the last 15 minutes" },
-    stale: { color: "#E8A23B", label: "STALE", note: "no routing decision recently" },
-    never: { color: "#6B7280", label: "NEVER", note: "the router has not answered yet" },
 };
 
 const TOOLTIP = {
@@ -123,14 +109,6 @@ function TierMark({ tier, color }: { tier: string; color: string }) {
     );
 }
 
-// The router costs fractions of a cent per call, so 2 decimals reads as $0.00
-// until the log is enormous. Widen the precision instead of lying about it.
-function fmtCost(usd: number): string {
-    if (usd === 0) return "$0";
-    if (usd < 0.01) return `$${usd.toFixed(5).replace(/0+$/, "").replace(/\.$/, "")}`;
-    return `$${usd.toFixed(2)}`;
-}
-
 function statusOf(row: JevRow): "routed" | "skipped" | "error" {
     if (row.status === "routed") return "routed";
     if (row.status === "error") return "error";
@@ -153,7 +131,7 @@ function HealthStrip({ data }: { data: JevAggregate }) {
         { label: "Routed", value: `${totals.routedPct}%`, sub: `${totals.routed} of ${totals.calls}`, icon: Route, color: STATUS_COLORS.routed },
         { label: "Avg latency", value: `${totals.avgLatencyMs}ms`, sub: `p95 ${totals.p95LatencyMs}ms`, icon: Timer, color: "#E8A23B" },
         { label: "Tokens today", value: fmtNum(todayRow?.tokens ?? 0), sub: `${fmtNum(totals.inputTokens + totals.outputTokens)} in range`, icon: Coins, color: "#A855F7" },
-        { label: "Est. cost", value: fmtCost(totals.estCostUsd), sub: `${totals.sessions} sessions`, icon: DollarSign, color: "#F97316" },
+        { label: "Est. cost", value: formatUsd(totals.estCostUsd), sub: `${totals.sessions} sessions`, icon: DollarSign, color: "#F97316" },
         { label: "Errors", value: String(totals.errors), sub: totals.errors > 0 ? "check the log" : "clean", icon: AlertTriangle, color: totals.errors > 0 ? STATUS_COLORS.error : STATUS_COLORS.skipped },
     ];
 

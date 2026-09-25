@@ -76,7 +76,7 @@ function OverviewTab({ stats, onNavigate }: { stats: Stats; onNavigate: (tab: Ra
                 )}
             </div>
 
-            {/* RAG Impact — proof it works */}
+            {/* RAG Impact - proof it works */}
             <div style={{ ...cardShell, marginBottom: 16 }}>
                 <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.55)", marginBottom: 14, textTransform: "uppercase", letterSpacing: "0.1em" }}>RAG Impact</div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>

@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { FileViews } from "./FileViews";
 import { useMachine } from "./MachineContext";
-import { SegmentedTabs } from "./shared";
+import { SegmentedTabs, fetchJson, FetchError, useDialog } from "./shared";
 import AppIcon from "./AppIcon";
 
 type McpInfo = { name: string; type: string; url?: string; command?: string; path: string; createdAt?: string | null; source?: "user" | "plugin" };
@@ -62,6 +62,7 @@ function renderMcpIcon(name: string, size: number, style?: React.CSSProperties) 
 }
 
 function McpModal({ server, color, onClose }: { server: McpInfo; color: string; onClose: () => void }) {
+    const dialog = useDialog(onClose, "mcp-modal-title");
     return (
         <div style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}
             onClick={onClose}>
@@ -70,8 +71,8 @@ function McpModal({ server, color, onClose }: { server: McpInfo; color: string; 
                 position: "relative", background: "#111318", borderRadius: 20, padding: 32,
                 maxWidth: 480, width: "90vw", border: `1px solid ${color}30`,
                 boxShadow: `0 0 60px ${color}15`,
-            }} onClick={e => e.stopPropagation()}>
-                <button onClick={onClose} style={{
+            }} {...dialog} onClick={e => e.stopPropagation()}>
+                <button type="button" aria-label="Close" onClick={onClose} style={{
                     position: "absolute", top: 16, right: 16, background: "none", border: "none",
                     color: "rgba(255,255,255,0.55)", cursor: "pointer",
                 }}><X size={18} /></button>
@@ -85,7 +86,7 @@ function McpModal({ server, color, onClose }: { server: McpInfo; color: string; 
                         {renderMcpIcon(server.name, 24, { color: "#fff" })}
                     </div>
                     <div>
-                        <h3 style={{ fontSize: 20, fontWeight: 700, color: "#fff" }}>{cleanName(server.name)}</h3>
+                        <h3 id="mcp-modal-title" style={{ fontSize: 20, fontWeight: 700, color: "#fff" }}>{cleanName(server.name)}</h3>
                         <span style={{
                             fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 6,
                             background: `${TYPE_COLORS[server.type] ?? "#666"}20`,
@@ -129,12 +130,9 @@ export default function McpSection() {
     // a self-proxy on the remote and returns zero servers (sidebar shows 36
     // but page shows 0). Drop it - same bug pattern we fixed elsewhere.
     const mcpUrl = apiBase("/api/claude/skills?slim=1");
-    const { data, isFetching: loading } = useQuery({
+    const { data, isFetching: loading, isError, refetch } = useQuery({
         queryKey: ["claude-mcp", mcpUrl],
-        queryFn: async () => {
-            const r = await fetch(mcpUrl);
-            return r.json();
-        },
+        queryFn: () => fetchJson<{ mcp?: McpInfo[] }>(mcpUrl),
     });
     const servers: McpInfo[] = useMemo(() => data?.mcp ?? [], [data]);
 
@@ -180,7 +178,7 @@ export default function McpSection() {
                 </div>
                 <div className="flex gap-1">
                     {([["list", List], ["thumbs", LayoutGrid], ["circles", CircleDot]] as const).map(([mode, ModeIcon]) => (
-                        <button key={mode} onClick={() => setViewMode(mode)}
+                        <button key={mode} type="button" onClick={() => setViewMode(mode)} aria-label={`${mode} view`} title={`${mode} view`} aria-pressed={viewMode === mode}
                             className="p-1.5 rounded-md cursor-pointer transition"
                             style={{
                                 background: viewMode === mode ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.03)",
@@ -308,8 +306,8 @@ export default function McpSection() {
                     const color = ORB_COLORS[i % ORB_COLORS.length];
                     const Icon = getMcpIcon(s.name);
                     return (
-                        <div key={s.name} onClick={() => setSelected(s)}
-                            className="flex flex-col items-center gap-2 py-3 cursor-pointer">
+                        <button key={s.name} type="button" onClick={() => setSelected(s)}
+                            className="flex flex-col items-center gap-2 py-3 cursor-pointer bg-transparent border-0 p-0">
                             <div style={{
                                 width: 52, height: 52, borderRadius: "50%",
                                 background: `linear-gradient(135deg, ${color}, ${color}80)`,
@@ -321,12 +319,13 @@ export default function McpSection() {
                             <span style={{ fontSize: 9, fontWeight: 600, color: "rgba(255,255,255,0.5)", textAlign: "center" }}>
                                 {cleanName(s.name)}
                             </span>
-                        </div>
+                        </button>
                     );
                 })}
             </div>
 
-            {filtered.length === 0 && <p className="text-white/20 text-center py-8 text-sm">No MCP servers found</p>}
+            {isError && <FetchError what="MCP servers" onRetry={() => refetch()} />}
+            {!isError && filtered.length === 0 && <p className="text-white/20 text-center py-8 text-sm">No MCP servers found</p>}
 
             <style>{`
                 @keyframes orbitalIn {

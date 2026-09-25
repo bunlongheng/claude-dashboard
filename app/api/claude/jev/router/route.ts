@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { withErrorHandler } from "@/lib/api-handler";
+import { requireSameSite } from "@/lib/route-guard";
 import { getRouterState, setRouterForce, isJevTier } from "@/lib/jev-router-state";
 
 export const dynamic = "force-dynamic";
@@ -8,6 +9,8 @@ export const dynamic = "force-dynamic";
 export const GET = withErrorHandler(async () => NextResponse.json(getRouterState()));
 
 export const PUT = withErrorHandler(async (req: Request) => {
+    const denied = requireSameSite(req);
+    if (denied) return denied;
     const body: unknown = await req.json().catch(() => null);
     const force = body && typeof body === "object" ? (body as { force?: unknown }).force : undefined;
     if (force !== null && !isJevTier(force)) {

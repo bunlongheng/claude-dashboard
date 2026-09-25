@@ -33,9 +33,9 @@ export function BreakdownCard({ dailyData, breakdownInterval, intervalTabsEl }: 
     const totalTok = sum.input + sum.output;
     function ft(n: number) { return n >= 1_000_000 ? `${(n/1_000_000).toFixed(1)}M` : n >= 1_000 ? `${(n/1_000).toFixed(1)}k` : String(n); }
 
-    // Bar chart rows — daily (week/month) or single row (today)
+    // Bar chart rows - daily (week/month) or single row (today)
     const barRowsRaw = periodDays.slice().sort((a, b) => a.day.localeCompare(b.day));
-    // Ensure today is always in the list — oldest on top, today on the bottom (matches heatmap order)
+    // Ensure today is always in the list - oldest on top, today on the bottom (matches heatmap order)
     if (!barRowsRaw.find(d => d.day === todayStr)) {
         barRowsRaw.push({ day: todayStr, turns: 0, input: 0, output: 0, cache_read: 0, cache_creation: 0, sessions: 0 });
     }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import manifest from "@/public/app-icons/manifest.json";
 
 /**
  * Reusable app icon component. Uses static icons from /app-icons/ (synced at build time).
@@ -11,6 +12,12 @@ import { useMemo, useState } from "react";
  * icon-less session (e.g. dad-usb) falls back to the Claude Code logo.
  */
 const DEFAULT_ICON = "/app-icons/claude-code.png";
+// Icons the sync script has on disk - a manifest hit is tried first so a card
+// never walks through 404s for an icon that exists under a shorter basename.
+const KNOWN: Record<string, { path: string }> = manifest;
+// Resolved src per project, shared by every card on the page: a project is
+// probed once, later mounts (other cards, re-navigation) start at the answer.
+const resolved = new Map<string, string>();
 export default function AppIcon({ project, size = 16 }: { project: string; size?: number }) {
     const slug = (project || "").toLowerCase().replace(/[\s_]+/g, "-");
 
@@ -26,6 +33,8 @@ export default function AppIcon({ project, size = 16 }: { project: string; size?
         const seen = new Set<string>();
         const out: string[] = [];
         const add = (u: string) => { if (!seen.has(u)) { seen.add(u); out.push(u); } };
+        const known = resolved.get(project) ?? basenames.map(b => KNOWN[b]?.path).find(Boolean);
+        if (known) add(known);
         for (const ext of ["png", "svg"]) for (const b of basenames) add(`/app-icons/${b}.${ext}`);
         // Real favicon from the project-icon API - it returns a proper icon when the
         // project has one (e.g. worldcup26 -> FIFA) and 404s cleanly when it does not.
@@ -57,6 +66,7 @@ export default function AppIcon({ project, size = 16 }: { project: string; size?
             alt={project}
             width={size}
             height={size}
+            onLoad={() => resolved.set(project, candidates[idx])}
             onError={() => {
                 if (idx < candidates.length - 1) setIdx(idx + 1);
                 else setFailed(true);

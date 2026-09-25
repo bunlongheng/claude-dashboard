@@ -6,6 +6,7 @@ import { isRealRepo } from "@/lib/project-utils";
 import { getLiveSessionIds } from "@/lib/live-sessions";
 import { openMachinesDb, localMachineId as sharedLocalMachineId } from "@/lib/machines-db";
 import { withErrorHandler } from "@/lib/api-handler";
+import { requireSameSite } from "@/lib/route-guard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -78,6 +79,8 @@ function parseSessionFast(filePath: string): {
 }
 
 export const DELETE = withErrorHandler(async (req: Request) => {
+    const denied = requireSameSite(req);
+    if (denied) return denied;
     const { filePath } = await req.json();
     if (!filePath || typeof filePath !== "string") {
         return NextResponse.json({ error: "missing filePath" }, { status: 400 });

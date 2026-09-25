@@ -102,7 +102,7 @@ export default function OverviewSection() {
     interface SkillsSummary { skills?: number; commands?: number; hooks?: number; mcp?: number; plugins?: number; claudeMd?: number; settings?: number }
     interface SkillsResponse { mcp?: SkillsMcpEntry[]; summary?: SkillsSummary }
     interface BrainGlobalRule { id: string; category: string; title: string; instruction: string; confidence: number; source: string }
-    interface BrainResponse { memoryFiles?: unknown[]; categoryCounts?: Record<string, number>; totalFiles?: number; globalRules?: BrainGlobalRule[] }
+    interface BrainResponse { memoryFiles?: unknown[]; categoryCounts?: Record<string, number>; totalFiles?: number; globalRules?: BrainGlobalRule[]; globalRulesCount?: number }
     interface TokenStatsTotals { input_tokens?: number; output_tokens?: number; cache_read_tokens?: number; total_cost?: number }
     interface TokenStatsResponse { tokens?: Token[]; byProject?: unknown[]; byModel?: unknown[]; totals?: TokenStatsTotals }
     interface MainData { stats: Stats; allTokens: Token[]; allSessionProjects: ProjectSessions[] }
@@ -112,8 +112,10 @@ export default function OverviewSection() {
         tokens: { input: 0, output: 0, cacheRead: 0, cost: 0 },
     };
     const urlSessions = apiBase("/api/claude/sessions");
-    const urlSkills = apiBase("/api/claude/skills");
-    const urlBrain = apiBase("/api/claude/brain");
+    // ?slim=1 strips file bodies (skills 1.7 MB -> 60 KB, brain 2.6 MB -> 220 KB);
+    // this card only reads the counts.
+    const urlSkills = apiBase("/api/claude/skills?slim=1");
+    const urlBrain = apiBase("/api/claude/brain?slim=1");
     const urlTokenStats = apiBase("/api/claude/token-stats");
     const mainQuery = useQuery<MainData>({
         queryKey: ["overview-main", urlSessions, urlSkills, urlBrain, urlTokenStats],
@@ -145,7 +147,7 @@ export default function OverviewSection() {
                     claudeMd: skills?.summary?.claudeMd ?? 0,
                     memory: brain?.categoryCounts?.memory ?? brain?.totalFiles ?? 0,
                     settings: settingsCount,
-                    rules: (brain?.globalRules ?? []).length,
+                    rules: brain?.globalRulesCount ?? (brain?.globalRules ?? []).length,
                     tokens: {
                         input: tokenData?.totals?.input_tokens ?? 0,
                         output: tokenData?.totals?.output_tokens ?? 0,
@@ -280,7 +282,7 @@ export default function OverviewSection() {
     const winActiveDays = winDays.filter(d => d.turns > 0).length;
     const winTotalDays = intervalTab === "all" ? (heatmapData?.totalDays ?? winDays.length) : windowDays;
     const winMostActive = winDays.reduce((best, d) => d.turns > best.turns ? d : best, winDays[0] || { day: "", turns: 0 });
-    const winMostActiveLabel = winMostActive?.day ? new Date(winMostActive.day + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—";
+    const winMostActiveLabel = winMostActive?.day ? new Date(winMostActive.day + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "-";
     const winTotalTokens = winDays.reduce((s, d) => s + d.input + d.output, 0);
 
     // Windowed top sessions by joining tokens with each session's updatedAt.

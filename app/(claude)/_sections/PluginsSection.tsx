@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Puzzle, Search, LayoutGrid, List, CircleDot } from "lucide-react";
 import { useMachine } from "./MachineContext";
-import { safeFetch } from "./shared";
+import { fetchJson, FetchError } from "./shared";
 
 type PluginInfo = { name: string; description: string; path: string; type: "builtin" | "external" | "lsp" };
 type PluginFilter = "all" | "builtin" | "external" | "lsp";
@@ -22,13 +22,13 @@ export default function PluginsSection() {
     const { machine, apiBase } = useMachine();
     const [search, setSearch] = useState("");
     const [filter, setFilter] = useState<PluginFilter>("external");
-    const [viewMode, setViewMode] = useState<"thumbs" | "list" | "circles">("circles");
+    const [viewMode, setViewMode] = useState<"thumbs" | "list" | "circles">("list");
     const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
 
     const pluginsUrl = apiBase(`/api/claude/skills?slim=1${machine ? `&machine=${machine}` : ""}`);
     const pluginsQuery = useQuery<{ plugins?: PluginInfo[] }>({
         queryKey: ["plugins-skills", pluginsUrl],
-        queryFn: () => safeFetch<{ plugins?: PluginInfo[] }>(pluginsUrl, {}),
+        queryFn: () => fetchJson<{ plugins?: PluginInfo[] }>(pluginsUrl),
     });
     const plugins = useMemo(() => pluginsQuery.data?.plugins ?? [], [pluginsQuery.data]);
     const loading = pluginsQuery.isLoading;
@@ -90,7 +90,7 @@ export default function PluginsSection() {
                 {/* View toggle */}
                 <div className="flex gap-1 ml-auto">
                     {([["thumbs", LayoutGrid], ["list", List], ["circles", CircleDot]] as const).map(([mode, ModeIcon]) => (
-                        <button key={mode} onClick={() => setViewMode(mode)}
+                        <button key={mode} type="button" onClick={() => setViewMode(mode)} aria-label={`${mode} view`} title={`${mode} view`} aria-pressed={viewMode === mode}
                             className="p-1.5 rounded-md cursor-pointer transition"
                             style={{
                                 background: viewMode === mode ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.03)",
@@ -249,7 +249,8 @@ export default function PluginsSection() {
                 </div>
             )}
 
-            {filtered.length === 0 && (
+            {pluginsQuery.isError && <FetchError what="plugins" onRetry={() => pluginsQuery.refetch()} />}
+            {!pluginsQuery.isError && filtered.length === 0 && (
                 <p className="text-white/20 text-center py-8 text-[11px]">
                     {search ? `No plugins matching "${search}"` : "No plugins found"}
                 </p>

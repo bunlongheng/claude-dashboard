@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ChevronDownIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { Search, User, Bot, ChevronRight } from "lucide-react";
-import { ACCENT, timeAgo, ProjectSessions, SessionEntry, safeFetch } from "./shared";
+import { ACCENT, timeAgo, ProjectSessions, SessionEntry, safeFetch, fetchJson, FetchError } from "./shared";
 import { useMachine } from "./MachineContext";
 import AppIcon from "./AppIcon";
 
@@ -74,7 +74,7 @@ export default function SessionsSection() {
     const sessionsQueryKey = ["sessions-list", sessionsUrl];
     const sessionsQuery = useQuery<{ projects: ProjectSessions[] }>({
         queryKey: sessionsQueryKey,
-        queryFn: () => safeFetch<{ projects: ProjectSessions[] }>(sessionsUrl, { projects: [] }),
+        queryFn: () => fetchJson<{ projects: ProjectSessions[] }>(sessionsUrl),
         refetchInterval: 30_000,
     });
     const sessionProjects = useMemo(() => sessionsQuery.data?.projects ?? [], [sessionsQuery.data]);
@@ -226,6 +226,7 @@ export default function SessionsSection() {
             {sessionsLoading && (
                 <p className="text-white/25 text-xs text-center py-10">Scanning sessions…</p>
             )}
+            {sessionsQuery.isError && <FetchError what="sessions" onRetry={() => sessionsQuery.refetch()} />}
             {!sessionsLoading && filteredProjects.map(proj => {
                 const isOpen = expandedProjects.has(proj.project);
                 const staleCount = proj.sessions.filter(s => s.stale).length;
@@ -244,9 +245,12 @@ export default function SessionsSection() {
                             className="w-full flex items-center gap-3 px-5 py-3.5 hover:bg-white/[0.02] transition text-left"
                         >
                             <AppIcon project={proj.project} size={16} />
-                            <span className="text-[10px] font-mono text-white/50 flex-1 truncate">{proj.path}</span>
+                            <span className="text-[10px] font-mono text-white/50 flex-1 truncate" title={proj.path}>
+                                <span className="sm:hidden">{proj.path.split("/").filter(Boolean).pop() ?? proj.path}</span>
+                                <span className="hidden sm:inline">{proj.path}</span>
+                            </span>
                             {lastUpdated && (
-                                <span className="text-[9px] text-white/25 shrink-0">last used {timeAgo(new Date(lastUpdated).getTime())}</span>
+                                <span className="text-[9px] text-white/25 shrink-0 hidden sm:inline">last used {timeAgo(new Date(lastUpdated).getTime())}</span>
                             )}
                             <span className="text-[9px] text-white/30 shrink-0">{proj.sessions.length} sessions · {fmtSize}</span>
                             {staleCount > 0 && (
@@ -277,7 +281,7 @@ export default function SessionsSection() {
                                                 {s.stale ? "stale" : "resumable"}
                                             </span>
                                             <a
-                                                href={`/observe/claude/${s.id}`}
+                                                href={`/${s.id}`}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#f9731615] border border-[#f9731630] text-[#f97316] hover:bg-[#f9731625] transition"

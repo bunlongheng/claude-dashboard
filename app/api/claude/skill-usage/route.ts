@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { PROJECTS_DIR } from "@/lib/jsonl-walk";
+import { PROJECTS_DIR, streamJsonl, diskCache } from "@/lib/jsonl-walk";
 import * as fs from "fs";
 import * as path from "path";
 import { withErrorHandler } from "@/lib/api-handler";
@@ -32,23 +32,23 @@ let cache: { at: number; key: string; data: SkillUsageData } | null = null;
 
 // Skill/command invocations are sparse but spread through the ENTIRE session
 // file, so a tail read undercounts (a /repo-audit early in a 180MB file is
-// missed). We scan each file FULLY, but cache the extracted events keyed by
-// mtime+size so an unchanged file is never re-read - only the live session file
-// grows. Combined with skipping files untouched in the window, this keeps the
-// count exact without re-reading ~900MB every request.
+// missed). We stream each file FULLY (line by line, never a whole-file string),
+// and cache the extracted events keyed by mtime+size so an unchanged file is
+// never re-read - only the live session file grows. The cache is mirrored to
+// data/skill-usage-cache.json so a dev-server restart (the LaunchAgent restarts
+// it often) does not re-scan the whole 30-day window either.
 type Ev = { name: string; ts: number; sub: boolean };
-const fileCache = new Map<string, { key: string; events: Ev[] }>();
+type FileEntry = { key: string; events: Ev[] };
+const disk = diskCache<FileEntry>("skill-usage-cache");
+const fileCache = disk.load();
+const inflight = new Map<string, Promise<SkillUsageData>>();
 const CMD_RE = /<command-name>\/([\w-]+)<\/command-name>/g;
 
 async function extractEvents(fp: string): Promise<Ev[]> {
-    let text: string;
-    try { text = await fs.promises.readFile(fp, "utf8"); } catch { return []; }
     const evs: Ev[] = [];
-    for (const line of text.split("\n")) {
-        // Cheap pre-filter: only command messages and tool_use messages matter.
-        if (!line || (!line.includes("command-name>") && !line.includes("tool_use"))) continue;
-        let m: { timestamp?: string; message?: { content?: unknown } };
-        try { m = JSON.parse(line); } catch { continue; }
+    // Cheap pre-filter: only command messages and tool_use messages matter.
+    await streamJsonl(fp, line => line.includes("command-name>") || line.includes("tool_use"), (parsed) => {
+        const m = parsed as { timestamp?: string; message?: { content?: unknown } };
         const ts = m.timestamp ? new Date(m.timestamp).getTime() : 0;
         const content = m.message?.content;
         if (typeof content === "string") {
@@ -68,7 +68,7 @@ async function extractEvents(fp: string): Promise<Ev[]> {
                 }
             }
         }
-    }
+    });
     return evs;
 }
 
@@ -91,6 +91,17 @@ export const GET = withErrorHandler(async (req: Request) => {
         return NextResponse.json(cache.data, CC);
     }
 
+    // Concurrent callers (Overview mount + a focus refetch) share 1 scan.
+    let pending = inflight.get(winKey);
+    if (!pending) {
+        pending = scan(allTime, hours, now).finally(() => inflight.delete(winKey));
+        inflight.set(winKey, pending);
+    }
+    return NextResponse.json(await pending, CC);
+}) as (req: Request) => Promise<Response>;
+
+async function scan(allTime: boolean, hours: number, now: number): Promise<SkillUsageData> {
+    const winKey = allTime ? "all" : String(hours);
     const since = allTime ? 0 : now - hours * 3600_000;
     const skillCounts = new Map<string, { count: number; lastUsed: number }>();
     const subagentCounts = new Map<string, { count: number; lastUsed: number }>();
@@ -98,7 +109,7 @@ export const GET = withErrorHandler(async (req: Request) => {
     if (!fs.existsSync(PROJECTS_DIR)) {
         const empty: SkillUsageData = { hours, totalSkills: 0, totalSubagents: 0, skills: [], subagents: [] };
         cache = { at: now, key: winKey, data: empty };
-        return NextResponse.json(empty, CC);
+        return empty;
     }
 
     const bump = (map: Map<string, { count: number; lastUsed: number }>, name: string, ts: number) => {
@@ -108,6 +119,8 @@ export const GET = withErrorHandler(async (req: Request) => {
     };
 
     const oldest = allTime ? 0 : now - MAX_WINDOW_MS;
+    const seen = new Map<string, FileEntry>();
+    let dirty = false;
     for (const projectDir of fs.readdirSync(PROJECTS_DIR)) {
         const dir = path.join(PROJECTS_DIR, projectDir);
         let dstat;
@@ -122,15 +135,14 @@ export const GET = withErrorHandler(async (req: Request) => {
             // any possible `since`, so skip it (and never scan the 800+ old files).
             if (st.mtimeMs < oldest) continue;
             const key = `${st.mtimeMs}:${st.size}`;
-            const cached = fileCache.get(fp);
-            let events: Ev[];
-            if (cached && cached.key === key) {
-                events = cached.events;
-            } else {
-                events = await extractEvents(fp);
-                fileCache.set(fp, { key, events });
+            let entry = fileCache.get(fp);
+            if (!entry || entry.key !== key) {
+                entry = { key, events: await extractEvents(fp) };
+                fileCache.set(fp, entry);
+                dirty = true;
             }
-            for (const e of events) {
+            seen.set(fp, entry);
+            for (const e of entry.events) {
                 if (e.ts && e.ts < since) continue;
                 bump(e.sub ? subagentCounts : skillCounts, e.name, e.ts);
             }
@@ -147,5 +159,6 @@ export const GET = withErrorHandler(async (req: Request) => {
         subagents: subagents.rows,
     };
     cache = { at: now, key: winKey, data };
-    return NextResponse.json(data, CC);
-}) as (req: Request) => Promise<Response>;
+    if (dirty) disk.save(seen);
+    return data;
+}

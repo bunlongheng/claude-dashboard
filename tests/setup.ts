@@ -31,8 +31,9 @@ if (typeof window !== "undefined") {
 }
 
 // ─── MSW lifecycle ──────────────────────────────────────────────────────────────
-// Unhandled requests pass through to the real network.
-beforeAll(() => server.listen({ onUnhandledRequest: "bypass" }));
+// A request with no handler is a test bug, not a network call: fail it loudly
+// instead of letting it reach the real network (peers, localhost:9876, etc).
+beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
 afterEach(() => {
   cleanup();
   server.resetHandlers();

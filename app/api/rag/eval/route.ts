@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runBenchmark, getReport, getBatchDetail } from "@/lib/eval/run";
 import { withErrorHandler } from "@/lib/api-handler";
+import { requireSameSite } from "@/lib/route-guard";
 import type { EvalConfig } from "@/lib/rag-db";
 
 export const dynamic = "force-dynamic";
@@ -20,6 +21,8 @@ export const GET = withErrorHandler(async (req: NextRequest) => {
 
 // POST /api/rag/eval -> run the full 5-config matrix over all questions
 export const POST = withErrorHandler(async (req: NextRequest) => {
+  const denied = requireSameSite(req);
+  if (denied) return denied;
   if (!process.env.ANTHROPIC_API_KEY) {
     return NextResponse.json({ error: "ANTHROPIC_API_KEY not set" }, { status: 400 });
   }

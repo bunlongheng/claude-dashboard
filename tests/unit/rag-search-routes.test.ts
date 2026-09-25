@@ -36,6 +36,13 @@ async function freshDb(): Promise<void> {
 
 // ─── GET /api/rag/search (flagship) ────────────────────────────────────────
 
+// Mutations pass lib/route-guard.ts only as a same-origin fetch from a trusted
+// host. LOCAL_TOOL is the no-browser-headers shape the hooks/MCP curls send,
+// accepted only by the softer requireSameSiteOrLocalTool guard.
+const SAME_SITE = { "sec-fetch-site": "same-origin", host: "localhost:3003" };
+const LOCAL_TOOL = { host: "localhost:3003" };
+const FOREIGN = { origin: "http://evil.example", host: "localhost:3003" };
+
 describe("GET /api/rag/search", () => {
   it("returns 400 when q is missing", async () => {
     await freshDb();
@@ -159,7 +166,7 @@ describe("POST /api/rag/ingest", () => {
     );
 
     const { POST } = await import("@/app/api/rag/ingest/route");
-    const res = await POST(new Request("http://localhost/", { method: "POST" }), {} as never);
+    const res = await POST(new Request("http://localhost/", { method: "POST", headers: SAME_SITE }), {} as never);
     expect(res.status).toBe(200);
     const data = await res.json();
 
@@ -185,10 +192,10 @@ describe("POST /api/rag/ingest", () => {
     fs.writeFileSync(path.join(tmpHome, ".claude", "CLAUDE.md"), "# Global rules\nStable content.\n");
 
     const { POST } = await import("@/app/api/rag/ingest/route");
-    const first = await (await POST(new Request("http://localhost/", { method: "POST" }), {} as never)).json();
+    const first = await (await POST(new Request("http://localhost/", { method: "POST", headers: SAME_SITE }), {} as never)).json();
     expect(first.memory.created).toBe(1);
 
-    const second = await (await POST(new Request("http://localhost/", { method: "POST" }), {} as never)).json();
+    const second = await (await POST(new Request("http://localhost/", { method: "POST", headers: SAME_SITE }), {} as never)).json();
     expect(second.memory).toMatchObject({ total: 1, created: 0, updated: 0, skipped: 1 });
   });
 });
@@ -268,7 +275,7 @@ describe("POST /api/rag/context", () => {
   it("returns 400 when prompt is missing/blank", async () => {
     await freshDb();
     const { POST } = await import("@/app/api/rag/context/route");
-    const req = new Request("http://localhost/api/rag/context", { method: "POST", body: JSON.stringify({ prompt: "  " }) });
+    const req = new Request("http://localhost/api/rag/context", { method: "POST", headers: SAME_SITE, body: JSON.stringify({ prompt: "  " }) });
     const res = await POST(req as unknown as Parameters<typeof POST>[0], {} as never);
     expect(res.status).toBe(400);
   });
@@ -287,6 +294,7 @@ describe("POST /api/rag/context", () => {
     const { POST } = await import("@/app/api/rag/context/route");
     const req = new Request("http://localhost/api/rag/context", {
       method: "POST",
+      headers: SAME_SITE,
       body: JSON.stringify({ prompt: "widget setup", project: "demoapp" }),
     });
     const res = await POST(req as unknown as Parameters<typeof POST>[0], {} as never);
@@ -346,7 +354,7 @@ describe("POST /api/rag/insights", () => {
   it("extracts nothing and returns extracted:0 when ANTHROPIC_API_KEY is unset", async () => {
     await freshDb();
     const { POST } = await import("@/app/api/rag/insights/route");
-    const res = await POST(new Request("http://localhost/", { method: "POST" }), {} as never);
+    const res = await POST(new Request("http://localhost/", { method: "POST", headers: SAME_SITE }), {} as never);
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data).toEqual({ extracted: 0 });
@@ -368,6 +376,7 @@ describe("GET/POST/DELETE /api/rag/eval/questions", () => {
     const { POST, GET } = await import("@/app/api/rag/eval/questions/route");
     const req = new Request("http://localhost/api/rag/eval/questions", {
       method: "POST",
+      headers: SAME_SITE,
       body: JSON.stringify({ questions: [{ question: "What port does the dashboard run on?", expected: "3003", tags: "infra" }] }),
     });
     const postData = await (await POST(req as unknown as Parameters<typeof POST>[0], {} as never)).json();
@@ -383,12 +392,14 @@ describe("GET/POST/DELETE /api/rag/eval/questions", () => {
     const { POST } = await import("@/app/api/rag/eval/questions/route");
     const seedReq = new Request("http://localhost/api/rag/eval/questions", {
       method: "POST",
+      headers: SAME_SITE,
       body: JSON.stringify({ questions: [{ question: "old question" }] }),
     });
     await POST(seedReq as unknown as Parameters<typeof POST>[0], {} as never);
 
     const replaceReq = new Request("http://localhost/api/rag/eval/questions", {
       method: "POST",
+      headers: SAME_SITE,
       body: JSON.stringify({ questions: [{ question: "new question" }], replace: true }),
     });
     const data = await (await POST(replaceReq as unknown as Parameters<typeof POST>[0], {} as never)).json();
@@ -398,10 +409,46 @@ describe("GET/POST/DELETE /api/rag/eval/questions", () => {
   it("DELETE clears all questions", async () => {
     await freshDb();
     const { POST, DELETE, GET } = await import("@/app/api/rag/eval/questions/route");
-    await POST(new Request("http://localhost/x", { method: "POST", body: JSON.stringify({ questions: [{ question: "q1" }] }) }) as unknown as Parameters<typeof POST>[0], {} as never);
-    const delData = await (await DELETE(new Request("http://localhost/", { method: "DELETE" }), {} as never)).json();
+    await POST(new Request("http://localhost/x", { method: "POST", headers: SAME_SITE, body: JSON.stringify({ questions: [{ question: "q1" }] }) }) as unknown as Parameters<typeof POST>[0], {} as never);
+    const delData = await (await DELETE(new Request("http://localhost/", { method: "DELETE", headers: SAME_SITE }), {} as never)).json();
     expect(delData).toEqual({ ok: true });
     const getData = await (await GET(new Request("http://localhost/"), {} as never)).json();
     expect(getData.questions).toEqual([]);
+  });
+});
+
+// ─── Same-site guards on the mutating routes ────────────────────────────────
+
+describe("route guards on POST /api/rag/*", () => {
+  const send = (route: { POST: (r: never, c: never) => Promise<Response> }, headers: Record<string, string>) =>
+    route.POST(new Request("http://localhost/x", { method: "POST", headers, body: "{}" }) as never, {} as never);
+
+  it("ingest, context and insights accept a header-less local tool call but refuse a foreign Origin", async () => {
+    // Empty tmp home so the allowed ingest call has nothing to walk.
+    const tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "rag-guard-"));
+    const prevHome = process.env.HOME;
+    overrides.homedir = () => tmpHome;
+    process.env.HOME = tmpHome;
+    delete process.env.RAG_PROJECTS_DIR;
+    delete process.env.OBSIDIAN_VAULTS;
+    try {
+    for (const mod of ["ingest", "context", "insights"]) {
+      await freshDb();
+      const route = await import(`@/app/api/rag/${mod}/route`);
+      expect((await send(route, LOCAL_TOOL)).status, `${mod} local tool`).not.toBe(403);
+      expect((await send(route, FOREIGN)).status, `${mod} foreign origin`).toBe(403);
+    }
+    } finally {
+      delete overrides.homedir;
+      if (prevHome === undefined) delete process.env.HOME; else process.env.HOME = prevHome;
+      fs.rmSync(tmpHome, { recursive: true, force: true });
+    }
+  });
+
+  it("eval/questions POST and DELETE refuse a request without same-site headers", async () => {
+    await freshDb();
+    const { POST, DELETE } = await import("@/app/api/rag/eval/questions/route");
+    expect((await POST(new Request("http://localhost/x", { method: "POST", headers: LOCAL_TOOL, body: "{}" }) as never, {} as never)).status).toBe(403);
+    expect((await DELETE(new Request("http://localhost/x", { method: "DELETE", headers: FOREIGN }) as never, {} as never)).status).toBe(403);
   });
 });

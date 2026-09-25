@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { getModelRates } from "@/lib/pricing";
 import { SECTION_COLORS } from "./sectionColors";
 import {
@@ -255,6 +256,52 @@ export async function safeFetch<T>(url: string, fallback: T, onError?: () => voi
         if (!r.ok) { onError?.(); return fallback; }
         return await r.json();
     } catch { onError?.(); return fallback; }
+}
+/** Like safeFetch but throws on a non-2xx or network failure so react-query's
+ * isError is set and the section can render <FetchError> instead of the
+ * "No ... found" empty state. */
+export async function fetchJson<T>(url: string): Promise<T> {
+    const signal = typeof AbortSignal !== "undefined" && AbortSignal.timeout
+        ? AbortSignal.timeout(15000)
+        : undefined;
+    const r = await fetch(url, signal ? { signal } : undefined);
+    if (!r.ok) throw new Error(`${r.status} ${url}`);
+    return r.json();
+}
+/** Error state for a failed section fetch - same banner as the Overview one. */
+export function FetchError({ what, onRetry }: { what: string; onRetry: () => void }) {
+    return (
+        <div role="alert" style={{
+            display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", borderRadius: 10,
+            background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.3)",
+            color: "#fca5a5", fontSize: 12, fontWeight: 600,
+        }}>
+            <span>Could not load {what}.</span>
+            <button type="button" onClick={onRetry} style={{
+                marginLeft: "auto", background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.3)",
+                color: "#fca5a5", borderRadius: 6, padding: "2px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer",
+            }}>Retry</button>
+        </div>
+    );
+}
+/** Dialog behaviour for the modal overlays: Escape closes, focus moves into
+ * the panel on open and returns to the opener on close. Spread the returned
+ * props onto the panel element (the one that stops click propagation). */
+export function useDialog(onClose: () => void, labelId: string, open = true) {
+    const ref = useRef<HTMLDivElement>(null);
+    const close = useRef(onClose);
+    useEffect(() => { close.current = onClose; });
+    useEffect(() => {
+        if (!open) return;
+        const opener = document.activeElement as HTMLElement | null;
+        const el = ref.current;
+        const first = el?.querySelector<HTMLElement>("button, [href], input, textarea, select, [tabindex]:not([tabindex='-1'])");
+        (first ?? el)?.focus();
+        const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); close.current(); } };
+        document.addEventListener("keydown", onKey);
+        return () => { document.removeEventListener("keydown", onKey); opener?.focus?.(); };
+    }, [open]);
+    return { ref, role: "dialog" as const, "aria-modal": true as const, "aria-labelledby": labelId, tabIndex: -1 };
 }
 export function fmtNum(n: number)    { return n >= 1_000_000_000 ? `${(n/1_000_000_000).toFixed(1)}B` : n >= 1_000_000 ? `${(n/1_000_000).toFixed(1)}M` : n >= 1000 ? `${(n/1000).toFixed(1)}k` : String(n); }
 // Compact, uppercase suffix (930K / 1.2M / 3.4B) - used for token counts so the

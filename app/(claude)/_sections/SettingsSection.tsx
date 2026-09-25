@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Search, ChevronDown, ChevronRight, FolderOpen, Settings, LayoutGrid, List, X, CircleDot } from "lucide-react";
+import { FetchError, useDialog } from "./shared";
 import AppIcon from "./AppIcon";
 import { useMachine } from "./MachineContext";
 import { MascotLoader } from "./MascotLoader";
@@ -31,6 +32,7 @@ function JsonModal({ title, data, hue, onClose }: {
 }) {
     const color = `hsl(${hue}, 85%, 55%)`;
     const text = typeof data === "string" ? data : JSON.stringify(data, null, 2);
+    const dialog = useDialog(onClose, "json-modal-title");
     return (
         <div style={{
             position: "fixed", inset: 0, zIndex: 100,
@@ -38,7 +40,7 @@ function JsonModal({ title, data, hue, onClose }: {
             display: "flex", alignItems: "center", justifyContent: "center",
             padding: 20,
         }} onClick={onClose}>
-            <div onClick={e => e.stopPropagation()} style={{
+            <div {...dialog} onClick={e => e.stopPropagation()} style={{
                 width: "100%", maxWidth: 680, maxHeight: "85vh",
                 background: "#12131a", borderRadius: 16,
                 border: `1px solid ${color}30`,
@@ -58,8 +60,8 @@ function JsonModal({ title, data, hue, onClose }: {
                     }}>
                         <Settings size={14} style={{ color: "#fff" }} />
                     </div>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: "#fff", flex: 1 }}>{title}</span>
-                    <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.55)", padding: 4 }}>
+                    <span id="json-modal-title" style={{ fontSize: 14, fontWeight: 700, color: "#fff", flex: 1 }}>{title}</span>
+                    <button type="button" aria-label="Close" onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.55)", padding: 4 }}>
                         <X size={16} />
                     </button>
                 </div>
@@ -257,24 +259,27 @@ export default function SettingsSection() {
     const [globalLocalSettings, setGlobalLocalSettings] = useState<Record<string, unknown> | null>(null);
     const [projects, setProjects] = useState<ProjectSettings[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(false);
+    const [attempt, setAttempt] = useState(0);
     const [search, setSearch] = useState("");
-    const [viewMode, setViewMode] = useState<"thumbs" | "list" | "circles">("circles");
+    const [viewMode, setViewMode] = useState<"thumbs" | "list" | "circles">("list");
     const [modal, setModal] = useState<{ title: string; data: Record<string, unknown> | string; hue: number } | null>(null);
     const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
 
     useEffect(() => {
         fetch(apiBase("/api/claude/settings?slim=1"))
-            .then(r => r.json())
+            .then(r => { if (!r.ok) throw new Error(`${r.status}`); return r.json(); })
             .then(d => {
                 setGlobalSettings(d.global?.settings ?? null);
                 setGlobalLocalSettings(d.global?.localSettings ?? null);
                 setProjects(d.projects ?? []);
                 setLoading(false);
             })
-            .catch(() => setLoading(false));
-    }, [apiBase]);
+            .catch(() => { setError(true); setLoading(false); });
+    }, [apiBase, attempt]);
 
     if (loading) return <MascotLoader label="Loading settings" />;
+    if (error) return <FetchError what="settings" onRetry={() => { setError(false); setLoading(true); setAttempt(a => a + 1); }} />;
 
     const totalFiles = (globalSettings ? 1 : 0) + (globalLocalSettings ? 1 : 0) +
         projects.reduce((n, p) => n + (p.settings ? 1 : 0) + (p.localSettings ? 1 : 0) + (p.instructions ? 1 : 0), 0);
@@ -323,7 +328,7 @@ export default function SettingsSection() {
                 <span style={{ fontSize: 11, color: "rgba(255,255,255,0.55)" }}>{totalFiles} files</span>
                 <div className="flex gap-1 ml-auto">
                     {([["thumbs", LayoutGrid], ["list", List], ["circles", CircleDot]] as const).map(([mode, ModeIcon]) => (
-                        <button key={mode} onClick={() => setViewMode(mode)}
+                        <button key={mode} type="button" onClick={() => setViewMode(mode)} aria-label={`${mode} view`} title={`${mode} view`} aria-pressed={viewMode === mode}
                             className="p-1.5 rounded-md cursor-pointer transition"
                             style={{
                                 background: viewMode === mode ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.03)",
