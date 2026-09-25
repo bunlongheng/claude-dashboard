@@ -29,7 +29,7 @@ function RosterGridImpl({ activeChars, agents, selectedChar, onSelect }: {
                         <div style={{ position: "relative", padding: "8px 8px 0", textAlign: "center" }}>
                             <Image src={char.img} alt={char.name} width={48} height={48}
                                 style={{
-                                    borderRadius: "50%", objectFit: "cover", margin: "0 auto",
+                                    borderRadius: 12, objectFit: "cover", margin: "0 auto",
                                     border: `2px solid ${char.color}40`,
                                     boxShadow: isRunning ? `0 0 20px ${char.color}40` : `0 2px 8px rgba(0,0,0,0.3)`,
                                     animation: isRunning ? "charBounce 1s ease infinite" : "none",
