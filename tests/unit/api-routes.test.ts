@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
+import { http, HttpResponse } from "msw";
+import { server } from "../msw/server";
 import type { JevPayload } from "@/lib/jev-log";
 
 // os is a Node ESM built-in - its namespace export isn't configurable, so
@@ -19,48 +21,250 @@ vi.mock("os", async (importOriginal) => {
   };
 });
 
-describe("API route exports", () => {
-  describe("monitor/sessions", () => {
-    it("exports GET handler", async () => {
-      const mod = await import("@/app/api/claude/sessions/route");
-      expect(typeof mod.GET).toBe("function");
+// sessions GET filters project folders through isRealRepo (needs a real
+// on-disk repo behind the folder name) and getLiveSessionIds (shells out to
+// lsof). Both are stubbed so the route's own file walk is what gets tested.
+vi.mock("@/lib/project-utils", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/project-utils")>();
+  return { ...actual, isRealRepo: () => true };
+});
+vi.mock("@/lib/live-sessions", () => ({
+  getLiveSessionIds: async () => new Set(["live-session"]),
+}));
+
+// Same-origin + trusted Host is what lib/route-guard.ts accepts; the foreign
+// set carries a cross-site Sec-Fetch-Site and a foreign Origin so it is denied
+// whichever signal the guard reads.
+const SAME_SITE = { "sec-fetch-site": "same-origin", host: "localhost:3003", origin: "http://localhost:3003" };
+const FOREIGN = { "sec-fetch-site": "cross-site", host: "localhost:3003", origin: "https://evil.example" };
+
+function jsonReq(url: string, body: unknown, method = "DELETE", headers: Record<string, string> = SAME_SITE) {
+  return new Request(url, { method, headers: { ...headers, "content-type": "application/json" }, body: JSON.stringify(body) });
+}
+
+// ── claude/sessions ─────────────────────────────────────────────────────────
+describe("claude/sessions", () => {
+  let tmpHome: string;
+  let projectsDir: string;
+  const username = os.userInfo().username;
+
+  async function loadRoute() {
+    vi.resetModules();
+    return import("@/app/api/claude/sessions/route");
+  }
+
+  function writeSession(folder: string, id: string, lines: unknown[]) {
+    const dir = path.join(projectsDir, folder);
+    fs.mkdirSync(dir, { recursive: true });
+    const fp = path.join(dir, `${id}.jsonl`);
+    fs.writeFileSync(fp, lines.map((l) => JSON.stringify(l)).join("\n") + "\n");
+    return fp;
+  }
+
+  beforeEach(() => {
+    tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "sessions-route-"));
+    jevHome.homedir = () => tmpHome;
+    projectsDir = path.join(tmpHome, ".claude", "projects");
+    fs.mkdirSync(projectsDir, { recursive: true });
+  });
+
+  afterEach(() => {
+    delete jevHome.homedir;
+    fs.rmSync(tmpHome, { recursive: true, force: true });
+  });
+
+  describe("DELETE", () => {
+    it("returns 400 when filePath is missing or not a string", async () => {
+      const { DELETE } = await loadRoute();
+      expect((await DELETE(jsonReq("http://localhost/api/claude/sessions", {}), undefined)).status).toBe(400);
+      expect((await DELETE(jsonReq("http://localhost/api/claude/sessions", { filePath: 42 }), undefined)).status).toBe(400);
     });
-    it("exports DELETE handler", async () => {
-      const mod = await import("@/app/api/claude/sessions/route");
-      expect(typeof mod.DELETE).toBe("function");
+
+    it("refuses a ../ traversal that escapes ~/.claude/projects", async () => {
+      const outside = path.join(tmpHome, "victim.jsonl");
+      fs.writeFileSync(outside, "{}\n");
+      const { DELETE } = await loadRoute();
+      const res = await DELETE(jsonReq("http://localhost/api/claude/sessions", {
+        filePath: path.join(projectsDir, "proj", "..", "..", "..", "victim.jsonl"),
+      }), undefined);
+      expect(res.status).toBe(403);
+      expect(fs.existsSync(outside)).toBe(true);
+    });
+
+    it("refuses a sibling dir that merely shares the projects prefix", async () => {
+      const sibling = path.join(tmpHome, ".claude", "projects-evil");
+      fs.mkdirSync(sibling, { recursive: true });
+      const target = path.join(sibling, "x.jsonl");
+      fs.writeFileSync(target, "{}\n");
+      const { DELETE } = await loadRoute();
+      const res = await DELETE(jsonReq("http://localhost/api/claude/sessions", { filePath: target }), undefined);
+      expect(res.status).toBe(403);
+      expect(fs.existsSync(target)).toBe(true);
+    });
+
+    it("refuses non-.jsonl files inside the projects dir", async () => {
+      const target = path.join(projectsDir, "proj", "notes.txt");
+      fs.mkdirSync(path.dirname(target), { recursive: true });
+      fs.writeFileSync(target, "hi");
+      const { DELETE } = await loadRoute();
+      const res = await DELETE(jsonReq("http://localhost/api/claude/sessions", { filePath: target }), undefined);
+      expect(res.status).toBe(400);
+      expect(fs.existsSync(target)).toBe(true);
+    });
+
+    it("returns 404 for a .jsonl that does not exist", async () => {
+      const { DELETE } = await loadRoute();
+      const res = await DELETE(jsonReq("http://localhost/api/claude/sessions", {
+        filePath: path.join(projectsDir, "proj", "missing.jsonl"),
+      }), undefined);
+      expect(res.status).toBe(404);
+    });
+
+    it("deletes a real session file under the tmp HOME and returns ok", async () => {
+      const fp = writeSession(`-Users-${username}-Sites-proj`, "abc", [{ type: "user", message: { content: "hi" } }]);
+      const { DELETE } = await loadRoute();
+      const res = await DELETE(jsonReq("http://localhost/api/claude/sessions", { filePath: fp }), undefined);
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({ ok: true });
+      expect(fs.existsSync(fp)).toBe(false);
+    });
+
+    it("refuses a foreign-Origin caller with 403 and leaves the file alone", async () => {
+      const fp = writeSession(`-Users-${username}-Sites-proj`, "abc", [{ type: "user", message: { content: "hi" } }]);
+      const { DELETE } = await loadRoute();
+      const res = await DELETE(jsonReq("http://localhost/api/claude/sessions", { filePath: fp }, "DELETE", FOREIGN), undefined);
+      expect(res.status).toBe(403);
+      expect(fs.existsSync(fp)).toBe(true);
     });
   });
 
-  describe("monitor/machines", () => {
-    it("exports GET handler", async () => {
-      const mod = await import("@/app/api/claude/machines/route");
-      expect(typeof mod.GET).toBe("function");
+  describe("GET", () => {
+    it("returns an empty projects list when the projects dir is empty", async () => {
+      const { GET } = await loadRoute();
+      const res = await GET(new Request("http://localhost/api/claude/sessions"), undefined);
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({ projects: [] });
+    });
+
+    it("lists 1 session with its custom title, first message and live flag", async () => {
+      const folder = `-Users-${username}-Sites-proj`;
+      writeSession(folder, "live-session", [
+        { type: "custom-title", customTitle: "My Title", timestamp: "2026-09-01T10:00:00.000Z" },
+        { type: "user", message: { content: [{ type: "text", text: "first prompt" }] }, timestamp: "2026-09-01T10:00:01.000Z" },
+        { type: "assistant", message: { content: [] } },
+      ]);
+      // Folder for another user must be skipped.
+      writeSession("-Users-someoneelse-Sites-proj", "other", [{ type: "user", message: { content: "x" } }]);
+      const { GET } = await loadRoute();
+      const res = await GET(new Request("http://localhost/api/claude/sessions"), undefined);
+      const body = await res.json();
+      expect(body.projects).toHaveLength(1);
+      expect(body.projects[0].project).toBe(folder);
+      expect(body.projects[0].path).toBe(`/Users/${username}/Sites/proj`);
+      const s = body.projects[0].sessions[0];
+      expect(s.id).toBe("live-session");
+      expect(s.customTitle).toBe("My Title");
+      expect(s.title).toBe("first prompt");
+      expect(s.createdAt).toBe("2026-09-01T10:00:00.000Z");
+      expect(s.live).toBe(true);
+      expect(s.sizeLabel).toMatch(/B$/);
     });
   });
+});
 
-  describe("monitor/skills", () => {
-    it("exports GET handler", async () => {
-      const mod = await import("@/app/api/claude/skills/route");
-      expect(typeof mod.GET).toBe("function");
-    });
-    it("exports PUT handler", async () => {
-      const mod = await import("@/app/api/claude/skills/route");
-      expect(typeof mod.PUT).toBe("function");
-    });
+// ── claude/machines ─────────────────────────────────────────────────────────
+describe("claude/machines", () => {
+  const env = { MACHINES: process.env.MACHINES, LOCAL_MACHINE_ID: process.env.LOCAL_MACHINE_ID };
+
+  async function loadRoute() {
+    vi.resetModules();
+    return import("@/app/api/claude/machines/route");
+  }
+
+  afterEach(() => {
+    process.env.MACHINES = env.MACHINES;
+    process.env.LOCAL_MACHINE_ID = env.LOCAL_MACHINE_ID;
+    if (env.MACHINES === undefined) delete process.env.MACHINES;
+    if (env.LOCAL_MACHINE_ID === undefined) delete process.env.LOCAL_MACHINE_ID;
   });
 
-  describe("monitor/settings", () => {
-    it("exports GET handler", async () => {
-      const mod = await import("@/app/api/claude/settings/route");
-      expect(typeof mod.GET).toBe("function");
-    });
+  it("returns only the local machine when MACHINES is unset", async () => {
+    delete process.env.MACHINES;
+    process.env.LOCAL_MACHINE_ID = "m4";
+    const { GET } = await loadRoute();
+    const res = await GET(new Request("http://localhost/api/claude/machines"));
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.machines).toHaveLength(1);
+    expect(body.machines[0]).toMatchObject({ id: "m4", ip: "127.0.0.1", online: true, isLocal: true });
   });
 
-  describe("qr", () => {
-    it("exports GET handler", async () => {
-      const mod = await import("@/app/api/qr/route");
-      expect(typeof mod.GET).toBe("function");
-    });
+  it("adds an online peer from MACHINES and drops an unreachable one", async () => {
+    process.env.MACHINES = "10.0.0.2:3003, 10.0.0.9:3003";
+    process.env.LOCAL_MACHINE_ID = "m4";
+    server.use(
+      http.get("http://10.0.0.2:3003/api/claude/lan", () => HttpResponse.json({ hostname: "pi5", model: "Cortex-A76" })),
+      http.get("http://10.0.0.9:3003/api/claude/lan", () => HttpResponse.error()),
+    );
+    const { GET } = await loadRoute();
+    const res = await GET(new Request("http://localhost/api/claude/machines"));
+    const body = await res.json();
+    expect(body.machines.map((m: { id: string }) => m.id)).toEqual(["m4", "10.0.0.2:3003"]);
+    expect(body.machines[1]).toMatchObject({ hostname: "pi5", model: "Cortex-A76", online: true, isLocal: false, port: 3003 });
+  });
+});
+
+// ── claude/skills PUT ───────────────────────────────────────────────────────
+describe("claude/skills PUT", () => {
+  let tmpHome: string;
+
+  async function loadRoute() {
+    vi.resetModules();
+    return import("@/app/api/claude/skills/route");
+  }
+
+  beforeEach(() => {
+    tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "skills-route-"));
+    jevHome.homedir = () => tmpHome;
+    fs.mkdirSync(path.join(tmpHome, ".claude", "commands"), { recursive: true });
+  });
+
+  afterEach(() => {
+    delete jevHome.homedir;
+    fs.rmSync(tmpHome, { recursive: true, force: true });
+  });
+
+  it("returns 403 for a foreign-Origin caller before touching the body", async () => {
+    const { PUT } = await loadRoute();
+    const res = await PUT(jsonReq("http://localhost/api/claude/skills", { filePath: "x", content: "y" }, "PUT", FOREIGN), undefined);
+    expect(res.status).toBe(403);
+  });
+
+  it("returns 400 when filePath or content is missing", async () => {
+    const { PUT } = await loadRoute();
+    const res = await PUT(jsonReq("http://localhost/api/claude/skills", { filePath: "/x/CLAUDE.md" }, "PUT"), undefined);
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 403 for a .md outside ~/.claude that is not a CLAUDE.md", async () => {
+    const { PUT } = await loadRoute();
+    const res = await PUT(jsonReq("http://localhost/api/claude/skills", { filePath: path.join(tmpHome, "notes.md"), content: "x" }, "PUT"), undefined);
+    expect(res.status).toBe(403);
+  });
+
+  it("returns 403 for a non-whitelisted file type inside ~/.claude", async () => {
+    const { PUT } = await loadRoute();
+    const res = await PUT(jsonReq("http://localhost/api/claude/skills", { filePath: path.join(tmpHome, ".claude", "settings.json"), content: "{}" }, "PUT"), undefined);
+    expect(res.status).toBe(403);
+  });
+
+  it("writes a command .md under ~/.claude/commands and reads it back", async () => {
+    const target = path.join(tmpHome, ".claude", "commands", "hello.md");
+    const { PUT } = await loadRoute();
+    const res = await PUT(jsonReq("http://localhost/api/claude/skills", { filePath: target, content: "# hello\n" }, "PUT"), undefined);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true });
+    expect(fs.readFileSync(target, "utf-8")).toBe("# hello\n");
   });
 });
 
@@ -96,11 +300,6 @@ describe("claude/jev", () => {
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(path.join(dir, "jev.jsonl"), lines.map((l) => JSON.stringify(l)).join("\n") + "\n");
   }
-
-  it("exports GET handler", async () => {
-    const mod = await loadJevRoute();
-    expect(typeof mod.GET).toBe("function");
-  });
 
   it("returns 200 with aggregated data when the log has rows", async () => {
     const now = new Date().toISOString();
