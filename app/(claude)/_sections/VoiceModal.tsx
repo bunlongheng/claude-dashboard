@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Mic, MicOff, Send, X } from "lucide-react";
+import { useDialog } from "./shared";
 
 interface VoiceModalProps {
     onSubmit: (text: string) => void;
@@ -229,14 +230,15 @@ export default function VoiceModal({ onSubmit, onClose }: VoiceModalProps) {
     }, []);
 
     const fullText = (transcript + interim).trim();
+    const dialog = useDialog(() => { stopListening(); onClose(); }, "voice-modal-title");
 
     return (
         <div className="fixed inset-0 z-[999] flex flex-col items-center justify-center p-4" style={{ background: "#08090d" }} onClick={onClose}>
-            <div className="w-full max-w-lg" onClick={e => e.stopPropagation()}>
+            <div className="w-full max-w-lg" {...dialog} aria-labelledby={undefined} aria-label="Voice input" onClick={e => e.stopPropagation()}>
 
                 {/* Close button */}
                 <div className="flex justify-end mb-4">
-                    <button onClick={() => { stopListening(); onClose(); }}
+                    <button type="button" aria-label="Close" onClick={() => { stopListening(); onClose(); }}
                         style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.52)", display: "flex" }}>
                         <X size={20} />
                     </button>

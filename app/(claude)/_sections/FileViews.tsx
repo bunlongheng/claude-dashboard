@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { LayoutGrid, CircleDot, List as ListIcon, ChevronRight, FileText } from "lucide-react";
+import { useDialog } from "./shared";
 
 export type ViewMode = "list" | "thumbs" | "circles";
 
@@ -25,7 +26,7 @@ export function ViewModeToggle({ mode, onMode }: { mode: ViewMode; onMode: (m: V
     return (
         <div className="flex gap-1 ml-auto">
             {modes.map(([m, Icon, title]) => (
-                <button key={m} onClick={() => onMode(m)} title={title}
+                <button key={m} type="button" onClick={() => onMode(m)} title={title} aria-label={title} aria-pressed={mode === m}
                     className="p-1.5 rounded-md cursor-pointer transition"
                     style={{
                         background: mode === m ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.03)",
@@ -150,11 +151,12 @@ function CircleView({ items, accent, getIcon }: { items: FileItem[]; accent: str
 
 // Shared modal used by Thumb/Circle to read a file without leaving the view.
 function FilePeek({ item, accent, onClose }: { item: FileItem; accent: string; onClose: () => void }) {
+    const dialog = useDialog(onClose, "file-peek-title");
     return (
         <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
-            <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 640, maxHeight: "80vh", display: "flex", flexDirection: "column", background: "#0e1017", border: `1px solid ${accent}33`, borderRadius: 14, overflow: "hidden" }}>
+            <div {...dialog} onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 640, maxHeight: "80vh", display: "flex", flexDirection: "column", background: "#0e1017", border: `1px solid ${accent}33`, borderRadius: 14, overflow: "hidden" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 16px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>{item.name}</span>
+                    <span id="file-peek-title" style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>{item.name}</span>
                     {item.path && <span style={{ fontSize: 9, color: "rgba(255,255,255,0.55)", fontFamily: "monospace", marginLeft: "auto" }}>{pathLabel(item.path)}</span>}
                 </div>
                 <pre style={{ margin: 0, padding: 16, overflow: "auto", fontSize: 11, lineHeight: 1.55, color: "rgba(255,255,255,0.72)", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{item.content?.trim() || "(empty)"}</pre>

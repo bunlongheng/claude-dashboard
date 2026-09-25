@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { SegmentedTabs } from "./shared";
 import { useMachine } from "./MachineContext";
 import HooksSection from "./HooksSection";
@@ -13,7 +14,9 @@ type ExtTab = "hooks" | "commands" | "plugins";
 // active tab's section mounts (each fetches its own data).
 export default function ExtensionsSection() {
     const { apiBase } = useMachine();
-    const [tab, setTab] = useState<ExtTab>("hooks");
+    // /hooks, /commands and /plugins redirect here with ?tab= so old links land on the right tab.
+    const initialTab = useSearchParams().get("tab");
+    const [tab, setTab] = useState<ExtTab>(initialTab === "commands" || initialTab === "plugins" ? initialTab : "hooks");
     const [counts, setCounts] = useState({ hooks: 0, commands: 0, plugins: 0 });
 
     useEffect(() => {

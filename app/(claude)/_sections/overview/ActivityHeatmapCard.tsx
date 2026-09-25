@@ -42,7 +42,7 @@ export function ActivityHeatmapCard({
             </div>
 
             <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
-            {/* Heatmap / strip + by-hour — capped width keeps cells small squares; stats sit to its right */}
+            {/* Heatmap / strip + by-hour - capped width keeps cells small squares; stats sit to its right */}
             <div style={{ minWidth: 0, flex: "7 1 0" }}>
             {/* 7d → clean 7-cell day strip; longer windows → calendar grid */}
             {intervalTab === "7d" ? (() => {
@@ -201,7 +201,7 @@ export function ActivityHeatmapCard({
             })()}
             </div>
 
-            {/* Stats — label left, colored value right-aligned, stacked to the right of the heatmap */}
+            {/* Stats - label left, colored value right-aligned, stacked to the right of the heatmap */}
             <div className="border-t border-white/[0.06] pt-3 lg:border-t-0 lg:pt-0 lg:border-l lg:pl-6" style={{ flex: "3 1 0", minWidth: 0, display: "grid", gridTemplateColumns: "1fr 1fr", columnGap: 24, rowGap: 12, alignContent: "center" }}>
                 {[
                     { label: "Active days",    Icon: CalendarDays, value: `${winActiveDays}/${winTotalDays}`, color: "#4ade80" },

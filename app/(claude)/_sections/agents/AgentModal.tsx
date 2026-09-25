@@ -3,13 +3,14 @@
 import { memo } from "react";
 import Image from "next/image";
 import { X } from "lucide-react";
-import { timeAgo } from "../shared";
+import { timeAgo, useDialog } from "../shared";
 import { getAgentChar, formatDuration } from "./lib";
 import type { AgentInfo } from "./types";
 
 function AgentModalImpl({ agent, onClose }: { agent: AgentInfo; onClose: () => void }) {
     const char = getAgentChar(agent);
     const statusColor = agent.status === "running" ? "#34d399" : agent.status === "failed" ? "#ef4444" : "#3b82f6";
+    const dialog = useDialog(onClose, "agent-modal-title");
     return (
         <div style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}
             onClick={onClose}>
@@ -18,8 +19,8 @@ function AgentModalImpl({ agent, onClose }: { agent: AgentInfo; onClose: () => v
                 position: "relative", background: "#0c0d12", borderRadius: 24, padding: 0,
                 maxWidth: 520, width: "90vw", maxHeight: "85vh", overflow: "hidden",
                 border: `1px solid ${char.color}25`, boxShadow: `0 0 80px ${char.color}15`,
-            }} onClick={e => e.stopPropagation()}>
-                <button onClick={onClose} style={{
+            }} {...dialog} onClick={e => e.stopPropagation()}>
+                <button type="button" aria-label="Close" onClick={onClose} style={{
                     position: "absolute", top: 16, right: 16, background: "none", border: "none",
                     color: "rgba(255,255,255,0.55)", cursor: "pointer", zIndex: 2,
                 }}><X size={18} /></button>
@@ -31,7 +32,7 @@ function AgentModalImpl({ agent, onClose }: { agent: AgentInfo; onClose: () => v
                 }}>
                     <Image src={char.img} alt={char.name} width={96} height={96}
                         style={{ borderRadius: 24, objectFit: "cover", border: `3px solid ${char.color}40`, boxShadow: `0 0 40px ${char.color}25`, margin: "0 auto", display: "block" }} />
-                    <h3 style={{ fontSize: 24, fontWeight: 900, color: char.color, marginTop: 12, letterSpacing: "0.05em" }}>{char.name}</h3>
+                    <h3 id="agent-modal-title" style={{ fontSize: 24, fontWeight: 900, color: char.color, marginTop: 12, letterSpacing: "0.05em" }}>{char.name}</h3>
                     <p style={{ fontSize: 11, color: "rgba(255,255,255,0.52)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.1em" }}>{char.role}</p>
                     <div style={{ display: "flex", justifyContent: "center", gap: 8, marginTop: 10 }}>
                         <span style={{ fontSize: 9, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: `${statusColor}20`, color: statusColor, border: `1px solid ${statusColor}30` }}>

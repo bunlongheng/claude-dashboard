@@ -16,9 +16,11 @@ function RosterGridImpl({ activeChars, agents, selectedChar, onSelect }: {
             {activeChars.map((char, i) => {
                 const isRunning = agents.some(a => getAgentChar(a).id === char.id && a.status === "running");
                 return (
-                    <div key={char.id} onClick={() => onSelect(selectedChar?.id === char.id ? null : char)}
+                    <button key={char.id} type="button" onClick={() => onSelect(selectedChar?.id === char.id ? null : char)}
+                        aria-pressed={selectedChar?.id === char.id}
                         className={`cursor-pointer shrink-0 rosterCard${selectedChar?.id === char.id ? " sel" : ""}`}
                         style={{
+                        padding: 0, font: "inherit", color: "inherit", textAlign: "inherit",
                         ["--cc" as never]: char.color,
                         animation: `rosterIn 0.5s ease ${i * 0.05}s both`,
                         transition: "transform 0.15s",
@@ -39,9 +41,9 @@ function RosterGridImpl({ activeChars, agents, selectedChar, onSelect }: {
                         {/* Info */}
                         <div className="hidden md:block" style={{ padding: "4px 6px 6px", textAlign: "center" }}>
                             <div style={{ fontSize: 11, fontWeight: 800, color: char.color, letterSpacing: "0.03em" }}>{char.name}</div>
-                            <div style={{ fontSize: 7, color: "rgba(255,255,255,0.55)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em" }}>{char.role}</div>
+                            <div style={{ fontSize: 8, color: "rgba(255,255,255,0.7)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>{char.role}</div>
                         </div>
-                    </div>
+                    </button>
                 );
             })}
         </div>

@@ -17,15 +17,21 @@ body {
 
 * {
   box-sizing: border-box;
-  scrollbar-width: none;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.15) transparent;
 }
-::-webkit-scrollbar { display: none; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
+/* Page-level scrollbar stays hidden; scroll containers keep the thin one above. */
+html { scrollbar-width: none; }
+html::-webkit-scrollbar { display: none; }
 
 /* Hide Next.js dev indicator overlay (bottom-left logo). The devIndicators
    config flag is unreliable in 16.x; targeting the custom element works. */
 nextjs-portal { display: none !important; }
 
-/* Claude logo jump — 3 subtle bounces every 10s */
+/* Claude logo jump - 3 subtle bounces every 10s */
 @keyframes claudeJump {
   0%, 6%, 12%, 18%, 100% { transform: translateY(0); }
   3%  { transform: translateY(-6px); }
