@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import Link from "next/link";
 import { Activity, MessageSquare, Route, Timer, Coins, DollarSign, AlertTriangle, type LucideIcon } from "lucide-react";
 import {
@@ -271,20 +271,26 @@ function sliceLabel(p: PieLabelRenderProps) {
     );
 }
 
-function TierSplit({ tiers }: { tiers: JevAggregate["tiers"] }) {
+// `focus` is the tier the overview card was clicked on: the card scrolls into
+// view, that slice stays lit and the others step back.
+function TierSplit({ tiers, focus }: { tiers: JevAggregate["tiers"]; focus?: string }) {
+    const ref = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        if (focus) ref.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+    }, [focus]);
     const data = TIER_ORDER
         .map(t => ({ name: t, value: tiers[t], fill: TIER_COLORS[t] }))
         .filter(d => d.value > 0);
     const total = TIER_ORDER.reduce((s, t) => s + tiers[t], 0);
 
     return (
-        <div style={cardShell}>
+        <div id="tier-split" ref={ref} style={{ ...cardShell, scrollMarginTop: 16, outline: focus ? `1px solid ${TIER_COLORS[focus] ?? "transparent"}66` : undefined }}>
             <CardLabel title="Tier split" sub="Which rung of the ladder the router picked" />
             <div style={{ position: "relative" }}>
                 <ResponsiveContainer width="100%" height={200}>
                     <PieChart>
                         <Pie data={data} cx="50%" cy="50%" innerRadius={54} outerRadius={82} paddingAngle={3} dataKey="value" strokeWidth={0} labelLine={false} label={sliceLabel}>
-                            {data.map(d => <Cell key={d.name} fill={d.fill} />)}
+                            {data.map(d => <Cell key={d.name} fill={d.fill} fillOpacity={focus && d.name !== focus ? 0.3 : 1} />)}
                         </Pie>
                         <Tooltip {...TOOLTIP} />
                     </PieChart>
@@ -299,7 +305,7 @@ function TierSplit({ tiers }: { tiers: JevAggregate["tiers"] }) {
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 10, justifyContent: "center", marginTop: 6 }}>
                 {TIER_ORDER.map(t => (
-                    <div key={t} style={{ display: "flex", alignItems: "center", gap: 5, opacity: tiers[t] > 0 ? 1 : 0.35 }}>
+                    <div key={t} style={{ display: "flex", alignItems: "center", gap: 5, opacity: tiers[t] > 0 && (!focus || focus === t) ? 1 : 0.35, padding: "2px 6px", borderRadius: 6, background: focus === t ? `${TIER_COLORS[t]}1F` : "transparent" }}>
                         <span style={{ width: 8, height: 8, borderRadius: 999, background: TIER_COLORS[t] }} />
                         <span style={{ fontSize: 9, color: "rgba(255,255,255,0.45)" }}>{t}</span>
                         <span style={{ fontSize: 9, fontWeight: 700, color: TIER_COLORS[t] }}>{tiers[t]}</span>
@@ -416,8 +422,11 @@ function SessionTable({ sessions }: { sessions: JevSession[] }) {
 const MESSAGE_LIMIT = 100;
 const SNIPPET = 60;
 
-function MessageTable({ recent }: { recent: JevRow[] }) {
+function MessageTable({ recent, tier }: { recent: JevRow[]; tier?: string }) {
     const [filter, setFilter] = useState<"all" | "routed" | "skipped" | "error">("all");
+    // Tier comes from the URL (?tier=), so the deep link lands on just that rung.
+    // The parent keys this table on the tier, so a new link remounts it.
+    const [tierFilter, setTierFilter] = useState<string | undefined>(tier);
 
     const counts = useMemo(() => {
         const c = { all: recent.length, routed: 0, skipped: 0, error: 0 };
@@ -426,8 +435,10 @@ function MessageTable({ recent }: { recent: JevRow[] }) {
     }, [recent]);
 
     const rows = useMemo(
-        () => (filter === "all" ? recent : recent.filter(r => statusOf(r) === filter)).slice(0, MESSAGE_LIMIT),
-        [recent, filter],
+        () => (filter === "all" ? recent : recent.filter(r => statusOf(r) === filter))
+            .filter(r => !tierFilter || r.tier === tierFilter)
+            .slice(0, MESSAGE_LIMIT),
+        [recent, filter, tierFilter],
     );
 
     const chips: ("all" | "routed" | "skipped" | "error")[] = ["all", "routed", "skipped", "error"];
@@ -438,7 +449,25 @@ function MessageTable({ recent }: { recent: JevRow[] }) {
                 <div>
                     <CardLabel title="Per message" sub="Every prompt the hook logged, newest first" />
                 </div>
-                <div style={{ display: "flex", gap: 6 }}>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {TIER_ORDER.map(t => {
+                        const active = tierFilter === t;
+                        const color = TIER_COLORS[t];
+                        return (
+                            <button key={t} onClick={() => setTierFilter(active ? undefined : t)} title={active ? "Show every tier" : `Only ${t}`}
+                                style={{
+                                    cursor: "pointer", fontSize: 9, fontWeight: 700, letterSpacing: "0.06em",
+                                    textTransform: "uppercase", padding: "4px 9px", borderRadius: 7,
+                                    background: active ? `${color}1F` : "rgba(255,255,255,0.03)",
+                                    color: active ? color : "rgba(255,255,255,0.4)",
+                                    border: `1px solid ${active ? `${color}44` : "rgba(255,255,255,0.06)"}`,
+                                    transition: "all 0.15s ease",
+                                }}>
+                                {t}
+                            </button>
+                        );
+                    })}
+                    <span style={{ width: 1, background: "rgba(255,255,255,0.08)", margin: "2px 2px" }} />
                     {chips.map(c => {
                         const active = filter === c;
                         const color = c === "all" ? "#FFFFFF" : STATUS_COLORS[c];
@@ -494,7 +523,7 @@ function MessageTable({ recent }: { recent: JevRow[] }) {
                             );
                         })}
                         {rows.length === 0 && (
-                            <tr><td style={{ ...TD, color: "rgba(255,255,255,0.3)" }} colSpan={9}>No {filter} messages in this range.</td></tr>
+                            <tr><td style={{ ...TD, color: "rgba(255,255,255,0.3)" }} colSpan={9}>No {filter}{tierFilter ? ` ${tierFilter}` : ""} messages in this range.</td></tr>
                         )}
                     </tbody>
                 </table>
@@ -518,7 +547,7 @@ function NeverRan({ logPath, hookPath }: { logPath: string; hookPath: string }) 
 }
 
 // ── Page body ────────────────────────────────────────────────────────────────
-export default function JevCharts({ data }: { data: JevAggregate & { logPath: string; hookPath: string } }) {
+export default function JevCharts({ data, tier }: { data: JevAggregate & { logPath: string; hookPath: string }; tier?: string }) {
     const mounted = useSyncExternalStore(subscribeMounted, getMounted, getMountedServer);
     if (!mounted) return null;
 
@@ -531,11 +560,11 @@ export default function JevCharts({ data }: { data: JevAggregate & { logPath: st
                 <>
                     <div className="grid gap-3 grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
                         <CallsChart daily={data.daily} hourly={data.hourly} />
-                        <TierSplit tiers={data.tiers} />
+                        <TierSplit tiers={data.tiers} focus={tier} />
                     </div>
                     <LatencyPerDay daily={data.daily} />
                     <SessionTable sessions={data.sessions} />
-                    <MessageTable recent={data.recent} />
+                    <MessageTable key={tier ?? "all"} recent={data.recent} tier={tier} />
                 </>
             )}
         </div>
