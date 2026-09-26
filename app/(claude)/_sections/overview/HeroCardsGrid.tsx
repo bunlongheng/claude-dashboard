@@ -4,9 +4,13 @@ import {
     FolderOpen, Sparkles, Server, Coins, TerminalSquare,
     DatabaseZap, Blocks, BookOpen, Settings as SettingsIcon,
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { CLI_ICON_MAP } from "../cliIcons";
 import { RAG_ENABLED } from "@/lib/features";
-import { fmtCompact } from "../shared";
+import { fmtCompact, safeFetch } from "../shared";
+import { useMachine } from "../MachineContext";
+import JevMark, { JEV_PINK } from "../JevMark";
+import type { JevPayload } from "@/lib/jev-log";
 import { HeroCard } from "./HeroCard";
 import type { Stats, RagStats } from "./types";
 
@@ -17,6 +21,20 @@ const CLI_TOOL_COUNT = Object.keys(CLI_ICON_MAP).length;
 export function HeroCardsGrid({ stats, ragStats, liveSessions, totalTokens }: {
     stats: Stats; ragStats: RagStats | null; liveSessions: number; totalTokens: number;
 }) {
+    // Same key + URL as JevCard below, so react-query serves one fetch to both.
+    const { apiBase } = useMachine();
+    const jevUrl = `${apiBase("/api/claude/jev")}?days=7`;
+    const jevQ = useQuery<JevPayload | null>({
+        queryKey: ["overview-jev", jevUrl],
+        queryFn: () => safeFetch<JevPayload | null>(jevUrl, null),
+        refetchInterval: 60_000,
+    });
+    // Headline mirrors the sidebar badge: decisions made *today*, from the day
+    // bucket (routed + skipped + errors), not the rolling 7d total.
+    const todayKey = new Date().toLocaleDateString("en-CA");
+    const jevToday = (jevQ.data?.daily ?? []).find(d => d.day === todayKey);
+    const jevDecisions = jevToday ? jevToday.routed + jevToday.skipped + jevToday.errors : 0;
+    const jev = jevQ.data?.totals;
     return (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
             {RAG_ENABLED && (
@@ -60,6 +78,11 @@ export function HeroCardsGrid({ stats, ragStats, liveSessions, totalTokens }: {
                 { label: "Total", value: fmtCompact(totalTokens) },
                 { label: "In", value: fmtCompact(stats.tokens.input) },
                 { label: "Out", value: fmtCompact(stats.tokens.output) },
+            ]} />
+            <HeroCard name="Jev" icon={JevMark} color={JEV_PINK} href="/jev" stats={[
+                { label: "Decisions", value: jevDecisions },
+                { label: "Routed 7d", value: jev?.routed ?? 0 },
+                { label: "Avg ms", value: jev?.avgLatencyMs ?? 0 },
             ]} />
         </div>
     );
