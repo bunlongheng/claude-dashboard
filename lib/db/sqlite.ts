@@ -94,8 +94,10 @@ export const sqliteDb: DbAdapter = {
             if (options?.orderBy && isSafeIdent(options.orderBy)) {
                 sql += ` ORDER BY ${options.orderBy} ${options.ascending === false ? "DESC" : "ASC"}`;
             }
-            if (options?.limit && Number.isInteger(options.limit)) sql += ` LIMIT ${options.limit}`;
-            const rows = db.prepare(sql).all();
+            const params: number[] = [];
+            const limit = Number(options?.limit);
+            if (Number.isFinite(limit) && limit > 0) { sql += " LIMIT ?"; params.push(Math.trunc(limit)); }
+            const rows = db.prepare(sql).all(...params);
             db.close();
             return rows as T[];
         } catch {

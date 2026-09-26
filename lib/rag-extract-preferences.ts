@@ -6,7 +6,7 @@ const SYSTEM = `You extract structured user preferences from Claude configuratio
 
 Given a markdown document containing a user's Claude rules/preferences, extract key-value pairs organized by category.
 
-Return ONLY a valid JSON array — no markdown, no explanation:
+Return ONLY a valid JSON array - no markdown, no explanation:
 [
   { "category": "stack", "key": "framework", "value": "Next.js 16 App Router" },
   { "category": "stack", "key": "css", "value": "Tailwind only, no CSS modules" },

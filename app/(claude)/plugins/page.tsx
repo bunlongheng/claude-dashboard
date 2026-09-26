@@ -1,9 +1,6 @@
-import type { Metadata } from "next";
-import PluginsSection from "../_sections/PluginsSection";
+import { redirect } from "next/navigation";
 
-export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Claude | Plugins" };
-
+// Folded into the Extensions page - keep the old URL working.
 export default function PluginsPage() {
-    return <PluginsSection />;
+    redirect("/extensions?tab=plugins");
 }

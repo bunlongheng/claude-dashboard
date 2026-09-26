@@ -12,6 +12,7 @@ import { McpList } from "./agents/McpList";
 import { CliList } from "./agents/CliList";
 import { CharacterProfileModal } from "./agents/CharacterProfileModal";
 import { AGENT_CHARS, getAgentChar } from "./agents/lib";
+import { FetchError } from "./shared";
 import type { AgentInfo, AgentChar, LiveEvent } from "./agents/types";
 
 export default function AgentsSection() {
@@ -102,7 +103,7 @@ export default function AgentsSection() {
 
     // Effective request URL. The initial null machine and the local machine both
     // resolve to the same same-origin URL, so this string is stable while the
-    // machine context settles — depending on it (not on `machine`/`apiBase`, whose
+    // machine context settles - depending on it (not on `machine`/`apiBase`, whose
     // identities change on settle) prevents the intermittent double initial load.
     const selectedMachine = machines.find(m => m.id === machine);
     const machineQ = selectedMachine && !selectedMachine.isLocal ? `&machine=${machine}` : "";
@@ -111,7 +112,7 @@ export default function AgentsSection() {
     // 15s cadence as the old setInterval, now via refetchInterval; polling
     // pauses in a background tab automatically (refetchIntervalInBackground
     // defaults to false), matching the old document.visibilityState check.
-    const { data: agentsData } = useQuery({
+    const { data: agentsData, isError: agentsError, refetch: refetchAgents } = useQuery({
         queryKey: ["agents-history", agentsUrl],
         queryFn: async () => {
             try {
@@ -178,13 +179,19 @@ export default function AgentsSection() {
         <div>
 
             {/* Search + live dot (MCP & CLI moved to their own left-nav pages) */}
+            {agentsError && <div className="mb-4"><FetchError what="agents" onRetry={() => refetchAgents()} /></div>}
             <div className="flex items-center gap-3 mb-4 flex-wrap">
-                <span style={{
-                    width: 6, height: 6, borderRadius: "50%",
-                    background: wsConnected ? "#34d399" : "#ef4444",
-                    boxShadow: wsConnected ? "0 0 8px #34d399" : "none",
-                    animation: wsConnected ? "pulse 2s infinite" : "none",
-                }} title={wsConnected ? "Live" : "Disconnected"} />
+                <span role="status" className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-[0.1em]"
+                    style={{ color: wsConnected ? "#34d399" : "rgba(255,255,255,0.55)" }}>
+                    <span style={{
+                        width: 6, height: 6, borderRadius: "50%",
+                        background: wsConnected ? "#34d399" : "#ef4444",
+                        boxShadow: wsConnected ? "0 0 8px #34d399" : "none",
+                        animation: wsConnected ? "pulse 2s infinite" : "none",
+                    }} />
+                    {wsConnected ? "Live" : "Live feed offline"}
+                    {!wsConnected && <span className="normal-case tracking-normal font-mono font-medium text-white/40">- run npm run dev:ws</span>}
+                </span>
                 <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg flex-1 max-w-[200px] ml-auto"
                     style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
                     <Search size={11} style={{ color: "rgba(255,255,255,0.5)", flexShrink: 0 }} />

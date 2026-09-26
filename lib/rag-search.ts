@@ -204,7 +204,7 @@ export function runHealthChecks(): { check_type: string; severity: string; messa
 
   // 4. Large documents that might need splitting
   const large = db.prepare("SELECT COUNT(*) as c FROM documents WHERE LENGTH(content) > 10000").get() as { c: number };
-  if (large.c > 0) checks.push({ check_type: "large_documents", severity: "info", message: `${large.c} documents exceed 10KB — consider splitting` });
+  if (large.c > 0) checks.push({ check_type: "large_documents", severity: "info", message: `${large.c} documents exceed 10KB - consider splitting` });
 
   // 5. Documents not accessed recently
   const coldDocs = db.prepare("SELECT COUNT(*) as c FROM documents WHERE access_count = 0").get() as { c: number };

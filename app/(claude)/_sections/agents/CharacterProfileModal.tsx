@@ -3,7 +3,7 @@
 import { memo, useMemo } from "react";
 import Image from "next/image";
 import { X } from "lucide-react";
-import { timeAgo } from "../shared";
+import { timeAgo, useDialog } from "../shared";
 import { getAgentChar, formatDuration } from "./lib";
 import type { AgentChar, AgentInfo } from "./types";
 
@@ -28,6 +28,7 @@ function CharacterProfileModalImpl({ char, agents, onClose }: { char: AgentChar;
     const avgMs = s.missions > 0 ? Math.round(s.totalMs / s.missions) : 0;
     const successRate = s.missions > 0 ? Math.round((s.wins / s.missions) * 100) : 0;
 
+    const dialog = useDialog(onClose, "char-modal-title");
     return (
         <div style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}
             onClick={onClose}>
@@ -36,8 +37,8 @@ function CharacterProfileModalImpl({ char, agents, onClose }: { char: AgentChar;
                 position: "relative", background: "#0c0d12", borderRadius: 24, padding: 0,
                 maxWidth: 480, width: "90vw", maxHeight: "85vh", overflow: "hidden",
                 border: `1px solid ${char.color}25`, boxShadow: `0 0 80px ${char.color}15`,
-            }} onClick={e => e.stopPropagation()}>
-                <button onClick={onClose} style={{
+            }} {...dialog} onClick={e => e.stopPropagation()}>
+                <button type="button" aria-label="Close" onClick={onClose} style={{
                     position: "absolute", top: 16, right: 16, background: "none", border: "none",
                     color: "rgba(255,255,255,0.55)", cursor: "pointer", zIndex: 2,
                 }}><X size={18} /></button>
@@ -49,7 +50,7 @@ function CharacterProfileModalImpl({ char, agents, onClose }: { char: AgentChar;
                 }}>
                     <Image src={char.img} alt={char.name} width={100} height={100}
                         style={{ borderRadius: 24, objectFit: "cover", border: `3px solid ${char.color}40`, boxShadow: `0 0 40px ${char.color}25`, margin: "0 auto", display: "block" }} />
-                    <h3 style={{ fontSize: 28, fontWeight: 900, color: char.color, marginTop: 12, letterSpacing: "0.05em" }}>{char.name}</h3>
+                    <h3 id="char-modal-title" style={{ fontSize: 28, fontWeight: 900, color: char.color, marginTop: 12, letterSpacing: "0.05em" }}>{char.name}</h3>
                     <p style={{ fontSize: 11, color: "rgba(255,255,255,0.52)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.1em" }}>{char.role}</p>
                     <div style={{ fontSize: 13, fontWeight: 800, color: char.color, marginTop: 8, opacity: 0.7 }}>LEVEL {level}</div>
                 </div>

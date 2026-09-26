@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Code2, Pencil, Save, X, Check, Eye, EyeOff } from "lucide-react";
-import { marked } from "marked";
+import { safeMarkdown } from "@/lib/safe-markdown";
 import { useMachine } from "./MachineContext";
 import ClaudeMdHistory from "./ClaudeMdHistory";
 import { MascotLoader } from "./MascotLoader";
@@ -114,7 +114,7 @@ function ClaudeMdEditor({ item }: { item: ClaudeMdInfo }) {
                 )}
                 {preview && content && (
                     <div className="gh-md"
-                        dangerouslySetInnerHTML={{ __html: marked.parse(content) as string }}
+                        dangerouslySetInnerHTML={{ __html: safeMarkdown(content) }}
                     />
                 )}
                 <style>{`

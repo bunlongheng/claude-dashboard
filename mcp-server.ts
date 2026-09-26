@@ -1,4 +1,7 @@
-#!/usr/bin/env npx tsx
+#!/usr/bin/env -S npx -y tsx
+// rag-memory MCP server: 4 stdio tools (rag_search, rag_context, rag_preferences,
+// rag_health) that proxy to the running dashboard at CLAUDE_DASHBOARD_URL
+// (default http://localhost:3003). Register and usage: docs/mcp.md
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
@@ -40,7 +43,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     },
     {
       name: "rag_health",
-      description: "Check RAG system health — stale preferences, duplicate entries, cold documents",
+      description: "Check RAG system health - stale preferences, duplicate entries, cold documents",
       inputSchema: { type: "object" as const, properties: {} },
     },
   ],

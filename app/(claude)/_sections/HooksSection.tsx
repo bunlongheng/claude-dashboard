@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Webhook, ChevronDown, ChevronRight, Search, LayoutGrid, List, CircleDot } from "lucide-react";
+import { fetchJson, FetchError, useDialog } from "./shared";
 import { useMachine } from "./MachineContext";
 
 type HookInfo = { name: string; plugin: string; events: string[]; command?: string; path: string };
@@ -96,6 +97,7 @@ function HookThumb({ hook, index, total, onClick }: { hook: HookInfo; index: num
 }
 
 function HookModal({ hook, onClose }: { hook: HookInfo; onClose: () => void }) {
+    const dialog = useDialog(onClose, "hook-modal-title");
     return (
         <div style={{
             position: "fixed", inset: 0, zIndex: 100,
@@ -103,7 +105,7 @@ function HookModal({ hook, onClose }: { hook: HookInfo; onClose: () => void }) {
             display: "flex", alignItems: "center", justifyContent: "center",
             padding: 20,
         }} onClick={onClose}>
-            <div onClick={e => e.stopPropagation()} style={{
+            <div {...dialog} onClick={e => e.stopPropagation()} style={{
                 width: "100%", maxWidth: 560,
                 background: "#12131a", borderRadius: 16,
                 border: `1px solid ${COLOR}30`,
@@ -125,10 +127,10 @@ function HookModal({ hook, onClose }: { hook: HookInfo; onClose: () => void }) {
                         <Webhook size={16} style={{ color: "#fff" }} />
                     </div>
                     <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>{hook.plugin}</div>
+                        <div id="hook-modal-title" style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>{hook.plugin}</div>
                         <div style={{ fontSize: 10, color: "rgba(255,255,255,0.55)" }}>{hook.name}</div>
                     </div>
-                    <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.55)", padding: 4, fontSize: 18, lineHeight: 1 }}>x</button>
+                    <button type="button" aria-label="Close" onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.55)", padding: 4, fontSize: 18, lineHeight: 1 }}>x</button>
                 </div>
 
                 {/* Body */}
@@ -171,18 +173,15 @@ export default function HooksSection() {
     const { machine, apiBase } = useMachine();
     const [search, setSearch] = useState("");
     const [eventFilter, setEventFilter] = useState<string | null>(null);
-    const [viewMode, setViewMode] = useState<"thumbs" | "list" | "circles">("circles");
+    const [viewMode, setViewMode] = useState<"thumbs" | "list" | "circles">("list");
     const [selectedHook, setSelectedHook] = useState<HookInfo | null>(null);
     const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
 
     const q = machine ? `?machine=${machine}` : "";
     const hooksUrl = apiBase(`/api/claude/skills?slim=1${q ? "&" + q.slice(1) : ""}`);
-    const { data, isFetching: loading } = useQuery({
+    const { data, isFetching: loading, isError, refetch } = useQuery({
         queryKey: ["claude-hooks", hooksUrl],
-        queryFn: async () => {
-            const r = await fetch(hooksUrl);
-            return r.json();
-        },
+        queryFn: () => fetchJson<{ hooks?: HookInfo[] }>(hooksUrl),
     });
     const hooks: HookInfo[] = data?.hooks ?? [];
 
@@ -211,7 +210,7 @@ export default function HooksSection() {
                 </div>
                 <div className="flex gap-1">
                     {([["thumbs", LayoutGrid], ["list", List], ["circles", CircleDot]] as const).map(([mode, ModeIcon]) => (
-                        <button key={mode} onClick={() => setViewMode(mode)}
+                        <button key={mode} type="button" onClick={() => setViewMode(mode)} aria-label={`${mode} view`} title={`${mode} view`} aria-pressed={viewMode === mode}
                             className="p-1.5 rounded-md cursor-pointer transition"
                             style={{
                                 background: viewMode === mode ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.03)",
@@ -311,7 +310,8 @@ export default function HooksSection() {
             {/* List view */}
             {viewMode === "list" && filtered.map(h => <HookCard key={h.plugin} hook={h} />)}
 
-            {filtered.length === 0 && (
+            {isError && <FetchError what="hooks" onRetry={() => refetch()} />}
+            {!isError && filtered.length === 0 && (
                 <p className="text-white/20 text-center py-8 text-sm">
                     {search ? `No hooks matching "${search}"` : "No hooks found"}
                 </p>

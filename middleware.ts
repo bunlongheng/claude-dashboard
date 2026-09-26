@@ -36,19 +36,25 @@ export async function middleware(req: NextRequest) {
 
     // ── Security Headers (OWASP Top 10) ────────────────────────────────────
     res.headers.set("X-Content-Type-Options", "nosniff");
-    // Framing policy: DENY by default, SAMEORIGIN for the embedded graphify
-    // page, and an env allowlist (FRAME_ANCESTORS) for local embedding tools.
+    // Framing policy: DENY by default, plus an env allowlist (FRAME_ANCESTORS)
+    // for local embedding tools.
     const frame = frameHeaders(req.nextUrl.pathname);
     if (frame.xfo) res.headers.set("X-Frame-Options", frame.xfo);
     res.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
     res.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
-    // Safe CSP subset: locks object/base-uri and modern clickjacking protection
-    // without constraining script/style/img sources, so it can't break Next.js
-    // hydration or the inline-styled UI. A nonce-based script-src is a follow-up.
+    // CSP: locks object/base-uri, clickjacking, and script origins. style/img
+    // stay unconstrained so the inline-styled UI keeps working.
+    // script-src: Turbopack dev HMR needs eval + inline. Production Next.js still
+    // inlines its hydration bootstrap (self.__next_f.push), so 'unsafe-inline'
+    // stays until a per-request nonce is plumbed through (that forces every page
+    // to render dynamically); 'self' already blocks foreign-origin scripts and eval.
     // (X-XSS-Protection dropped - deprecated and ignored by modern browsers.)
+    const scriptSrc = process.env.NODE_ENV === "development"
+        ? "'self' 'unsafe-eval' 'unsafe-inline'"
+        : "'self' 'unsafe-inline'";
     res.headers.set(
         "Content-Security-Policy",
-        `object-src 'none'; base-uri 'self'; frame-ancestors ${frame.csp}`
+        `object-src 'none'; base-uri 'self'; script-src ${scriptSrc}; frame-ancestors ${frame.csp}`
     );
     // HSTS only over HTTPS (Caddy/Tailscale/Vercel) so plain-HTTP LAN use is
     // unaffected - browsers ignore HSTS on http anyway.

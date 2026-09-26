@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
+import * as readline from "readline";
 import { readLastBytes } from "@/lib/safe-read";
 
 // Shared home of every ~/.claude/projects/<folder>/<session>.jsonl walk.
@@ -57,4 +58,38 @@ export function walkProjectJsonl(
             } catch { /* skip unreadable file */ }
         }
     }
+}
+
+// Streams a .jsonl file line by line (no whole-file string, no event-loop
+// stall on a 180 MB session). Only lines passing `keep` are JSON.parsed.
+export async function streamJsonl(
+    filePath: string,
+    keep: (line: string) => boolean,
+    onEntry: (parsed: unknown) => void,
+): Promise<void> {
+    try {
+        const rl = readline.createInterface({ input: fs.createReadStream(filePath, { encoding: "utf8" }), crlfDelay: Infinity });
+        for await (const line of rl) {
+            if (!line || !keep(line)) continue;
+            try { onEntry(JSON.parse(line)); } catch { /* skip malformed line */ }
+        }
+    } catch { /* unreadable file */ }
+}
+
+// Per-file scan cache keyed by absolute path, mirrored to data/<name>.json so
+// a dev-server restart does not re-scan every file. Only the entries passed to
+// save() survive, which prunes files that dropped out of the window.
+export function diskCache<T>(name: string) {
+    const file = path.join(process.cwd(), "data", `${name}.json`);
+    return {
+        load(): Map<string, T> {
+            try { return new Map(Object.entries(JSON.parse(fs.readFileSync(file, "utf8")))); } catch { return new Map(); }
+        },
+        save(entries: Map<string, T>): void {
+            try {
+                fs.mkdirSync(path.dirname(file), { recursive: true });
+                fs.writeFileSync(file, JSON.stringify(Object.fromEntries(entries)));
+            } catch { /* best effort */ }
+        },
+    };
 }

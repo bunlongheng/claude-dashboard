@@ -2,6 +2,7 @@
 
 import { memo, useMemo } from "react";
 import { marked } from "marked";
+import { safeMarkdown } from "@/lib/safe-markdown";
 import Prism from "prismjs";
 import "prismjs/components/prism-typescript";
 import "prismjs/components/prism-javascript";
@@ -93,13 +94,14 @@ function highlightCode(code: string, lang?: string): string {
 const renderer = new marked.Renderer();
 renderer.code = function ({ text, lang }: { text: string; lang?: string }) {
     const html = highlightCode(text, lang || undefined);
-    return `<pre style="background:rgba(0,0,0,0.3);padding:10px;border-radius:6px;border:1px solid rgba(255,255,255,0.06);overflow-x:auto"><code class="language-${lang || "text"}">${html}</code></pre>`;
+    const safeLang = lang && /^[a-z0-9_-]+$/i.test(lang) ? lang : "text";
+    return `<pre style="background:rgba(0,0,0,0.3);padding:10px;border-radius:6px;border:1px solid rgba(255,255,255,0.06);overflow-x:auto"><code class="language-${safeLang}">${html}</code></pre>`;
 };
 marked.setOptions({ renderer });
 
 export const ActivityRow = memo(function ActivityRow({ item, isLatest, showToast }: { item: ActivityItem; isLatest: boolean; showToast: (msg: string, color?: string) => void }) {
     const parsedHtml = useMemo(
-        () => item.type === "text" ? marked.parse(item.content, { gfm: true }) as string : "",
+        () => item.type === "text" ? safeMarkdown(item.content, { gfm: true }) : "",
         [item.type, item.content],
     );
 

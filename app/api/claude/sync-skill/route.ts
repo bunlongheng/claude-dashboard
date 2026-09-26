@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { openMachinesDb, localMachineId } from "@/lib/machines-db";
 import { withErrorHandler } from "@/lib/api-handler";
+import { requireSameSite } from "@/lib/route-guard";
 
 const LOCAL_PORT = parseInt(process.env.LOCAL_APPS_PORT || "9876", 10);
 const LOCAL_MACHINE_ID = localMachineId();
@@ -22,6 +23,8 @@ function getMachineUrl(machineId: string): string | null {
 // POST: copy a skill from one machine to another
 // Body: { from: machineId, to: machineId, plugin: string, skill: string }
 export const POST = withErrorHandler(async (req: Request) => {
+    const denied = requireSameSite(req);
+    if (denied) return denied;
     const { from, to, plugin, skill } = await req.json();
 
     if (!from || !to || !plugin || !skill) {

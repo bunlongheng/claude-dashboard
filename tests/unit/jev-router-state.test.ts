@@ -90,9 +90,12 @@ describe("/api/claude/jev/router", () => {
         expect((await res.json()).force).toBeNull();
     });
 
+    // Mutations pass lib/route-guard.ts only as a same-origin fetch from a trusted host.
+    const SAME_SITE = { "sec-fetch-site": "same-origin", host: "localhost:3003" };
+
     it("PUT flips the switch both ways", async () => {
         const { PUT } = await loadRoute();
-        const put = (body: string) => PUT(new Request("http://x/api/claude/jev/router", { method: "PUT", body }), {});
+        const put = (body: string) => PUT(new Request("http://x/api/claude/jev/router", { method: "PUT", headers: SAME_SITE, body }), {});
         let res = await put('{"force":"haiku"}');
         expect(res.status).toBe(200);
         expect((await res.json()).force).toBe("haiku");
@@ -102,9 +105,18 @@ describe("/api/claude/jev/router", () => {
 
     it("PUT rejects a tier off the ladder, a missing field, and a non-JSON body", async () => {
         const { PUT } = await loadRoute();
-        const put = (body: string) => PUT(new Request("http://x/api/claude/jev/router", { method: "PUT", body }), {});
+        const put = (body: string) => PUT(new Request("http://x/api/claude/jev/router", { method: "PUT", headers: SAME_SITE, body }), {});
         expect((await put('{"force":"gpt-4"}')).status).toBe(400);
         expect((await put('{}')).status).toBe(400);
         expect((await put('nope')).status).toBe(400);
+    });
+
+    it("PUT returns 403 for a cross-site caller and leaves the state untouched", async () => {
+        const { PUT, GET } = await loadRoute();
+        const res = await PUT(new Request("http://x/api/claude/jev/router", {
+            method: "PUT", headers: { "sec-fetch-site": "cross-site", origin: "https://evil.example" }, body: '{"force":"haiku"}',
+        }), {});
+        expect(res.status).toBe(403);
+        expect((await (await GET(new Request("http://x/api/claude/jev/router"), {})).json()).force).toBeNull();
     });
 });

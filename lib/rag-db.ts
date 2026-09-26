@@ -1,4 +1,4 @@
-import Database from "better-sqlite3";
+import type Database from "better-sqlite3";
 import path from "path";
 import fs from "fs";
 
@@ -14,7 +14,11 @@ export function getDb(): Database.Database {
 
   if (!fs.existsSync(DB_DIR)) fs.mkdirSync(DB_DIR, { recursive: true });
 
-  db = new Database(DB_PATH);
+  // require() (not a static import) keeps the optional better-sqlite3 dependency
+  // out of the module graph until a RAG route actually opens the db - same
+  // lazy-load pattern as lib/db and lib/machines-db.
+  const Ctor: typeof Database = require("better-sqlite3");
+  db = new Ctor(DB_PATH);
   db.pragma("journal_mode = WAL");
   db.pragma("foreign_keys = ON");
 
@@ -168,6 +172,14 @@ export function getDb(): Database.Database {
   addColumn("ALTER TABLE documents ADD COLUMN access_count INTEGER NOT NULL DEFAULT 0");
   addColumn("ALTER TABLE documents ADD COLUMN quality_score REAL NOT NULL DEFAULT 1.0");
 
+  // Hot-path columns for /api/rag/stats (getStats + runHealthChecks). After the
+  // ALTERs above so the migrated columns exist on older DBs.
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_search_log_created ON search_log(created_at);
+    CREATE INDEX IF NOT EXISTS idx_docs_access ON documents(access_count);
+    CREATE INDEX IF NOT EXISTS idx_prefs_last_accessed ON preferences(last_accessed);
+  `);
+
   // FTS5 virtual table for full-text search (standalone, not content-synced)
   try {
     db.exec(`CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(content);`);
@@ -205,12 +217,6 @@ export type Preference = {
 export type EvalConfig = "nothing" | "rag" | "rag_vector";
 
 export const EVAL_CONFIGS: EvalConfig[] = ["nothing", "rag", "rag_vector"];
-
-export const EVAL_CONFIG_LABELS: Record<EvalConfig, string> = {
-  nothing: "Nothing",
-  rag: "RAG only",
-  rag_vector: "RAG + Vector DB",
-};
 
 export type EvalQuestion = {
   id: number; question: string; expected: string; tags: string; created_at: string;

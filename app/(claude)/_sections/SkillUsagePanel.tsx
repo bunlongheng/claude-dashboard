@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useMachine } from "./MachineContext";
 import { safeFetch, SegmentedTabs } from "./shared";
 import { cardShell } from "@/lib/ui-tokens";
@@ -23,14 +24,17 @@ const WIN_PARAM: Record<Win, string> = { "7d": "hours=168", "30d": "hours=720", 
 export default function SkillUsagePanel() {
     const { apiBase } = useMachine();
     const [win, setWin] = useState<Win>("30d");
-    const [data, setData] = useState<SkillUsageData | null>(null);
-
-    useEffect(() => {
-        const load = () => safeFetch<SkillUsageData | null>(apiBase(`/api/claude/skill-usage?${WIN_PARAM[win]}`), null).then(d => { if (d) setData(d); });
-        load();
-        const t = setInterval(load, 30_000);
-        return () => clearInterval(t);
-    }, [apiBase, win]);
+    // The route scans every session file touched in the window, so poll it
+    // gently: 5 min, no refetch on window focus. Keyed by URL so the machine
+    // context settling on mount does not trigger a second load.
+    const url = apiBase(`/api/claude/skill-usage?${WIN_PARAM[win]}`);
+    const { data } = useQuery<SkillUsageData | null>({
+        queryKey: ["skill-usage", url],
+        queryFn: () => safeFetch<SkillUsageData | null>(url, null),
+        refetchInterval: 300_000,
+        refetchOnWindowFocus: false,
+        placeholderData: prev => prev,
+    });
 
     return (
         <div style={cardShell}>

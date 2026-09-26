@@ -24,7 +24,7 @@ Return ONLY a valid JSON object:
 }
 
 Rules:
-- Always find SOMETHING notable — even a 1-message session reveals what the user was thinking about
+- Always find SOMETHING notable - even a 1-message session reveals what the user was thinking about
 - Be specific (not "worked on app" but "added OAuth login with Auth0 PKCE flow")
 - Max 8 insights per session
 - If the session is very short, note what the user was exploring/asking about`;

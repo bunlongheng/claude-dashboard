@@ -1,9 +1,6 @@
-import type { Metadata } from "next";
-import HooksSection from "../_sections/HooksSection";
+import { redirect } from "next/navigation";
 
-export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Claude | Hooks" };
-
+// Folded into the Extensions page - keep the old URL working.
 export default function HooksPage() {
-    return <HooksSection />;
+    redirect("/extensions?tab=hooks");
 }

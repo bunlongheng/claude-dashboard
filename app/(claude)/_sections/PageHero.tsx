@@ -77,7 +77,7 @@ export default function PageHero() {
                         <p style={{ fontSize: 13, color: "rgba(255,255,255,0.52)", margin: 0, marginTop: 4, fontWeight: 500 }}>{displaySubtitle}</p>
                     )}
                 </div>
-                {/* Right-side slot — pages portal page-specific controls here (e.g. Context mode picker) */}
+                {/* Right-side slot - pages portal page-specific controls here (e.g. Context mode picker) */}
                 <div id="page-hero-slot" style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }} />
             </div>
         </div>

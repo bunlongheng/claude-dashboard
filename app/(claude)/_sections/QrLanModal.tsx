@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { X, Copy, Check, QrCode } from "lucide-react";
 import QRCode from "qrcode";
 import { useMachine } from "./MachineContext";
-import { safeFetch } from "./shared";
+import { safeFetch, useDialog } from "./shared";
 
 export default function QrLanModal({ iconOnly }: { iconOnly?: boolean } = {}) {
   const { apiBase } = useMachine();
@@ -22,6 +22,7 @@ export default function QrLanModal({ iconOnly }: { iconOnly?: boolean } = {}) {
     enabled: open,
   });
   const url = lanQuery.data?.url ?? "";
+  const dialog = useDialog(() => setOpen(false), "qr-lan-title", open);
 
   useEffect(() => {
     if (open && url && canvasRef.current) {
@@ -91,6 +92,7 @@ export default function QrLanModal({ iconOnly }: { iconOnly?: boolean } = {}) {
         }}
       >
         <div
+          {...dialog}
           onClick={e => e.stopPropagation()}
           style={{
             background: "#16171e", border: "1px solid rgba(255,255,255,0.1)",
@@ -101,10 +103,12 @@ export default function QrLanModal({ iconOnly }: { iconOnly?: boolean } = {}) {
         >
           {/* Close */}
           <div style={{ display: "flex", width: "100%", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.7)", letterSpacing: "0.04em" }}>
+            <span id="qr-lan-title" style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.7)", letterSpacing: "0.04em" }}>
               LAN Access
             </span>
             <button
+              type="button"
+              aria-label="Close"
               onClick={() => setOpen(false)}
               style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.52)", display: "flex", padding: 2 }}
             >

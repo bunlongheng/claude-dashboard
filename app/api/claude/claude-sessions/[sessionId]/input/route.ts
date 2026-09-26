@@ -111,14 +111,14 @@ function ttyIsVscode(ttyPath: string): boolean {
     const dev = ttyPath.replace("/dev/", "");
     try {
         const out = execSync(`
-for pid in $(ps -e -o pid,tty | awk -v d="${dev}" '$2==d {print $1}'); do
+for pid in $(ps -e -o pid,tty | awk -v d="$INJECT_DEV" '$2==d {print $1}'); do
     ppid=$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ')
     if [ -n "$ppid" ]; then
         cmd=$(ps -o command= -p "$ppid" 2>/dev/null)
         echo "$cmd"
         exit 0
     fi
-done`, { encoding: "utf-8", timeout: 5000 }).toLowerCase();
+done`, { encoding: "utf-8", env: { ...process.env, INJECT_DEV: dev }, timeout: 5000 }).toLowerCase();
         return out.includes("electron") || out.includes("visual studio code") || out.includes("code helper");
     } catch {
         return false;

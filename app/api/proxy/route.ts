@@ -32,8 +32,12 @@ function resolveMachine(id: string): { ip: string; port: number } | null {
 }
 
 function isAllowedPath(path: string): boolean {
-    // Only forward the dashboard's own data APIs to a peer.
-    return path.startsWith("/api/claude/") || path.startsWith("/api/rag/");
+    // Only forward the dashboard's own data APIs to a peer. Normalize first so
+    // dot segments ("/api/claude/../x") cannot escape the allowlist.
+    let pathname: string;
+    try { pathname = new URL(path, "http://x").pathname; } catch { return false; }
+    if (pathname !== path.split("?")[0]) return false;
+    return pathname.startsWith("/api/claude/") || pathname.startsWith("/api/rag/");
 }
 
 async function forward(req: Request): Promise<Response> {

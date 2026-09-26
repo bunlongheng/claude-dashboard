@@ -1,21 +1,21 @@
 ---
-description: Check project health scores across all Claude Code projects
+description: Check that the Claude Dashboard and its WebSocket watcher are up
 allowed-tools: [Bash, Read]
 ---
 
-Check the health score of all Claude Code projects. Each project is scored 0-100 based on:
-- Has CLAUDE.md (+20)
-- Has memory files (+20, +5 per file up to 40)
-- Recent sessions within 7 days (+20)
-- Has instructions.md (+10)
-- Has settings (+10)
+Check the health of the running Claude Dashboard. There is no per-project scoring route; this command probes the 2 servers that exist.
 
-Run: `curl -s http://localhost:3000/api/claude/health | python3 -c "
+Run:
+
+```bash
+curl -s -o /dev/null -w "dashboard :3003 -> %{http_code}\n" http://localhost:3003/api/claude/lan
+curl -s -o /dev/null -w "ws-server :7878 -> %{http_code}\n" http://localhost:7878/api/health
+curl -s http://localhost:3003/api/claude/sessions | python3 -c "
 import sys,json
 d = json.load(sys.stdin)
-for p in d.get('projects', []):
-    bar = '#' * (p['score'] // 5) + '.' * (20 - p['score'] // 5)
-    print(f\"{p['score']:3d}/100 [{bar}] {p['name']}\")
-"`
+ps = d.get('projects', [])
+print(f'{len(ps)} projects, {sum(len(p.get(\"sessions\", [])) for p in ps)} sessions indexed')
+"
+```
 
-If the dashboard isn't running, tell the user to start it with `/dashboard`.
+Report each line as-is. 200 on :3003 means the dashboard is up; 200 on :7878 means the live agents feed is up (only started by `npm run dev:full`, `dev:lan` or `prod`). Anything else, tell the user to start it with `/dashboard`.

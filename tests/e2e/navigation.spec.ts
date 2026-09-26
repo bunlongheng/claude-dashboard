@@ -57,8 +57,11 @@ test("no uncaught page errors on the dashboard", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto("/dashboard", GOTO);
-  await page.waitForTimeout(1000);
-  expect(errors).toEqual([]);
+  // Hydrated shell + settled network is the point where a runtime error would
+  // have surfaced; poll instead of a fixed sleep so a slow compile can't race it.
+  await expect(page.locator("aside").first()).toBeVisible();
+  await page.waitForLoadState("networkidle");
+  await expect.poll(() => errors).toEqual([]);
 });
 
 test("the jev page leads with the health strip", async ({ page }) => {

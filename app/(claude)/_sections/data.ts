@@ -1,5 +1,6 @@
 import * as fs from "fs";
 import { readLastBytes } from "@/lib/safe-read";
+import { streamJsonl, diskCache } from "@/lib/jsonl-walk";
 import * as path from "path";
 import * as os from "os";
 import { getModelRates } from "@/lib/pricing";
@@ -86,8 +87,13 @@ export interface UsageRow {
 }
 
 type ModelDelta = { requests: number; inp: number; out: number; cr: number; cw5: number; cw1h: number; web: number };
-// Per-file parse cache keyed by mtime: the 1.1 GB scan only re-reads files that changed.
-const usageFileCache = new Map<string, { mtimeMs: number; deltas: Map<string, ModelDelta> }>();
+// Per-file parse cache keyed by mtime: the 1.1 GB scan only re-reads files that
+// changed. Mirrored to data/usage-cache.json so a dev-server restart does not
+// re-parse the whole tree (measured 11 s cold vs 0.09 s warm).
+type UsageEntry = { mtimeMs: number; deltas: Record<string, ModelDelta> };
+const usageDisk = diskCache<UsageEntry>("usage-cache");
+const usageFileCache = usageDisk.load();
+let usageInflight: Promise<UsageRow[]> | null = null;
 
 interface JsonlUsageCacheCreation {
     ephemeral_5m_input_tokens?: number;
@@ -109,22 +115,19 @@ interface JsonlLine {
     message?: JsonlMessage;
 }
 
-function parseUsageFile(filePath: string): Map<string, ModelDelta> {
-    const deltas = new Map<string, ModelDelta>();
-    let content = "";
-    try { content = fs.readFileSync(filePath, "utf-8"); } catch { return deltas; }
-    for (const line of content.split("\n")) {
-        if (!line) continue;
-        let d: JsonlLine | undefined;
-        try { d = JSON.parse(line); } catch { continue; }
-        const msg = d?.message;
-        if (!msg) continue;
+async function parseUsageFile(filePath: string): Promise<Record<string, ModelDelta>> {
+    const deltas: Record<string, ModelDelta> = {};
+    // Streamed line by line (no whole-file string, event loop stays free so the
+    // page's withTimeout can fire); only lines carrying usage are parsed.
+    await streamJsonl(filePath, line => line.includes('"usage"'), (parsed) => {
+        const msg = (parsed as JsonlLine)?.message;
+        if (!msg) return;
         const u = msg.usage;
-        if (!u) continue;
+        if (!u) return;
         const model = msg.model || "unknown";
-        if (model === "<synthetic>") continue;
-        let a = deltas.get(model);
-        if (!a) { a = { requests: 0, inp: 0, out: 0, cr: 0, cw5: 0, cw1h: 0, web: 0 }; deltas.set(model, a); }
+        if (model === "<synthetic>") return;
+        let a = deltas[model];
+        if (!a) { a = { requests: 0, inp: 0, out: 0, cr: 0, cw5: 0, cw1h: 0, web: 0 }; deltas[model] = a; }
         a.requests += 1;
         a.inp += u.input_tokens ?? 0;
         a.out += u.output_tokens ?? 0;
@@ -137,11 +140,18 @@ function parseUsageFile(filePath: string): Map<string, ModelDelta> {
             a.cw5 += u.cache_creation_input_tokens ?? 0;
         }
         a.web += u.server_tool_use?.web_search_requests ?? 0;
-    }
+    });
     return deltas;
 }
 
-export async function fetchUsageBreakdown(): Promise<UsageRow[]> {
+// Concurrent renders share 1 scan; a cold scan that outlives the page's
+// withTimeout keeps running once, not once per request, and fills the cache.
+export function fetchUsageBreakdown(): Promise<UsageRow[]> {
+    if (!usageInflight) usageInflight = scanUsage().finally(() => { usageInflight = null; });
+    return usageInflight;
+}
+
+async function scanUsage(): Promise<UsageRow[]> {
     if (!fs.existsSync(CLAUDE_PROJECTS_DIR)) return [];
     const agg = new Map<string, ModelDelta>();
     const jsonlFiles: string[] = [];
@@ -155,21 +165,26 @@ export async function fetchUsageBreakdown(): Promise<UsageRow[]> {
         }
     };
     walk(CLAUDE_PROJECTS_DIR);
+    const seen = new Map<string, UsageEntry>();
+    let dirty = false;
     for (const filePath of jsonlFiles) {
         let mtimeMs = 0;
         try { mtimeMs = fs.statSync(filePath).mtimeMs; } catch { continue; }
         let entry = usageFileCache.get(filePath);
         if (!entry || entry.mtimeMs !== mtimeMs) {
-            entry = { mtimeMs, deltas: parseUsageFile(filePath) };
+            entry = { mtimeMs, deltas: await parseUsageFile(filePath) };
             usageFileCache.set(filePath, entry);
+            dirty = true;
         }
-        for (const [model, d] of entry.deltas) {
+        seen.set(filePath, entry);
+        for (const [model, d] of Object.entries(entry.deltas)) {
             let a = agg.get(model);
             if (!a) { a = { requests: 0, inp: 0, out: 0, cr: 0, cw5: 0, cw1h: 0, web: 0 }; agg.set(model, a); }
             a.requests += d.requests; a.inp += d.inp; a.out += d.out; a.cr += d.cr;
             a.cw5 += d.cw5; a.cw1h += d.cw1h; a.web += d.web;
         }
     }
+    if (dirty) usageDisk.save(seen);
     const rows: UsageRow[] = [];
     for (const [model, a] of agg) {
         const p = getModelRates(model);

@@ -221,6 +221,8 @@ export const GET = withErrorHandler(async (req: Request) => {
         totalFiles: allFiles.length,
         totalProjects: projects.length,
         globalRules: slim ? undefined : globalRules,
+        // Count-only field so ?slim=1 callers (Overview, sidebar) never need the bodies.
+        globalRulesCount: globalRules.length,
     };
     brainCache.set(cacheKey, { at: nowMs, data: payload });
     return NextResponse.json(payload, { headers: { "Cache-Control": "public, max-age=15" } });

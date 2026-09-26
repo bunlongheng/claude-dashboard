@@ -14,7 +14,8 @@ export default defineConfig({
   // Single worker: the dev server compiles one route at a time, so parallel
   // workers just thrash the compile queue and cause timeouts.
   workers: 1,
-  retries: 1,
+  // Retries only on CI: locally a flake must surface, not be retried away.
+  retries: process.env.CI ? 1 : 0,
   reporter: [["list"]],
   use: {
     // public/sw.js serves GET requests itself, and service worker fetches bypass

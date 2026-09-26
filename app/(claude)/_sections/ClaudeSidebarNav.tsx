@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useQueries } from "@tanstack/react-query";
 import {
     LayoutDashboard, FolderOpen, Coins, DollarSign,
     BookOpen, Settings,
@@ -13,7 +14,7 @@ import {
     Search, DatabaseZap, FileText, SlidersHorizontal, Wand2,
 } from "lucide-react";
 import JevMark, { JEV_PINK } from "./JevMark";
-import { MACHINES, MACHINE_COLORS, ACCENT, fmtCompact, type ProjectSessions } from "./shared";
+import { MACHINES, MACHINE_COLORS, ACCENT, fmtCompact, safeFetch, type ProjectSessions } from "./shared";
 import { CLI_ICON_MAP } from "./cliIcons";
 import { RAG_ENABLED } from "@/lib/features";
 
@@ -224,7 +225,6 @@ export default function ClaudeSidebarNav() {
     const [mobileDD, setMobileDD] = useState(false);
     const mobileDDRef = useRef<HTMLDivElement>(null);
     const { machine, setMachine, machines, apiBase } = useMachine();
-    const [badges, setBadges] = useState<Record<string, number | string>>({});
     const [collapseLevel, setCollapseLevel] = useState<0 | 1 | 2>(0);
 
     // Auto-collapse as the window narrows relative to the full screen:
@@ -250,55 +250,58 @@ export default function ClaudeSidebarNav() {
 
     const sidebarWidth = collapseLevel === 0 ? 200 : collapseLevel === 1 ? 170 : 56;
 
-    // Fetch badge counts. null + the local machine both map to "local", so the
-    // fetch runs once even as the machine context settles on mount (no double
-    // load); only a real remote switch re-fetches.
-    const selectedMachine = machines.find(m => m.id === machine);
-    const isRemoteMachine = !!selectedMachine && !selectedMachine.isLocal;
-    const badgeKey = isRemoteMachine ? String(machine) : "local";
-    useEffect(() => {
-        // apiBase already routes to the right host; the legacy `?machine=` query
-        // makes the remote try to proxy to itself and returns empty - drop it here.
-        // `cache: 'no-store'` so switching the dropdown bypasses the disk cache
-        // on the browser side; otherwise badges can pin to the first machine the
-        // tab ever fetched.
-        const opts = { cache: "no-store" as RequestCache };
-        Promise.all([
-            fetch(apiBase("/api/claude/sessions"), opts).then(r => r.json()).catch(() => ({ projects: [] })),
-            fetch(apiBase("/api/claude/skills?slim=1"), opts).then(r => r.json()).catch(() => ({ summary: {} })),
-            fetch(apiBase("/api/claude/brain?slim=1"), opts).then(r => r.json()).catch(() => ({ categoryCounts: {}, globalRules: [], totalFiles: 0 })),
-            fetch(apiBase("/api/claude/token-stats/daily"), opts).then(r => r.json()).catch(() => ({ daily: [] })),
-            fetch(apiBase("/api/rag/stats"), opts).then(r => r.json()).catch(() => ({ documents: 0 })),
-            fetch(apiBase("/api/claude/jev?days=1"), opts).then(r => r.json()).catch(() => ({ daily: [] })),
-        ]).then(([sessions, skills, brain, tokens, rag, jev]) => {
-            // The badge is calls *today*, so read the day bucket rather than the
-            // rolling 24 h total the days=1 window returns.
-            const todayKey = new Date().toLocaleDateString("en-CA");
-            const jevToday = (jev.daily ?? []).find((d: { day: string }) => d.day === todayKey);
-            const jevCalls = jevToday ? jevToday.routed + jevToday.skipped + jevToday.errors : 0;
-            const totalSessions = (sessions.projects ?? []).reduce((sum: number, p: ProjectSessions) => sum + (p.sessions?.length ?? 0), 0);
-            const totalTokens = (tokens.daily ?? []).reduce((s: number, d: { input?: number; output?: number }) => s + (d.input ?? 0) + (d.output ?? 0), 0);
-            setBadges(prev => ({
-                ...prev,
-                "/dashboard": brain.totalProjects ?? 0,
-                "/global": skills.summary?.claudeMd ?? 0,
-                "/mcp": skills.summary?.mcp ?? 0,
-                "/cli": CLI_TOOL_COUNT,
-                "/skills": skills.summary?.skills ?? 0,
-                "/extensions": (skills.summary?.hooks ?? 0) + (skills.summary?.commands ?? 0) + (skills.summary?.plugins ?? 0),
-                "/sessions": totalSessions,
-                "/tokens": fmtCompact(totalTokens),
-                "/settings": skills.summary?.settings ?? 0,
-                "/rag": rag.documents ?? 0,
-                "/jev": jevCalls,
-            }));
-        });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [badgeKey]);
+    // Badge counts through React Query, keyed by resolved URL like the sections
+    // are (sessions-list / overview-daily / overview-rag share keys with the
+    // Sessions and Overview pages), so a page that already loads the payload
+    // shares it instead of fetching it twice. apiBase already routes to the
+    // right host; a real machine switch changes the URL, hence the key.
+    const u = {
+        sessions: apiBase("/api/claude/sessions"),
+        skills: apiBase("/api/claude/skills?slim=1"),
+        brain: apiBase("/api/claude/brain?slim=1"),
+        daily: apiBase("/api/claude/token-stats/daily"),
+        rag: apiBase("/api/rag/stats"),
+        jev: apiBase("/api/claude/jev?days=1"),
+    };
+    type SkillsSummary = { summary?: { claudeMd?: number; mcp?: number; skills?: number; hooks?: number; commands?: number; plugins?: number; settings?: number } };
+    type JevDay = { day: string; routed: number; skipped: number; errors: number };
+    const [sessionsQ, skillsQ, brainQ, dailyQ, ragQ, jevQ] = useQueries({ queries: [
+        { queryKey: ["sessions-list", u.sessions], queryFn: () => safeFetch<{ projects: ProjectSessions[] }>(u.sessions, { projects: [] }) },
+        { queryKey: ["skills-slim", u.skills], queryFn: () => safeFetch<SkillsSummary>(u.skills, { summary: {} }) },
+        { queryKey: ["brain-slim", u.brain], queryFn: () => safeFetch<{ totalProjects?: number }>(u.brain, {}) },
+        { queryKey: ["overview-daily", u.daily], queryFn: () => safeFetch<{ daily: { input?: number; output?: number }[] }>(u.daily, { daily: [] }) },
+        { queryKey: ["overview-rag", u.rag], queryFn: () => safeFetch<{ documents?: number } | null>(u.rag, null) },
+        { queryKey: ["sidebar-jev", u.jev], queryFn: () => safeFetch<{ daily: JevDay[] }>(u.jev, { daily: [] }) },
+    ] });
 
-    // /agents badge is just the machine count (no fetch) — derived at render time
-    // instead of synced back into `badges` via an effect.
-    const displayBadges = useMemo(() => ({ ...badges, "/agents": machines.length || 0 }), [badges, machines.length]);
+    // /agents badge is just the machine count (no fetch). The rest appear
+    // together once every query has answered, as the single setBadges did.
+    const displayBadges = useMemo<Record<string, number | string>>(() => {
+        const agents = { "/agents": machines.length || 0 };
+        const sessions = sessionsQ.data, skills = skillsQ.data, brain = brainQ.data, tokens = dailyQ.data, rag = ragQ.data, jev = jevQ.data;
+        if (!sessions || !skills || !brain || !tokens || rag === undefined || !jev) return agents;
+        // The badge is calls *today*, so read the day bucket rather than the
+        // rolling 24 h total the days=1 window returns.
+        const todayKey = new Date().toLocaleDateString("en-CA");
+        const jevToday = (jev.daily ?? []).find(d => d.day === todayKey);
+        const jevCalls = jevToday ? jevToday.routed + jevToday.skipped + jevToday.errors : 0;
+        const totalSessions = (sessions.projects ?? []).reduce((sum, p) => sum + (p.sessions?.length ?? 0), 0);
+        const totalTokens = (tokens.daily ?? []).reduce((sum, d) => sum + (d.input ?? 0) + (d.output ?? 0), 0);
+        return {
+            ...agents,
+            "/dashboard": brain.totalProjects ?? 0,
+            "/global": skills.summary?.claudeMd ?? 0,
+            "/mcp": skills.summary?.mcp ?? 0,
+            "/cli": CLI_TOOL_COUNT,
+            "/skills": skills.summary?.skills ?? 0,
+            "/extensions": (skills.summary?.hooks ?? 0) + (skills.summary?.commands ?? 0) + (skills.summary?.plugins ?? 0),
+            "/sessions": totalSessions,
+            "/tokens": fmtCompact(totalTokens),
+            "/settings": skills.summary?.settings ?? 0,
+            "/rag": rag?.documents ?? 0,
+            "/jev": jevCalls,
+        };
+    }, [machines.length, sessionsQ.data, skillsQ.data, brainQ.data, dailyQ.data, ragQ.data, jevQ.data]);
 
     // Close the mobile drawer/dropdown on navigation. Adjusted during render
     // (React's documented pattern for resetting state when a prop changes)

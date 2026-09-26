@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 # Cancel superseded runs on the same ref so stacked pushes don't stack pipelines.
 concurrency:
   group: ci-${{ github.ref }}
@@ -45,13 +48,28 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build
-        run: npm run build
+      # Playwright's CI webServer (playwright.config.ts) runs `npm run build`
+      # itself, so there is no separate Build step - the app is built once.
+      - name: Playwright version
+        id: pw
+        run: echo "version=$(node -p "require('./package-lock.json').packages['node_modules/@playwright/test'].version")" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
 
       - name: Install Playwright browsers
+        if: steps.pw-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps chromium
 
-      - name: E2E tests
+      - name: Install Playwright OS deps (cache hit)
+        if: steps.pw-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+
+      - name: E2E tests (builds once via Playwright webServer)
         run: npm run test:e2e
         env:
           CI: true

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { withTimeout, fetchJev, emptyJev } from "../_sections/data";
 import JevSection from "../_sections/JevSection";
 import { getRouterState } from "@/lib/jev-router-state";
+import { TIER_ORDER } from "@/lib/jev-palette";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +12,7 @@ export const metadata: Metadata = {
 };
 
 const DAYS = [7, 30, 90];
-const TIERS = ["haiku", "sonnet", "opus", "fable"];
+const TIERS: readonly string[] = TIER_ORDER;
 
 // ?days=7&tier=haiku is what the overview card links to, so the page opens on
 // the same window and rung the user clicked instead of the 30d default.

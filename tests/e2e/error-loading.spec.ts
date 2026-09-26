@@ -8,9 +8,10 @@ test("dashboard still renders its shell when every API returns 500", async ({ pa
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto("/dashboard", GOTO);
   await expect(page.locator("aside").first()).toBeVisible();
-  await page.waitForTimeout(800);
+  // Wait for hydration + the failed API round-trips to settle, then check errors.
+  await page.waitForLoadState("networkidle");
   // safeFetch + try/catch fallbacks mean a failed API must not crash the page
-  expect(errors).toEqual([]);
+  await expect.poll(() => errors).toEqual([]);
 });
 
 test("sessions page renders its shell while the API is slow", async ({ page }) => {

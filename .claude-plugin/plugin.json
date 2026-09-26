@@ -1,13 +1,13 @@
 {
   "name": "claude",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "The missing GUI for Claude Code. Browse sessions, memory, skills, hooks, MCP servers, and settings in a beautiful local-first dashboard.",
   "author": {
     "name": "Bunlong Heng",
     "url": "https://www.bunlongheng.com"
   },
   "repository": "https://github.com/bunlongheng/claude-dashboard",
-  "license": "MIT",
+  "license": "PolyForm-Noncommercial-1.0.0",
   "keywords": ["dashboard", "gui", "sessions", "memory", "monitoring", "developer-tools"],
   "commands": "./commands/"
 }

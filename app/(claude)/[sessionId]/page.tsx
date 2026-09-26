@@ -6,6 +6,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import SessionProgressClient from "./SessionProgressClient";
 import { readJevLog, aggregateJev, type JevSession } from "@/lib/jev-log";
+import { readLastBytes } from "@/lib/safe-read";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +48,34 @@ interface SessionMeta {
     messageCount: number;
 }
 
+// Newline count in 1 MB chunks - no whole-file string, no per-line parse.
+function countLines(filePath: string): number {
+    let fd = -1, n = 0;
+    try {
+        fd = fs.openSync(filePath, "r");
+        const buf = Buffer.alloc(1024 * 1024);
+        let read: number;
+        while ((read = fs.readSync(fd, buf, 0, buf.length, null)) > 0) {
+            for (let i = 0; i < read; i++) if (buf[i] === 10) n++;
+        }
+    } catch { /* partial count */ }
+    finally { if (fd >= 0) try { fs.closeSync(fd); } catch { /* ignore */ } }
+    return n;
+}
+
+// First `maxBytes` of a file: the session header (cwd, branch, version, first
+// prompt, createdAt) lives in the first few lines.
+function readFirstBytes(filePath: string, maxBytes: number): string {
+    let fd = -1;
+    try {
+        fd = fs.openSync(filePath, "r");
+        const buf = Buffer.alloc(maxBytes);
+        const n = fs.readSync(fd, buf, 0, maxBytes, 0);
+        return buf.subarray(0, n).toString("utf-8");
+    } catch { return ""; }
+    finally { if (fd >= 0) try { fs.closeSync(fd); } catch { /* ignore */ } }
+}
+
 const loadSessionMeta = cache(function loadSessionMeta(sessionId: string): SessionMeta | null {
     let filePath: string | null = null;
     let projectFolder = "";
@@ -68,11 +97,15 @@ const loadSessionMeta = cache(function loadSessionMeta(sessionId: string): Sessi
     let customTitle: string | null = null;
     let todos: TodoItem[] = [];
     let lastUsage: SessionMeta["lastUsage"] = null;
-    let messageCount = 0;
+    const messageCount = countLines(filePath);
 
     try {
-        const lines = fs.readFileSync(filePath, "utf-8").split("\n").filter(Boolean);
-        messageCount = lines.length;
+        // Head for the header fields, tail for the latest usage / todos / title -
+        // never the whole file (a live session can be 180 MB). A partial line at
+        // the tail seam fails JSON.parse and is skipped like any malformed line.
+        const head = readFirstBytes(filePath, 64 * 1024);
+        const tail = stat.size > head.length ? readLastBytes(filePath, 1024 * 1024) : "";
+        const lines = (head + "\n" + tail).split("\n").filter(Boolean);
 
         for (const line of lines) {
             try {

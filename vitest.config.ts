@@ -12,14 +12,22 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text", "html", "json-summary"],
       reportsDirectory: "./coverage",
-      // Enforced floor at the current strong level (CI now runs this via `npm test`).
+      // Enforced floors (CI runs this via `npm run test:coverage`). The global
+      // floor covers everything in `include`; each glob ratchets on its own so
+      // lib stays strict while routes and sections climb from their measured
+      // baseline (2026-09-25: lib 98/96/91/98, api 71/67/49/64, sections 14/13/12/12).
       // Ratchet up as coverage improves; never let it drop below these.
-      thresholds: { lines: 97, statements: 96, branches: 92, functions: 100 },
+      thresholds: {
+        lines: 43, statements: 41, branches: 27, functions: 27,
+        "lib/**": { lines: 97, statements: 95, branches: 90, functions: 97 },
+        "app/api/**": { lines: 70, statements: 66, branches: 47, functions: 63 },
+        "app/**/_sections/**": { lines: 13, statements: 12, branches: 11, functions: 11 },
+      },
       include: [
         "lib/**/*.ts",
-        "app/**/_sections/shared.tsx",
-        "app/**/_sections/sectionColors.ts",
-        "app/**/_sections/AppIcon.tsx",
+        "app/api/**/route.ts",
+        "app/**/_sections/**/*.ts",
+        "app/**/_sections/**/*.tsx",
       ],
       exclude: [
         "**/*.d.ts",

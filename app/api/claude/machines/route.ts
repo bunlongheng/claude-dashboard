@@ -67,10 +67,19 @@ async function scanSubnet(localIP: string, port: number): Promise<{ ip: string; 
     return candidates;
 }
 
+// Remote pings are the only slow part of this route (an unreachable peer costs
+// the full timeout on every layout mount). Keep the last result for PING_TTL_MS
+// and answer from it; a stale hit still answers instantly and refreshes the
+// pings in the background, so only the first call after a restart waits.
+const PING_TTL_MS = 60_000;
+const PING_TIMEOUT_MS = 800;
+let pingCache: { at: number; key: string; results: MachineInfo[] } | null = null;
+let pingInflight: Promise<MachineInfo[]> | null = null;
+
 async function pingMachine(ip: string, port: number): Promise<{ online: boolean; hostname?: string; model?: string }> {
     try {
         // A reachable peer dashboard answers /api/claude/lan with its identity.
-        const lanRes = await fetch(`http://${ip}:${port}/api/claude/lan`, { signal: AbortSignal.timeout(2500) });
+        const lanRes = await fetch(`http://${ip}:${port}/api/claude/lan`, { signal: AbortSignal.timeout(PING_TIMEOUT_MS) });
         if (!lanRes.ok) return { online: false };
         const data = await lanRes.json();
         return { online: true, hostname: data.hostname || ip, model: data.model };
@@ -126,7 +135,7 @@ export const GET = withErrorHandler(async (req: Request) => {
     });
 
     // Ping in parallel.
-    const remoteResults = await Promise.all(
+    const pingAll = () => Promise.all(
         unique.map(async (m) => {
             const ping = await pingMachine(m.ip, m.port);
             return {
@@ -140,6 +149,22 @@ export const GET = withErrorHandler(async (req: Request) => {
             };
         })
     );
+
+    const pingKey = unique.map(m => `${m.ip}:${m.port}`).join(",");
+    const now = Date.now();
+    let remoteResults: MachineInfo[];
+    if (pingCache && pingCache.key === pingKey) {
+        remoteResults = pingCache.results;
+        if (now - pingCache.at >= PING_TTL_MS && !pingInflight) {
+            pingInflight = pingAll()
+                .then(r => { pingCache = { at: Date.now(), key: pingKey, results: r }; return r; })
+                .finally(() => { pingInflight = null; });
+        }
+    } else {
+        if (!pingInflight) pingInflight = pingAll().finally(() => { pingInflight = null; });
+        remoteResults = await pingInflight;
+        pingCache = { at: now, key: pingKey, results: remoteResults };
+    }
 
     machines.push(...remoteResults.filter(m => m.online));
 

@@ -15,7 +15,7 @@ import {
 } from "./shared";
 import { useMachine } from "./MachineContext";
 import { cardShell } from "@/lib/ui-tokens";
-import { safeFetch } from "./shared";
+import { safeFetch, fetchJson, FetchError } from "./shared";
 import AppIcon from "./AppIcon";
 
 const PAGE_SIZE = 20;
@@ -85,7 +85,7 @@ function StackedBarChart({ data, keys, colors, labels }: {
                     const showLabel = data.length <= 14 || i % Math.ceil(data.length / 10) === 0 || i === data.length - 1;
                     return (
                         <div key={i} className="flex-1 text-center">
-                            {showLabel && <span className="text-[8px] text-white/20">{d.label.slice(5)}</span>}
+                            {showLabel && <span className="text-[9px] text-white/50 whitespace-nowrap">{d.label.slice(5)}</span>}
                         </div>
                     );
                 })}
@@ -179,7 +179,7 @@ export default function TokensSection({ initialTokens }: { initialTokens: Token[
     // Daily data from API
     const dailyStatsQuery = useQuery({
         queryKey: ["claude-token-stats-daily", machine],
-        queryFn: () => safeFetch<DailyStatsResponse>(apiBase("/api/claude/token-stats/daily"), { daily: [], byModel: [], tools: [], totalTurns: 0 }),
+        queryFn: () => fetchJson<DailyStatsResponse>(apiBase("/api/claude/token-stats/daily")),
     });
     const daily = useMemo(() => dailyStatsQuery.data?.daily ?? [], [dailyStatsQuery.data]);
     const byModelDaily = dailyStatsQuery.data?.byModel ?? [];
@@ -295,6 +295,7 @@ export default function TokensSection({ initialTokens }: { initialTokens: Token[
 
     return (
         <>
+            {dailyStatsQuery.isError && <div className="mb-4"><FetchError what="token stats" onRetry={() => dailyStatsQuery.refetch()} /></div>}
             {/* Time filter + Plan selector */}
             <div className="flex items-center gap-2 mb-4 flex-wrap">
                 {(["today", "7d", "30d", "all"] as const).map(p => (

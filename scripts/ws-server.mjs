@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Claude WS Server — lightweight replacement for the Rust claude-progress binary.
+ * Claude WS Server - lightweight replacement for the Rust claude-progress binary.
  * Watches ~/.claude/projects/ for session file changes and broadcasts via WebSocket.
  *
  * Usage:  node scripts/ws-server.mjs
@@ -49,11 +49,33 @@ const agentFeedClients = new Set();
 // Track active agents by tool_use_id
 const activeAgents = new Map(); // tool_use_id -> { sessionId, description, subagentType, startedAt }
 
+// Same allow logic as lib/is-local.ts (copied: this script runs outside the Next
+// bundle). Only localhost/LAN/Tailscale origins may read the feed - a foreign web
+// page in the owner's browser gets neither CORS nor a WebSocket upgrade.
+const LOCAL_HOST_RE = /^(localhost|127\.0\.0\.1|10\.\d+\.\d+\.\d+|100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|192\.168\.\d+\.\d+|.*\.localhost)(:\d+)?$/;
+
+function isTrustedHost(host) {
+    const bare = (host || "").split(":")[0].toLowerCase().replace(/^\[|\]$/g, "");
+    if (!bare) return false;
+    if (bare === "::1") return true;
+    if (!bare.includes(".")) return true;
+    if (bare.endsWith(".local") || bare.endsWith(".ts.net") || bare.endsWith(".internal")) return true;
+    return LOCAL_HOST_RE.test(host);
+}
+
+function isAllowedOrigin(origin) {
+    try { return isTrustedHost(new URL(origin).host); } catch { return false; }
+}
+
 // ─── HTTP server ────────────────────────────────────────────────────────────
 const server = createServer((req, res) => {
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+    const origin = req.headers.origin;
+    if (origin && isAllowedOrigin(origin)) {
+        res.setHeader("Access-Control-Allow-Origin", origin);
+        res.setHeader("Vary", "Origin");
+        res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+        res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+    }
 
     if (req.method === "OPTIONS") { res.writeHead(204); res.end(); return; }
 
@@ -75,7 +97,10 @@ const server = createServer((req, res) => {
 });
 
 // ─── WebSocket server ───────────────────────────────────────────────────────
-const wss = new WebSocketServer({ server });
+const wss = new WebSocketServer({
+    server,
+    verifyClient: ({ origin, req }) => Boolean(origin) && isAllowedOrigin(origin) && isTrustedHost(req.headers.host),
+});
 
 wss.on("connection", (ws, req) => {
     // Global agent feed: /ws/agents
@@ -263,7 +288,7 @@ function processNewLine(sessionId, line) {
 // Watch all project folders
 function startWatching() {
     if (!existsSync(CLAUDE_DIR)) {
-        console.log(`⚠ ${CLAUDE_DIR} not found — will retry in 10s`);
+        console.log(`⚠ ${CLAUDE_DIR} not found - will retry in 10s`);
         setTimeout(startWatching, 10_000);
         return;
     }
@@ -305,9 +330,9 @@ function startWatching() {
 // ─── Start ──────────────────────────────────────────────────────────────────
 // This server streams live session content (messages, thinking, tool inputs)
 // with no auth, so binding beyond localhost exposes it to the whole LAN/tailnet.
-// Default stays 0.0.0.0 for the multi-machine/iPad workflow; set WS_LAN=0 to
-// lock it to 127.0.0.1 on machines that never serve the feed over the network.
-const HOST = process.env.WS_LAN === "0" ? "127.0.0.1" : "0.0.0.0";
+// Default is 127.0.0.1; set WS_LAN=1 on machines that serve the feed to the
+// LAN/tailnet (multi-machine/iPad workflow).
+const HOST = process.env.WS_LAN === "1" ? "0.0.0.0" : "127.0.0.1";
 server.listen(PORT, HOST, () => {
     console.log(`🚀 Claude WS Server [${MACHINE}]`);
     console.log(`   http://${HOST}:${PORT}/api/health`);
