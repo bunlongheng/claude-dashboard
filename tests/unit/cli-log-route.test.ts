@@ -99,6 +99,20 @@ describe("GET /api/claude/cli-log", () => {
     expect(d.servers[0].server).toBe("Bash");
   });
 
+  it("charges a message's output tokens once even when several tool calls share it", async () => {
+    const withMsg = (line: ReturnType<typeof toolUse>, id: string, out: number) => ({ ...line, message: { ...line.message, id, usage: { output_tokens: out } } });
+    write(tmpHome, "p/s1.jsonl", [
+      withMsg(toolUse("x1", "Bash", { command: "ls" }, -1 * H), "mA", 2), // streaming placeholder copy
+      withMsg(toolUse("x2", "Read", { file_path: "/a.ts" }, -1 * H), "mA", 900), // final count, same message
+      withMsg(toolUse("x3", "Bash", { command: "pwd" }, -1 * H), "mB", 50),
+    ]);
+    const { computeCliLog } = await loadRoute();
+    const d = await computeCliLog("today", NOW);
+    const out = Object.fromEntries(d.recent.map((c) => [`${c.server}:${c.tool}`, c.outTokens]));
+    expect(out).toEqual({ "Bash:ls": 900, "Read:.ts": 0, "Bash:pwd": 50 });
+    expect(d.totals.cost).toBeCloseTo((950 / 1_000_000) * 75, 6);
+  });
+
   it("names the real command behind cd, assignments, wrappers, quotes and loops", async () => {
     const { firstCommand } = await import("@/lib/tool-log");
     expect(firstCommand("cd /x && source ~/.nvm/nvm.sh && npm run build")).toBe("npm run");

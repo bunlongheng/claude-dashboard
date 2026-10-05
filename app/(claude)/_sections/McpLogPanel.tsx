@@ -118,7 +118,7 @@ export default function McpLogPanel({ win, onWin, kind = "mcp" }: { win: Win; on
             {t && (
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3" style={{ marginBottom: 20 }}>
                     <BigStat label={k.calls} value={t.calls.toLocaleString()} sub={`${t.sessions} sessions`} icon={Activity} color={k.accent} />
-                    <BigStat label="Cost" value={fmtCost(t.cost)} sub="output + result re-read" icon={DollarSign} color="#FF9500" />
+                    <BigStat label="API list price" value={fmtCost(t.cost)} sub="not your plan bill - output + result re-read" icon={DollarSign} color="#FF9500" />
                     <BigStat label="Result tokens" value={fmtCompact(t.tokens)} sub="pulled back into context" icon={Layers} color="#f97316" />
                     <BigStat label="Errors" value={String(t.errors)} sub={`${t.servers} of ${servers.length} ${k.noun} used`} icon={t.errors ? AlertTriangle : Radio} color={t.errors ? "#ef4444" : "#8AC249"} />
                 </div>

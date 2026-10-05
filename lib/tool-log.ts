@@ -262,7 +262,7 @@ type Line = {
     sessionId?: string;
     gitBranch?: string;
     attributionSkill?: string;
-    message?: { role?: string; model?: string; content?: unknown; usage?: { output_tokens?: number } };
+    message?: { id?: string; role?: string; model?: string; content?: unknown; usage?: { output_tokens?: number } };
 };
 
 async function extractCalls(kind: Kind, fp: string, folder: string): Promise<ToolCall[]> {
@@ -279,6 +279,11 @@ async function extractCalls(kind: Kind, fp: string, folder: string): Promise<Too
         }
         return line.includes('"type":"user"') && line.includes('"content":"');
     };
+    // message id -> the call that carries its output tokens. A message is written
+    // once per content block with the same usage object, and early copies hold a
+    // streaming placeholder, so the first tool call owns the count and later
+    // copies refresh it instead of adding to it.
+    const owner = new Map<string, ToolCall>();
     await streamJsonl(fp, keep, (parsed) => {
         const m = parsed as Line;
         const ts = m.timestamp ? new Date(m.timestamp).getTime() : 0;
@@ -295,7 +300,8 @@ async function extractCalls(kind: Kind, fp: string, folder: string): Promise<Too
                 if (c.type !== "tool_use" || !c.name || !c.id || !wanted(c.name)) continue;
                 const project = m.cwd ? path.basename(m.cwd) : folder.replace(/^.*-Sites-/, "");
                 const model = m.message?.model ?? "";
-                const outTokens = m.message?.usage?.output_tokens ?? 0;
+                const usageOut = m.message?.usage?.output_tokens ?? 0;
+                const msgId = m.message?.id;
                 let server: string, tool: string;
                 if (kind === "mcp") {
                     const parts = c.name.split("__");
@@ -308,9 +314,11 @@ async function extractCalls(kind: Kind, fp: string, folder: string): Promise<Too
                     project, sessionId: m.sessionId ?? path.basename(fp, ".jsonl"), model,
                     skill: m.attributionSkill ?? null, branch: m.gitBranch ?? null,
                     prompt: lastPrompt, input: snippet(c.input, max.input), result: "", resultChars: 0, resultTokens: 0,
-                    outTokens, isError: false, latencyMs: null,
-                    cost: (outTokens / 1_000_000) * getModelRates(model).output,
+                    outTokens: 0, isError: false, latencyMs: null, cost: 0,
                 };
+                const prev = msgId ? owner.get(msgId) : undefined;
+                if (prev) prev.outTokens = usageOut;
+                else { call.outTokens = usageOut; if (msgId) owner.set(msgId, call); }
                 pending.set(c.id, call);
                 calls.push(call);
             }
@@ -333,6 +341,7 @@ async function extractCalls(kind: Kind, fp: string, folder: string): Promise<Too
             call.cost += (call.resultTokens / 1_000_000) * getModelRates(call.model).input;
         }
     });
+    for (const c of calls) c.cost += (c.outTokens / 1_000_000) * getModelRates(c.model).output;
     return calls;
 }
 
