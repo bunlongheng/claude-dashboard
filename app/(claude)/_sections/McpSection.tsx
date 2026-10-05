@@ -161,19 +161,11 @@ export default function McpSection() {
         { label: "All", value: "all", count: servers.length, color: "#5AC8FA" },
     ];
 
-    const winTabs = (
-        <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
-            <p className="text-[10px] text-white/35 m-0">Window for everything on this page</p>
-            <SegmentedTabs<Win> tabs={[{ key: "today", label: "Today" }, { key: "7d", label: "7d" }, { key: "30d", label: "30d" }, { key: "90d", label: "90d" }]} value={win} onChange={setWin} accent="#FFCC00" />
-        </div>
-    );
-
-    if (loading) return <div>{winTabs}<McpLogPanel win={win} /><p className="text-white/30 text-center py-16">Scanning MCP servers...</p></div>;
+    if (loading) return <div><McpLogPanel win={win} onWin={setWin} /><p className="text-white/30 text-center py-16">Scanning MCP servers...</p></div>;
 
     return (
         <div>
-            {winTabs}
-            <McpLogPanel win={win} />
+            <McpLogPanel win={win} onWin={setWin} />
             {/* Source filter + Search + view toggle */}
             <div className="flex items-center gap-3 mb-4 flex-wrap">
                 {viewMode !== "list" && <SegmentedTabs

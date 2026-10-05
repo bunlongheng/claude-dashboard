@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, Activity, DollarSign, Layers, Radio } from "lucide-react";
 import { useMachine } from "./MachineContext";
-import { safeFetch, fmtCompact, fmtCost, fmtTs } from "./shared";
+import { safeFetch, fmtCompact, fmtCost, fmtTs, SegmentedTabs } from "./shared";
 import { cardShell } from "@/lib/ui-tokens";
 import type { McpLogData, McpServerStat, McpCall, Verdict, Win } from "@/app/api/claude/mcp-log/route";
 import type { Kind } from "@/lib/tool-log";
@@ -79,7 +79,11 @@ export function BigStat({ label, value, sub, icon: Icon, color }: { label: strin
 // per server (keep / low / idle / gone / flaky) and the raw log underneath so
 // the "is this MCP worth its RAM" question is answered on the page, not by
 // running an audit.
-export default function McpLogPanel({ win, kind = "mcp" }: { win: Win; kind?: Kind }) {
+const WIN_TABS = [{ key: "today", label: "Today" }, { key: "7d", label: "7d" }, { key: "30d", label: "30d" }, { key: "90d", label: "90d" }] as const;
+
+// The window selector lives in this card's header so the page has no extra
+// row between the hero and the first panel; the parent owns the value.
+export default function McpLogPanel({ win, onWin, kind = "mcp" }: { win: Win; onWin?: (w: Win) => void; kind?: Kind }) {
     const { apiBase } = useMachine();
     const [limit, setLimit] = useState(PAGE);
     const k = KIND[kind];
@@ -103,6 +107,12 @@ export default function McpLogPanel({ win, kind = "mcp" }: { win: Win; kind?: Ki
                     <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.55)", margin: 0 }}>{k.title} <span style={{ color: k.accent }}>{WIN_LABEL[win]}</span></p>
                     <p style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", margin: "2px 0 0" }}>what was called, when, from where, why, by which model, and what it cost{isFetching && !data ? " - scanning transcripts..." : ""}</p>
                 </div>
+                {onWin && (
+                    <div className="flex items-center gap-3 flex-wrap">
+                        <span style={{ fontSize: 10, color: "rgba(255,255,255,0.35)" }}>Window for everything on this page</span>
+                        <SegmentedTabs<Win> tabs={[...WIN_TABS]} value={win} onChange={onWin} accent={k.accent} />
+                    </div>
+                )}
             </div>
 
             {t && (
