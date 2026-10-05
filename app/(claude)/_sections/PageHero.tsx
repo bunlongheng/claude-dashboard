@@ -1,5 +1,7 @@
 "use client";
 
+import { useSyncExternalStore, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
 import { NAV_ITEMS, NAV_SECTIONS } from "./ClaudeSidebarNav";
 
@@ -16,7 +18,7 @@ const PAGE_SUBTITLES: Record<string, string> = {
     "/extensions": "Hooks, commands & plugins",
     "/sessions": "Active & past sessions",
     "/agents":   "Background agents, peers, tool logs",
-    "/tokens":   "Token usage & cost tracking",
+    "/tokens":   "Who used what today - sessions, models, subagents",
     "/usage":    "Per-model spend breakdown in exact USD",
     "/jev":      "Router hook activity - per message, per session, per day",
     "/rag":              "Personal knowledge base & retrieval",
@@ -27,6 +29,13 @@ const PAGE_SUBTITLES: Record<string, string> = {
     "/monitor/crons": "24-hour automation schedule",
     "/monitor/gallery": "App screenshots & GIFs",
 };
+
+// Renders page-specific controls (a window picker, a mode toggle) on the
+// right of the hero so a page never needs its own row for them.
+export function HeroSlot({ children }: { children: ReactNode }) {
+    const el = useSyncExternalStore(() => () => {}, () => document.getElementById("page-hero-slot"), () => null);
+    return el ? createPortal(children, el) : null;
+}
 
 export default function PageHero() {
     const pathname = usePathname();

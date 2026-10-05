@@ -8,6 +8,7 @@ import { safeFetch, fmtCompact, fmtCost, fmtTs, SegmentedTabs } from "./shared";
 import { cardShell } from "@/lib/ui-tokens";
 import type { McpLogData, McpServerStat, McpCall, Verdict, Win } from "@/app/api/claude/mcp-log/route";
 import type { Kind } from "@/lib/tool-log";
+import { HeroSlot } from "./PageHero";
 
 const ACCENT = "#FFCC00";
 export const WIN_LABEL: Record<Win, string> = { today: "today, since 12:00 AM", "7d": "last 7 days", "30d": "last 30 days", "90d": "last 90 days" };
@@ -81,8 +82,8 @@ export function BigStat({ label, value, sub, icon: Icon, color }: { label: strin
 // running an audit.
 const WIN_TABS = [{ key: "today", label: "Today" }, { key: "7d", label: "7d" }, { key: "30d", label: "30d" }, { key: "90d", label: "90d" }] as const;
 
-// The window selector lives in this card's header so the page has no extra
-// row between the hero and the first panel; the parent owns the value.
+// The window selector is portaled into the page hero (next to the icon and
+// title) so the page has no extra row; the parent owns the value.
 export default function McpLogPanel({ win, onWin, kind = "mcp" }: { win: Win; onWin?: (w: Win) => void; kind?: Kind }) {
     const { apiBase } = useMachine();
     const [limit, setLimit] = useState(PAGE);
@@ -108,10 +109,9 @@ export default function McpLogPanel({ win, onWin, kind = "mcp" }: { win: Win; on
                     <p style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", margin: "2px 0 0" }}>what was called, when, from where, why, by which model, and what it cost{isFetching && !data ? " - scanning transcripts..." : ""}</p>
                 </div>
                 {onWin && (
-                    <div className="flex items-center gap-3 flex-wrap">
-                        <span style={{ fontSize: 10, color: "rgba(255,255,255,0.35)" }}>Window for everything on this page</span>
+                    <HeroSlot>
                         <SegmentedTabs<Win> tabs={[...WIN_TABS]} value={win} onChange={onWin} accent={k.accent} />
-                    </div>
+                    </HeroSlot>
                 )}
             </div>
 
