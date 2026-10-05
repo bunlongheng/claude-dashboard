@@ -24,6 +24,7 @@ Access rules, all routes are local and have no login:
 | `/api/claude/jev/router` | GET, PUT | Reads or flips the router switch in `~/.claude/jev-router.json`; PUT body `{force: null or a tier}` |
 | `/api/claude/lan` | GET | This machine's LAN IP, port, hostname and model, used by the QR code (`PORT`, default 3000, sets the port) |
 | `/api/claude/machines` | GET | Local machine plus peers from `MACHINES`; `?discover=1` scans the LAN |
+| `/api/claude/mcp-log` | GET | Every MCP tool call rebuilt from session transcripts (server, tool, project, model, skill, prompt, result size, cost) plus a keep / low / idle / gone / flaky verdict per server, bucketed by hour (today), day (7d, 30d) or month (90d); `?win=today|7d|30d|90d`, default today |
 | `/api/claude/mcp-activity` | GET | Proxies MCP tool-call activity from a local-apps monitor on `LOCAL_APPS_PORT` (no UI caller today) |
 | `/api/claude/project-icon` | GET | Resolves a project's favicon or app icon from disk or the local-apps cache |
 | `/api/claude/search` | GET **same-site** | Cmd+K search across sessions, memory, skills, commands and CLAUDE.md files |

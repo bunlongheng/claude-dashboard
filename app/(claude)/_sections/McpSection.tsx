@@ -8,10 +8,12 @@ import {
     Eye, Zap, Shield, Code, Webhook, Puzzle, Brain, Briefcase,
     LayoutGrid, CircleDot, List,
 } from "lucide-react";
-import { FileViews } from "./FileViews";
 import { useMachine } from "./MachineContext";
 import { SegmentedTabs, fetchJson, FetchError, useDialog } from "./shared";
 import AppIcon from "./AppIcon";
+import McpLogPanel from "./McpLogPanel";
+import type { Win } from "@/app/api/claude/mcp-log/route";
+import McpDirectory from "./McpDirectory";
 
 type McpInfo = { name: string; type: string; url?: string; command?: string; path: string; createdAt?: string | null; source?: "user" | "plugin" };
 type McpFilter = "all" | "mine" | "shipped";
@@ -125,6 +127,7 @@ export default function McpSection() {
     const [selected, setSelected] = useState<McpInfo | null>(null);
     const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
     const [viewMode, setViewMode] = useState<"thumbs" | "list" | "circles">("list");
+    const [win, setWin] = useState<Win>("today");
 
     // apiBase already routes to the right host; the legacy ?machine= triggers
     // a self-proxy on the remote and returns zero servers (sidebar shows 36
@@ -158,25 +161,34 @@ export default function McpSection() {
         { label: "All", value: "all", count: servers.length, color: "#5AC8FA" },
     ];
 
-    if (loading) return <p className="text-white/30 text-center py-16">Scanning MCP servers...</p>;
+    const winTabs = (
+        <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
+            <p className="text-[10px] text-white/35 m-0">Window for everything on this page</p>
+            <SegmentedTabs<Win> tabs={[{ key: "today", label: "Today" }, { key: "7d", label: "7d" }, { key: "30d", label: "30d" }, { key: "90d", label: "90d" }]} value={win} onChange={setWin} accent="#FFCC00" />
+        </div>
+    );
+
+    if (loading) return <div>{winTabs}<McpLogPanel win={win} /><p className="text-white/30 text-center py-16">Scanning MCP servers...</p></div>;
 
     return (
         <div>
+            {winTabs}
+            <McpLogPanel win={win} />
             {/* Source filter + Search + view toggle */}
             <div className="flex items-center gap-3 mb-4 flex-wrap">
-                <SegmentedTabs
+                {viewMode !== "list" && <SegmentedTabs
                     value={filter}
                     onChange={(v) => setFilter(v as McpFilter)}
                     accent="#FFCC00"
                     tabs={tabs.map(t => ({ key: t.value, label: t.label, count: t.count }))}
-                />
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg flex-1 max-w-[200px] ml-auto"
+                />}
+                {viewMode !== "list" && <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg flex-1 max-w-[200px] ml-auto"
                     style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
                     <Search size={11} style={{ color: "rgba(255,255,255,0.5)", flexShrink: 0 }} />
                     <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search..."
                         className="bg-transparent text-[10px] text-white/70 placeholder-white/25 flex-1" style={{ outline: "none", border: "none" }} />
-                </div>
-                <div className="flex gap-1">
+                </div>}
+                <div className="flex gap-1 ml-auto">
                     {([["list", List], ["thumbs", LayoutGrid], ["circles", CircleDot]] as const).map(([mode, ModeIcon]) => (
                         <button key={mode} type="button" onClick={() => setViewMode(mode)} aria-label={`${mode} view`} title={`${mode} view`} aria-pressed={viewMode === mode}
                             className="p-1.5 rounded-md cursor-pointer transition"
@@ -191,16 +203,8 @@ export default function McpSection() {
                 </div>
             </div>
 
-            {viewMode === "list" && (
-                <FileViews mode="list" accent="#FFCC00"
-                    items={filtered.map(s => ({
-                        id: s.path, name: s.name,
-                        description: `${s.type}${s.url ? ` · ${s.url}` : s.command ? ` · ${s.command}` : ""}`,
-                        path: s.path, badge: s.source,
-                        content: [`Type: ${s.type}`, s.url ? `URL: ${s.url}` : "", s.command ? `Command: ${s.command}` : "", `Path: ${s.path}`].filter(Boolean).join("\n"),
-                    }))}
-                />
-            )}
+            {viewMode === "list" && <McpDirectory configured={servers} win={win} />}
+
             {/* Thumbs grid */}
             {viewMode === "thumbs" && (
                 <div className="hidden md:grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))", gap: 8 }}>
@@ -301,7 +305,7 @@ export default function McpSection() {
             )}
 
             {/* Mobile grid fallback */}
-            <div className="md:hidden grid grid-cols-3 gap-3">
+            {viewMode !== "list" && <div className="md:hidden grid grid-cols-3 gap-3">
                 {filtered.map((s, i) => {
                     const color = ORB_COLORS[i % ORB_COLORS.length];
                     const Icon = getMcpIcon(s.name);
@@ -322,10 +326,10 @@ export default function McpSection() {
                         </button>
                     );
                 })}
-            </div>
+            </div>}
 
             {isError && <FetchError what="MCP servers" onRetry={() => refetch()} />}
-            {!isError && filtered.length === 0 && <p className="text-white/20 text-center py-8 text-sm">No MCP servers found</p>}
+            {!isError && viewMode !== "list" && filtered.length === 0 && <p className="text-white/20 text-center py-8 text-sm">No MCP servers found</p>}
 
             <style>{`
                 @keyframes orbitalIn {
