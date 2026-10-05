@@ -4,14 +4,22 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, Activity, DollarSign, Layers, Radio } from "lucide-react";
 import { useMachine } from "./MachineContext";
-import { safeFetch, fmtCompact, fmtCost, fmtTs } from "./shared";
+import { safeFetch, fmtCompact, fmtCost, fmtTs, SegmentedTabs } from "./shared";
 import { cardShell } from "@/lib/ui-tokens";
 import type { McpLogData, McpServerStat, McpCall, Verdict, Win } from "@/app/api/claude/mcp-log/route";
+import type { Kind } from "@/lib/tool-log";
+import { HeroSlot } from "./PageHero";
 
 const ACCENT = "#FFCC00";
 export const WIN_LABEL: Record<Win, string> = { today: "today, since 12:00 AM", "7d": "last 7 days", "30d": "last 30 days", "90d": "last 90 days" };
 export const UNIT_LABEL = { hour: "by hour", day: "by day", month: "by month" } as const;
 const PAGE = 40;
+// The same panel serves the MCP page and the CLI page; only the words and the
+// accent change.
+const KIND = {
+    mcp: { title: "MCP Log", calls: "MCP calls", noun: "servers", route: "mcp-log", accent: "#FFCC00", sep: "." },
+    cli: { title: "CLI Log", calls: "Tool calls", noun: "tools", route: "cli-log", accent: "#34C759", sep: " " },
+} as const;
 
 // One colour per decision so the table reads top to bottom as a verdict list.
 export const VERDICT: Record<Verdict, { label: string; color: string }> = {
@@ -29,8 +37,9 @@ export const num: React.CSSProperties = { ...td, textAlign: "right", fontFamily:
 
 const shortModel = (m: string) => m.replace(/^claude-/, "").replace(/-\d{8}$/, "");
 
-export function VerdictChip({ v }: { v: Verdict }) {
-    const { label, color } = VERDICT[v];
+export function VerdictChip({ v, label }: { v: Verdict; label?: string }) {
+    const { color } = VERDICT[v];
+    label ??= VERDICT[v].label;
     return (
         <span style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color, padding: "2px 7px", borderRadius: 999, background: `color-mix(in srgb, ${color} 14%, transparent)`, border: `1px solid color-mix(in srgb, ${color} 35%, transparent)` }}>{label}</span>
     );
@@ -71,12 +80,17 @@ export function BigStat({ label, value, sub, icon: Icon, color }: { label: strin
 // per server (keep / low / idle / gone / flaky) and the raw log underneath so
 // the "is this MCP worth its RAM" question is answered on the page, not by
 // running an audit.
-export default function McpLogPanel({ win }: { win: Win }) {
+const WIN_TABS = [{ key: "today", label: "Today" }, { key: "7d", label: "7d" }, { key: "30d", label: "30d" }, { key: "90d", label: "90d" }] as const;
+
+// The window selector is portaled into the page hero (next to the icon and
+// title) so the page has no extra row; the parent owns the value.
+export default function McpLogPanel({ win, onWin, kind = "mcp" }: { win: Win; onWin?: (w: Win) => void; kind?: Kind }) {
     const { apiBase } = useMachine();
     const [limit, setLimit] = useState(PAGE);
-    const url = apiBase(`/api/claude/mcp-log?win=${win}`);
+    const k = KIND[kind];
+    const url = apiBase(`/api/claude/${k.route}?win=${win}`);
     const { data, isFetching } = useQuery<McpLogData | null>({
-        queryKey: ["mcp-log", url],
+        queryKey: [k.route, url],
         queryFn: () => safeFetch<McpLogData | null>(url, null),
         refetchInterval: 300_000,
         refetchOnWindowFocus: false,
@@ -91,17 +105,22 @@ export default function McpLogPanel({ win }: { win: Win }) {
         <div style={{ ...cardShell, marginBottom: 20 }}>
             <div className="flex items-center justify-between flex-wrap" style={{ gap: 12, marginBottom: 14 }}>
                 <div>
-                    <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.55)", margin: 0 }}>MCP Log <span style={{ color: ACCENT }}>{WIN_LABEL[win]}</span></p>
+                    <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.55)", margin: 0 }}>{k.title} <span style={{ color: k.accent }}>{WIN_LABEL[win]}</span></p>
                     <p style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", margin: "2px 0 0" }}>what was called, when, from where, why, by which model, and what it cost{isFetching && !data ? " - scanning transcripts..." : ""}</p>
                 </div>
+                {onWin && (
+                    <HeroSlot>
+                        <SegmentedTabs<Win> tabs={[...WIN_TABS]} value={win} onChange={onWin} accent={k.accent} />
+                    </HeroSlot>
+                )}
             </div>
 
             {t && (
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3" style={{ marginBottom: 20 }}>
-                    <BigStat label="MCP calls" value={t.calls.toLocaleString()} sub={`${t.sessions} sessions`} icon={Activity} color={ACCENT} />
-                    <BigStat label="Cost" value={fmtCost(t.cost)} sub="output + result re-read" icon={DollarSign} color="#FF9500" />
+                    <BigStat label={k.calls} value={t.calls.toLocaleString()} sub={`${t.sessions} sessions`} icon={Activity} color={k.accent} />
+                    <BigStat label="API list price" value={fmtCost(t.cost)} sub="not your plan bill - output + result re-read" icon={DollarSign} color="#FF9500" />
                     <BigStat label="Result tokens" value={fmtCompact(t.tokens)} sub="pulled back into context" icon={Layers} color="#f97316" />
-                    <BigStat label="Errors" value={String(t.errors)} sub={`${t.servers} of ${servers.length} servers used`} icon={t.errors ? AlertTriangle : Radio} color={t.errors ? "#ef4444" : "#8AC249"} />
+                    <BigStat label="Errors" value={String(t.errors)} sub={`${t.servers} of ${servers.length} ${k.noun} used`} icon={t.errors ? AlertTriangle : Radio} color={t.errors ? "#ef4444" : "#8AC249"} />
                 </div>
             )}
 
@@ -122,10 +141,10 @@ export default function McpLogPanel({ win }: { win: Win }) {
                                 <td style={{ ...td, color: "rgba(255,255,255,0.45)" }}>{fmtTs(c.ts)}</td>
                                 <td style={{ ...td, fontFamily: MONO }}>
                                     {c.isError && <AlertTriangle size={10} style={{ color: "#ef4444", display: "inline", marginRight: 4, verticalAlign: -1 }} />}
-                                    <span style={{ color: "rgba(255,255,255,0.45)" }}>{c.server}.</span><span style={{ color: "#fff" }}>{c.tool}</span>
+                                    <span style={{ color: "rgba(255,255,255,0.45)" }}>{c.server}{k.sep}</span><span style={{ color: "#fff" }}>{c.tool}</span>
                                 </td>
                                 <td style={td}>{c.project}{c.branch && c.branch !== "main" ? <span style={{ color: "rgba(255,255,255,0.35)" }}> @{c.branch}</span> : null}</td>
-                                <td style={td}>{shortModel(c.model)}{c.skill ? <span style={{ color: ACCENT }}> /{c.skill}</span> : null}</td>
+                                <td style={td}>{shortModel(c.model)}{c.skill ? <span style={{ color: k.accent }}> /{c.skill}</span> : null}</td>
                                 <td style={{ ...td, whiteSpace: "normal", minWidth: 200, maxWidth: 420, color: "rgba(255,255,255,0.55)" }} title={c.prompt}>{c.prompt ? (c.prompt.length > 120 ? `${c.prompt.slice(0, 120)}...` : c.prompt) : "-"}</td>
                                 <td style={num}>{fmtCompact(c.resultTokens)}</td>
                                 <td style={num}>{fmtCost(c.cost)}</td>
@@ -137,7 +156,7 @@ export default function McpLogPanel({ win }: { win: Win }) {
                 </table>
             </div>
             {calls.length > limit && (
-                <button type="button" onClick={() => setLimit(l => l + PAGE)} style={{ marginTop: 10, fontSize: 10, fontWeight: 700, color: ACCENT, background: "none", border: `1px solid color-mix(in srgb, ${ACCENT} 35%, transparent)`, borderRadius: 999, padding: "4px 12px", cursor: "pointer" }}>
+                <button type="button" onClick={() => setLimit(l => l + PAGE)} style={{ marginTop: 10, fontSize: 10, fontWeight: 700, color: k.accent, background: "none", border: `1px solid color-mix(in srgb, ${k.accent} 35%, transparent)`, borderRadius: 999, padding: "4px 12px", cursor: "pointer" }}>
                     show {Math.min(PAGE, calls.length - limit)} more
                 </button>
             )}

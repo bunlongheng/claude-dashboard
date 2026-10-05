@@ -3,6 +3,7 @@ import {
     Terminal, Pencil, FileText, FilePlus, FolderTree, Search, Globe,
     Bot, Sparkles, MessageCircle, FileSearch, FileCode,
     ListChecks as ListChecksIcon, ListTodo, Clock as ClockIcon, Bell as BellIcon,
+    Send, MessageSquare, Users, Eye, Workflow, ThumbsUp, Share2, ClipboardList,
 } from "lucide-react";
 
 // Icon map for Claude Code's built-in CLI tools. Shared by the CLI, Agents,
@@ -36,6 +37,14 @@ export const CLI_ICON_MAP: Record<string, React.ElementType> = {
     CronList: ClockIcon,
     NotebookEdit: FileCode,
     PushNotification: BellIcon,
+    SendUserFile: Send,
+    SendMessage: MessageSquare,
+    ListAgents: Users,
+    Monitor: Eye,
+    Workflow: Workflow,
+    SendFeedback: ThumbsUp,
+    Artifact: Share2,
+    ReportFindings: ClipboardList,
 };
 
 export function cliIconFor(name: string): React.ElementType {
