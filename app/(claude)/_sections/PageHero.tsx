@@ -9,7 +9,7 @@ const PAGE_SUBTITLES: Record<string, string> = {
     "/settings": "settings.json & settings.local.json",
     "/mcp":      "MCP call log, verdicts & server connections",
     "/plugins":  "Installed plugins & extensions",
-    "/cli":      "Built-in CLI tools",
+    "/cli":      "Tool call log, verdicts & the built-in tools",
     "/skills":   "Skills & capabilities",
     "/commands": "Slash commands",
     "/hooks":    "Event hooks & automation",
