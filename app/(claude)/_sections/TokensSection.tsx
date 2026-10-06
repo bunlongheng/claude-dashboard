@@ -7,6 +7,7 @@ import { useMachine } from "./MachineContext";
 import { safeFetch, SegmentedTabs, fmtCompact, fmtCost, fmtTs, timeAgo, FetchError } from "./shared";
 import { cardShell } from "@/lib/ui-tokens";
 import { BigStat, MONO, th, td, num } from "./McpLogPanel";
+import { HeroSlot } from "./PageHero";
 import AppIcon from "./AppIcon";
 import type { TokensData, Since, Role, WhoRow } from "@/app/api/claude/tokens/route";
 
@@ -94,7 +95,9 @@ export default function TokensSection() {
                         full transcripts, deduped by message id, subagents included{data ? ` · ${data.sessions.length} sessions · as of ${fmtTs(data.generatedAt)}` : ""}{isFetching && !data ? " · scanning..." : ""}
                     </p>
                 </div>
-                <SegmentedTabs<Since> tabs={[{ key: "today", label: "Today" }, { key: "7d", label: "7d" }, { key: "30d", label: "30d" }, { key: "all", label: "All" }]} value={since} onChange={s => { setSince(s); setLimit(PAGE); }} accent={ACCENT} />
+                <HeroSlot>
+                    <SegmentedTabs<Since> tabs={[{ key: "today", label: "Today" }, { key: "7d", label: "7d" }, { key: "30d", label: "30d" }, { key: "all", label: "All" }]} value={since} onChange={s => { setSince(s); setLimit(PAGE); }} accent={ACCENT} />
+                </HeroSlot>
             </div>
 
             {isError && <FetchError what="token stats" onRetry={() => refetch()} />}
