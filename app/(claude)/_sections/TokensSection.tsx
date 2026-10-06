@@ -7,6 +7,7 @@ import { useMachine } from "./MachineContext";
 import { safeFetch, SegmentedTabs, fmtCompact, fmtCost, fmtTs, timeAgo, FetchError } from "./shared";
 import { cardShell } from "@/lib/ui-tokens";
 import { BigStat, MONO, th, td, num } from "./McpLogPanel";
+import AppIcon from "./AppIcon";
 import type { TokensData, Since, Role, WhoRow, PeriodRow } from "@/app/api/claude/tokens/route";
 
 const ACCENT = "#FFCC00";
@@ -159,7 +160,7 @@ export default function TokensSection() {
                             <tbody>
                                 {data.projects.map(p => (
                                     <tr key={p.project} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-                                        <td style={{ ...td, fontFamily: MONO, color: "#fff" }}>{p.project}</td>
+                                        <td style={{ ...td, fontFamily: MONO, color: "#fff" }}><span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}><AppIcon project={p.project} size={16} />{p.project}</span></td>
                                         <td style={num}>{p.sessions}</td>
                                         <td style={td}><Share value={t?.output ? p.output / t.output : 0} color={OUT} /></td>
                                         <TokCells r={p} />
@@ -239,7 +240,7 @@ export default function TokensSection() {
                                 <td style={td}><span title={s.active ? "live: wrote in the last 5 min" : "closed or idle"} style={{ display: "inline-block", width: 7, height: 7, borderRadius: 999, background: s.active ? "#8AC249" : "rgba(255,255,255,0.15)", boxShadow: s.active ? "0 0 6px #8AC249" : "none" }} /></td>
                                 <td style={{ ...td, color: s.active ? "#8AC249" : "rgba(255,255,255,0.6)" }}>{timeAgo(s.lastTs)}</td>
                                 <td style={{ ...td, color: "rgba(255,255,255,0.45)" }}>{fmtTs(s.firstTs)}</td>
-                                <td style={td}>{s.project}{s.branch && s.branch !== "main" ? <span style={{ color: "rgba(255,255,255,0.35)" }}> @{s.branch}</span> : null}</td>
+                                <td style={td}><span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><AppIcon project={s.project} size={14} />{s.project}{s.branch && s.branch !== "main" ? <span style={{ color: "rgba(255,255,255,0.35)" }}> @{s.branch}</span> : null}</span></td>
                                 <td style={{ ...td, whiteSpace: "normal", minWidth: 200, maxWidth: 380, color: "rgba(255,255,255,0.55)" }}>{s.title}</td>
                                 <td style={{ ...td, fontFamily: MONO, fontSize: 10 }}>{s.models.map(shortModel).join(", ")}</td>
                                 <td style={{ ...num, color: s.agents ? "#5AC8FA" : "rgba(255,255,255,0.3)" }}>{s.agents ? <><Bot size={10} style={{ display: "inline", marginRight: 3, verticalAlign: -1 }} />{s.agents}</> : 0}</td>
