@@ -65,12 +65,19 @@ export default function OverviewSection() {
     // Token totals come from the tokens route (full transcripts, deduped by
     // message id, subagents included) so the Overview matches the Tokens page.
     // The daily route tails big files and skips subagents, so its sums run low.
-    type TokenTotals = { totals?: { input: number; output: number } } | null;
+    type TokenTotals = { totals?: { input: number; output: number; turns: number; sessions: number }; daily?: { day: string; input: number; output: number; cacheRead: number; cacheCreate: number; turns: number; sessions: number }[] } | null;
     const tokensWinUrl = apiBase(`/api/claude/tokens?since=${intervalTab}`);
     const tokensWinQuery = useQuery<TokenTotals>({ queryKey: ["tokens", tokensWinUrl], queryFn: () => safeFetch<TokenTotals>(tokensWinUrl, null), refetchInterval: 60_000, refetchOnWindowFocus: false, placeholderData: prev => prev });
     const tokensAllUrl = apiBase("/api/claude/tokens?since=all");
     const tokensAllQuery = useQuery<TokenTotals>({ queryKey: ["tokens", tokensAllUrl], queryFn: () => safeFetch<TokenTotals>(tokensAllUrl, null), refetchInterval: 60_000, refetchOnWindowFocus: false });
-    const winTokensExact = tokensWinQuery.data?.totals ? tokensWinQuery.data.totals.input + tokensWinQuery.data.totals.output : undefined;
+    const winTotals = tokensWinQuery.data?.totals;
+    const winExact = winTotals ? { turns: winTotals.turns, tokens: winTotals.input + winTotals.output, sessions: winTotals.sessions } : undefined;
+    // Breakdown day bars use the same source as its numbers, so the bars sum to the stats.
+    const breakdownDays = useMemo<DayBucket[]>(() => {
+        const rows = tokensWinQuery.data?.daily;
+        if (!rows) return dailyData;
+        return rows.map(r => ({ day: r.day, input: r.input, output: r.output, cache_read: r.cacheRead, cache_creation: r.cacheCreate, turns: r.turns, sessions: r.sessions }));
+    }, [tokensWinQuery.data, dailyData]);
     const byDayHour = dailyQuery.data?.byDayHour && typeof dailyQuery.data.byDayHour === "object" ? dailyQuery.data.byDayHour : {};
     const favoriteModel = useMemo(() => {
         const models = dailyQuery.data?.byModel ?? [];
@@ -359,7 +366,7 @@ export default function OverviewSection() {
                         winTotalTokens={winTotalTokens}
                         favoriteModel={favoriteModel}
                     />
-                    <BreakdownCard dailyData={dailyData} breakdownInterval={breakdownInterval} win={intervalTab} byDayHour={byDayHour} tokens={winTokensExact} />
+                    <BreakdownCard dailyData={breakdownDays} breakdownInterval={breakdownInterval} win={intervalTab} byDayHour={byDayHour} exact={winExact} />
                 </div>
             )}
 

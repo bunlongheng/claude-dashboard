@@ -7,12 +7,12 @@ import type { DayBucket } from "./types";
 // RIGHT 40% of the "Activity Heatmap + Stats" row - message/token/session
 // totals for the selected interval plus a day-by-day bar chart (hour-by-hour
 // rows for Today).
-export function BreakdownCard({ dailyData, breakdownInterval, win, byDayHour, tokens }: {
+export function BreakdownCard({ dailyData, breakdownInterval, win, byDayHour, exact }: {
     dailyData: DayBucket[];
     breakdownInterval: "today" | "7d" | "30d" | "all";
     win: Window4;
     byDayHour?: Record<string, number[]>;
-    tokens?: number; // exact input + output for the window from the tokens route; falls back to the daily sum
+    exact?: { turns: number; tokens: number; sessions: number }; // window totals from the tokens route; falls back to the daily sums
 }) {
     const now = new Date();
     const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
@@ -33,7 +33,10 @@ export function BreakdownCard({ dailyData, breakdownInterval, win, byDayHour, to
         sessions: acc.sessions + d.sessions,
     }), { turns: 0, input: 0, output: 0, sessions: 0 });
 
-    const totalTok = tokens ?? sum.input + sum.output;
+    const totalTurns = exact?.turns ?? sum.turns;
+    const totalTok = exact?.tokens ?? sum.input + sum.output;
+    // Distinct sessions, not session-days: a session spanning 2 days counts once.
+    const totalSessions = exact?.sessions ?? sum.sessions;
     function ft(n: number) { return n >= 1_000_000 ? `${(n/1_000_000).toFixed(1)}M` : n >= 1_000 ? `${(n/1_000).toFixed(1)}k` : String(n); }
 
     // Bar chart rows - daily (week/month) or single row (today)
@@ -70,7 +73,7 @@ export function BreakdownCard({ dailyData, breakdownInterval, win, byDayHour, to
             <div className="flex items-end gap-5">
                 <div>
                     <p style={{ fontSize: 9, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Messages</p>
-                    <p style={{ fontSize: 28, fontWeight: 800, color: "#fff", lineHeight: 1 }}>{sum.turns.toLocaleString()}</p>
+                    <p style={{ fontSize: 28, fontWeight: 800, color: "#fff", lineHeight: 1 }}>{totalTurns.toLocaleString()}</p>
                 </div>
                 <div>
                     <p style={{ fontSize: 9, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Tokens</p>
@@ -78,7 +81,7 @@ export function BreakdownCard({ dailyData, breakdownInterval, win, byDayHour, to
                 </div>
                 <div>
                     <p style={{ fontSize: 9, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Sessions</p>
-                    <p style={{ fontSize: 28, fontWeight: 800, color: "#a3e635", lineHeight: 1 }}>{sum.sessions}</p>
+                    <p style={{ fontSize: 28, fontWeight: 800, color: "#a3e635", lineHeight: 1 }}>{totalSessions}</p>
                 </div>
             </div>
 
