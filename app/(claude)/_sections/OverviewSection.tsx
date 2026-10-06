@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { RAG_ENABLED } from "@/lib/features";
 import { useMachine } from "./MachineContext";
-import { safeFetch, type Token, type ProjectSessions } from "./shared";
+import { safeFetch, IntervalTabs, type Token, type ProjectSessions, type Window4 } from "./shared";
 import { MascotLoader } from "./MascotLoader";
 import SkillUsagePanel from "./SkillUsagePanel";
 import { HeroCardsGrid } from "./overview/HeroCardsGrid";
@@ -42,14 +42,15 @@ export default function OverviewSection() {
     // failed load are not mistaken for real zero activity.
     const [dataError, setDataError] = useState(false);
     // Shared interval used by Breakdown, Activity stats, and Top Sessions tabs.
-    const [intervalTab, setIntervalTab] = useState<"24h" | "7d" | "30d" | "all">("7d");
+    const [intervalTab, setIntervalTab] = useState<Window4>("7d");
     const breakdownInterval = intervalTab;
     const setBreakdownInterval = setIntervalTab;
 
     // Days-in-window for the current interval. Used by all three sections.
-    const windowDays = intervalTab === "24h" ? 1 : intervalTab === "7d" ? 7 : intervalTab === "30d" ? 30 : 999999;
+    const windowDays = intervalTab === "today" ? 1 : intervalTab === "7d" ? 7 : intervalTab === "30d" ? 30 : 999999;
     const now = useNow(30_000);
-    const windowCutoff = now - windowDays * 86400_000;
+    // "today" means since local midnight, not the last 24 hours.
+    const windowCutoff = intervalTab === "today" ? new Date(now).setHours(0, 0, 0, 0) : now - windowDays * 86400_000;
 
     // Daily data - loaded once per machine (slow endpoint, ~3s)
     interface DailyModelBucket { model: string; input: number; output: number; cache_read: number; cache_creation: number; turns: number }
@@ -188,7 +189,7 @@ export default function OverviewSection() {
         const dayMap = new Map(dailyData.map(d => [d.day, d.turns]));
         const cells: { date: string; turns: number; weekIndex: number; dayOfWeek: number }[] = [];
         const lookbackDays =
-            intervalTab === "24h" ? 1 :
+            intervalTab === "today" ? 1 :
             intervalTab === "7d"  ? 7 :
             intervalTab === "30d" ? 30 :
             13 * 7; // "all" caps at 13 weeks for visual sanity
@@ -261,21 +262,7 @@ export default function OverviewSection() {
     ];
 
     // Reusable tab control - same UX in Breakdown / Activity / Top Sessions.
-    const intervalTabsEl = (
-        <div style={{ display: "inline-flex", background: "rgba(255,255,255,0.04)", borderRadius: 6, padding: 2 }}>
-            {([["7d","7d"],["30d","30d"],["all","ALL"]] as const).map(([k, l]) => {
-                const active = intervalTab === k;
-                return (
-                    <button key={k} onClick={() => setIntervalTab(k)} style={{
-                        fontSize: 9, fontWeight: 700, padding: "4px 9px", borderRadius: 4,
-                        background: active ? "rgba(255,255,255,0.14)" : "transparent",
-                        color: active ? "#fff" : "rgba(255,255,255,0.52)",
-                        border: "none", cursor: "pointer", letterSpacing: 0.5,
-                    }}>{l}</button>
-                );
-            })}
-        </div>
-    );
+    const intervalTabsEl = <IntervalTabs value={intervalTab} onChange={setIntervalTab} />;
 
     // Windowed stats for the Activity section
     const winDays = dailyData.filter(d => new Date(d.day + "T12:00:00").getTime() >= windowCutoff);

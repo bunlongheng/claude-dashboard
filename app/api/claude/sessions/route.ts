@@ -168,10 +168,10 @@ export const GET = withErrorHandler(async (req: Request) => {
                 const folderPath = path.join(CLAUDE_DIR, folder);
                 try { if (!fs.statSync(folderPath).isDirectory()) continue; } catch { continue; }
                 if (!isRealRepo(folder)) continue;
-                // Skip sessions from other machines' usernames
-                const currentUser = os.userInfo().username;
-                const hasUser = folder.includes(`-${currentUser}-`) || folder.endsWith(`-${currentUser}`);
-                if (!hasUser) continue;
+                // Skip sessions synced from another machine's home dir (a
+                // different username). Non-home paths like /Volumes stay.
+                const homeUser = folder.match(/^-Users-([^-]+)/)?.[1];
+                if (homeUser && homeUser !== os.userInfo().username) continue;
 
                 const sessions: SessionData[] = [];
                 for (const file of fs.readdirSync(folderPath).filter(f => f.endsWith(".jsonl"))) {

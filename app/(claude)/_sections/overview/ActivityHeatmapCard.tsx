@@ -17,7 +17,7 @@ export function ActivityHeatmapCard({
 }: {
     heatmapData: HeatmapData;
     byDayHour: Record<string, number[]>;
-    intervalTab: "24h" | "7d" | "30d" | "all";
+    intervalTab: "today" | "7d" | "30d" | "all";
     drillMachine: string;
     winActiveDays: number;
     winTotalDays: number;

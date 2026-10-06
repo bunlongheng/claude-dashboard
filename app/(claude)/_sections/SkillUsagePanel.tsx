@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useMachine } from "./MachineContext";
-import { safeFetch, SegmentedTabs, WINDOW_TABS, type Window4 } from "./shared";
+import { safeFetch, IntervalTabs, type Window4 } from "./shared";
 import { cardShell } from "@/lib/ui-tokens";
 
 type UsageRow = { name: string; count: number; pct: number; lastUsed: number };
@@ -41,12 +41,7 @@ export default function SkillUsagePanel() {
         <div style={cardShell}>
             <div className="flex items-center justify-between flex-wrap" style={{ gap: 8, marginBottom: 12 }}>
                 <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.55)", margin: 0, whiteSpace: "nowrap" }}>Skill Usage</p>
-                <SegmentedTabs<Win>
-                    tabs={WINDOW_TABS}
-                    value={win}
-                    onChange={setWin}
-                    accent="#8AC249"
-                />
+                <IntervalTabs value={win} onChange={setWin} />
             </div>
             {data && data.skills.length > 0 ? (
                 <div className="space-y-1.5">

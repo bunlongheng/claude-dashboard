@@ -222,11 +222,14 @@ function scanMcp(): McpInfo[] {
         }
     }
 
-    // 3. Plugin .mcp.json files (shipped with installed plugins)
+    // 3. Plugin .mcp.json files. The marketplace cache holds every listed
+    // plugin, but only the ones enabled in settings.json actually load.
+    const enabled = safeJson<{ enabledPlugins?: Record<string, boolean> }>(path.join(CLAUDE_DIR, "settings.json"))?.enabledPlugins ?? {};
     const dirs = [PLUGINS_DIR, EXTERNAL_DIR];
     for (const base of dirs) {
         if (!dirExists(base)) continue;
         for (const plugin of fs.readdirSync(base)) {
+            if (!enabled[`${plugin}@claude-plugins-official`]) continue;
             const mcpPath = path.join(base, plugin, ".mcp.json");
             const data = safeJson(mcpPath);
             if (!data) continue;

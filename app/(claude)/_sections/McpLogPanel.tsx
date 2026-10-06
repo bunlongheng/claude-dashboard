@@ -82,23 +82,29 @@ export function BigStat({ label, value, sub, icon: Icon, color }: { label: strin
 // running an audit.
 const WIN_TABS = [{ key: "today", label: "Today" }, { key: "7d", label: "7d" }, { key: "30d", label: "30d" }, { key: "90d", label: "90d" }] as const;
 
-// The window selector is portaled into the page hero (next to the icon and
-// title) so the page has no extra row; the parent owns the value.
-export default function McpLogPanel({ win, onWin, kind = "mcp" }: { win: Win; onWin?: (w: Win) => void; kind?: Kind }) {
+// Both the default export and McpRecentCalls read the same window/kind, so
+// the query is factored into 1 hook - react-query dedupes the request by
+// queryKey, meaning only 1 fetch actually happens on the page.
+function useLogData(win: Win, kind: Kind) {
     const { apiBase } = useMachine();
-    const [limit, setLimit] = useState(PAGE);
     const k = KIND[kind];
     const url = apiBase(`/api/claude/${k.route}?win=${win}`);
-    const { data, isFetching } = useQuery<McpLogData | null>({
+    return useQuery<McpLogData | null>({
         queryKey: [k.route, url],
         queryFn: () => safeFetch<McpLogData | null>(url, null),
         refetchInterval: 300_000,
         refetchOnWindowFocus: false,
         placeholderData: prev => prev,
     });
+}
+
+// The window selector is portaled into the page hero (next to the icon and
+// title) so the page has no extra row; the parent owns the value.
+export default function McpLogPanel({ win, onWin, kind = "mcp" }: { win: Win; onWin?: (w: Win) => void; kind?: Kind }) {
+    const k = KIND[kind];
+    const { data, isFetching } = useLogData(win, kind);
 
     const servers: McpServerStat[] = data?.servers ?? [];
-    const calls: McpCall[] = data?.recent ?? [];
     const t = data?.totals;
 
     return (
@@ -123,7 +129,20 @@ export default function McpLogPanel({ win, onWin, kind = "mcp" }: { win: Win; on
                     <BigStat label="Errors" value={String(t.errors)} sub={`${t.servers} of ${servers.length} ${k.noun} used`} icon={t.errors ? AlertTriangle : Radio} color={t.errors ? "#ef4444" : "#8AC249"} />
                 </div>
             )}
+        </div>
+    );
+}
 
+// Rendered separately, below the server/tool directory, so the directory
+// reads first and the raw call log reads last.
+export function McpRecentCalls({ win, kind = "mcp" }: { win: Win; kind?: Kind }) {
+    const [limit, setLimit] = useState(PAGE);
+    const k = KIND[kind];
+    const { data } = useLogData(win, kind);
+    const calls: McpCall[] = data?.recent ?? [];
+
+    return (
+        <div style={{ ...cardShell, marginTop: 20 }}>
             <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.55)", margin: "4px 0 8px" }}>
                 Recent calls <span style={{ color: "rgba(255,255,255,0.3)", fontWeight: 400 }}>{calls.length}</span>
             </p>

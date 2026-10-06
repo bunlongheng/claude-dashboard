@@ -8,14 +8,14 @@ import type { DayBucket } from "./types";
 // totals for the selected interval plus a day-by-day bar chart.
 export function BreakdownCard({ dailyData, breakdownInterval, intervalTabsEl }: {
     dailyData: DayBucket[];
-    breakdownInterval: "24h" | "7d" | "30d" | "all";
+    breakdownInterval: "today" | "7d" | "30d" | "all";
     intervalTabsEl: ReactNode;
 }) {
     const now = new Date();
     const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
     const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 
-    const intervalDays: Record<string, number> = { "24h": 1, "7d": 7, "30d": 30, "all": Infinity };
+    const intervalDays: Record<string, number> = { today: 1, "7d": 7, "30d": 30, all: Infinity };
     const windowDays = intervalDays[breakdownInterval] ?? 7;
     const cutoffDate = new Date(now);
     cutoffDate.setDate(now.getDate() - (windowDays === Infinity ? 9999 : windowDays - 1));
