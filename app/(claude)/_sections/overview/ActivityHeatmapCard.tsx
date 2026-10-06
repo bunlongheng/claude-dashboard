@@ -61,8 +61,8 @@ export function ActivityHeatmapCard({
 
             <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
             {/* Heatmap / strip + by-hour - capped width keeps cells small squares; stats sit to its right */}
-            <div style={{ minWidth: 0, flex: "7 1 0" }}>
-            {/* 7d → clean 7-cell day strip; longer windows → calendar grid */}
+            <div className={intervalTab === "today" ? "flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6" : undefined} style={{ minWidth: 0, flex: "7 1 0" }}>
+            {/* 7d → clean 7-cell day strip; longer windows → calendar grid. Today → minute grid and hour strip side by side. */}
             {intervalTab === "7d" ? (() => {
                 // Each day = a horizontal 24h strip (hour 0 left -> 23 right). 7 rows, oldest on top -> TODAY on bottom.
                 const days = Array.from({ length: 7 }, (_, i) => { const d = new Date(); d.setDate(d.getDate() - (6 - i)); return d; });
@@ -126,7 +126,7 @@ export function ActivityHeatmapCard({
                 const curSlot = now.getHours() * 12 + Math.floor(now.getMinutes() / 5);
                 const cellColor = (n: number) => heatRamp(n === 0 ? 0 : Math.min(n / (max * 0.7), 1));
                 return (
-                    <div>
+                    <div style={{ flex: "1 1 0", minWidth: 0 }}>
                         <div style={{ display: "flex", gap: 8 }}>
                             <div style={{ display: "grid", gridTemplateRows: "repeat(12, 1fr)", gap: 2, width: 26, flexShrink: 0 }}>
                                 {Array.from({ length: 12 }, (_, row) => (
@@ -145,8 +145,8 @@ export function ActivityHeatmapCard({
                                         const mm = String(row * 5).padStart(2, "0");
                                         const mm2 = String(row * 5 + 5).padStart(2, "0");
                                         const sharedStyle = {
-                                            // Fixed 12px rows keep the 12 minute rows about as tall as the 7d grid.
-                                            height: 12, minWidth: 0, borderRadius: 2,
+                                            // Square cells; the grid shares the row with the hour strip, so 12 rows stay short.
+                                            aspectRatio: "1", minWidth: 0, borderRadius: 2,
                                             background: isFuture ? "rgba(255,255,255,0.02)" : isNow ? "rgba(255,255,255,0.9)" : cellColor(n),
                                             outline: isNow ? "1px solid rgba(255,255,255,0.85)" : "none",
                                             outlineOffset: isNow ? -1 : undefined,
@@ -235,16 +235,19 @@ export function ActivityHeatmapCard({
                 const nowPct = ((nowHour * 60 + new Date().getMinutes()) / 1440) * 100;
                 const nowLabel = new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
                 const hourColor = (n: number) => heatRamp(n === 0 ? 0 : Math.min(n / (maxHour * 0.7), 1));
+                // Today: the strip is its own section to the right of the minute grid, so the alignment spacers go.
+                const side = intervalTab === "today";
+                const padL = side ? 0 : 26, padR = side ? 0 : 32;
                 return (
-                    <div style={{ marginTop: 14 }}>
+                    <div className={side ? "border-t border-white/[0.06] pt-3 sm:border-t-0 sm:pt-0 sm:border-l sm:pl-6" : undefined} style={side ? { flex: "1 1 0", minWidth: 0 } : { marginTop: 14 }}>
                         {/* Spacers (26px / 32px) match the per-day weekday + total columns so cells line up exactly. */}
                         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                            <span style={{ width: 26, fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "rgba(255,255,255,0.55)", textAlign: "right", flexShrink: 0 }}>Today</span>
+                            <span style={{ width: side ? "auto" : 26, fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "rgba(255,255,255,0.55)", textAlign: "right", flexShrink: 0 }}>Today</span>
                             <div style={{ flex: 1 }} />
-                            <span style={{ width: 32, flexShrink: 0 }} />
+                            <span style={{ width: padR, flexShrink: 0 }} />
                         </div>
                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <span style={{ width: 26, flexShrink: 0 }} />
+                            <span style={{ width: padL, flexShrink: 0 }} />
                             <div style={{ flex: 1, display: "flex", gap: 2, position: "relative" }}>
                                 <div aria-label={`Now ${nowLabel}`} title={nowLabel} style={{ position: "absolute", left: `${nowPct}%`, top: -4, bottom: -4, width: 1, background: "#FF3B30", boxShadow: "0 0 6px rgba(255,59,48,0.8)", zIndex: 2, pointerEvents: "none" }}>
                                     <span style={{ position: "absolute", top: -12, left: 3, fontSize: 8, fontWeight: 700, color: "#FF3B30", whiteSpace: "nowrap" }}>{nowLabel}</span>
@@ -271,16 +274,16 @@ export function ActivityHeatmapCard({
                                     );
                                 })}
                             </div>
-                            <span style={{ width: 32, flexShrink: 0 }} />
+                            <span style={{ width: padR, flexShrink: 0 }} />
                         </div>
                         <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 3 }}>
-                            <span style={{ width: 26, flexShrink: 0 }} />
+                            <span style={{ width: padL, flexShrink: 0 }} />
                             <div className="flex justify-between" style={{ flex: 1, fontSize: 8, color: "rgba(255,255,255,0.5)" }}>
                                 {[0, 6, 12, 18, 23].map(idx => (
                                     <span key={idx}>{fmtHour(idx)}</span>
                                 ))}
                             </div>
-                            <span style={{ width: 32, flexShrink: 0 }} />
+                            <span style={{ width: padR, flexShrink: 0 }} />
                         </div>
                     </div>
                 );
