@@ -5,11 +5,13 @@ import { WindowBadge, type Window4 } from "../shared";
 import type { DayBucket } from "./types";
 
 // RIGHT 40% of the "Activity Heatmap + Stats" row - message/token/session
-// totals for the selected interval plus a day-by-day bar chart.
-export function BreakdownCard({ dailyData, breakdownInterval, win }: {
+// totals for the selected interval plus a day-by-day bar chart (hour-by-hour
+// rows for Today).
+export function BreakdownCard({ dailyData, breakdownInterval, win, byDayHour }: {
     dailyData: DayBucket[];
     breakdownInterval: "today" | "7d" | "30d" | "all";
     win: Window4;
+    byDayHour?: Record<string, number[]>;
 }) {
     const now = new Date();
     const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
@@ -42,6 +44,12 @@ export function BreakdownCard({ dailyData, breakdownInterval, win }: {
     const barRows = barRowsRaw;
     const barMax = Math.max(...barRows.map(d => d.turns), 1);
 
+    // Today: hour rows from midnight to the current hour, 1 row per hour.
+    const hourTurns = byDayHour?.[todayStr] ?? [];
+    const hourRows = Array.from({ length: now.getHours() + 1 }, (_, h) => ({ h, turns: hourTurns[h] ?? 0 }));
+    const hourMax = Math.max(...hourRows.map(r => r.turns), 1);
+    const hourLabel = (h: number) => `${h % 12 === 0 ? 12 : h % 12} ${h < 12 ? "AM" : "PM"}`;
+
     return (
         <div style={{ ...cardShell, flex: "0 0 40%", display: "flex", flexDirection: "column", gap: 14 }}>
 
@@ -66,9 +74,28 @@ export function BreakdownCard({ dailyData, breakdownInterval, win }: {
                 </div>
             </div>
 
+            {/* Hour-by-hour bar rows (today) */}
+            {win === "today" && hourRows.length > 0 && (
+                <div className="space-y-1.5" aria-label="Breakdown by hour">
+                    {hourRows.map(r => {
+                        const pct = Math.max((r.turns / hourMax) * 100, r.turns > 0 ? 2 : 0);
+                        const isNow = r.h === now.getHours();
+                        return (
+                            <div key={r.h} className="flex items-center gap-2">
+                                <span style={{ fontSize: 9, color: isNow ? "#fff" : "rgba(255,255,255,0.25)", width: 70, flexShrink: 0, fontWeight: isNow ? 700 : 400 }}>{hourLabel(r.h)}</span>
+                                <div style={{ flex: 1, height: 5, borderRadius: 3, background: "rgba(255,255,255,0.05)", overflow: "hidden" }}>
+                                    <div style={{ width: `${pct}%`, height: "100%", borderRadius: 3, background: isNow ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.3)", transition: "width 0.6s" }} />
+                                </div>
+                                <span style={{ fontSize: 9, color: "rgba(255,255,255,0.55)", width: 28, textAlign: "right", flexShrink: 0 }}>{r.turns}</span>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+
             {/* Day-by-day bar rows (week / month) */}
-            {barRows.length > 0 && (
-                <div className="space-y-1.5">
+            {win !== "today" && barRows.length > 0 && (
+                <div className="space-y-1.5" aria-label="Breakdown by day">
                     {barRows.map(d => {
                         const pct = Math.max((d.turns / barMax) * 100, d.turns > 0 ? 2 : 0);
                         const label = new Date(d.day + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });

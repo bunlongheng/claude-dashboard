@@ -348,7 +348,7 @@ export default function OverviewSection() {
                         winTotalTokens={winTotalTokens}
                         favoriteModel={favoriteModel}
                     />
-                    <BreakdownCard dailyData={dailyData} breakdownInterval={breakdownInterval} win={intervalTab} />
+                    <BreakdownCard dailyData={dailyData} breakdownInterval={breakdownInterval} win={intervalTab} byDayHour={byDayHour} />
                 </div>
             )}
 
