@@ -39,8 +39,8 @@ export default function SkillUsagePanel() {
 
     return (
         <div style={cardShell}>
-            <div className="flex items-center justify-between" style={{ gap: 8, marginBottom: 12 }}>
-                <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.55)", margin: 0 }}>Skill Usage</p>
+            <div className="flex items-center justify-between flex-wrap" style={{ gap: 8, marginBottom: 12 }}>
+                <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.55)", margin: 0, whiteSpace: "nowrap" }}>Skill Usage</p>
                 <SegmentedTabs<Win>
                     tabs={WINDOW_TABS}
                     value={win}
