@@ -1,12 +1,23 @@
 "use client";
 
 import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
 import { CalendarDays, Flame, Zap, Star, Cpu, Coins } from "lucide-react";
 import { cardShell, heatRamp } from "@/lib/ui-tokens";
-import { WindowBadge } from "../shared";
+import { WindowBadge, safeFetch } from "../shared";
+import { useMachine } from "../MachineContext";
 import { localYMD } from "./utils";
 import { LiveClock } from "./LiveClock";
 import type { HeatmapData } from "./types";
+
+// 12-hour label e.g. "6AM", "NOON", "11PM" - shared by the 7d strip, the
+// hourly rhythm row, and the minute grid below.
+function fmtHour(h: number): string {
+    return h === 12 ? "NOON" : `${h % 12 === 0 ? 12 : h % 12}${h < 12 ? "AM" : "PM"}`;
+}
+
+type MinuteStats = { date: string; slotMinutes: number; buckets: number[]; total: number };
+const EMPTY_MINUTE_STATS: MinuteStats = { date: "", slotMinutes: 5, buckets: new Array(288).fill(0), total: 0 };
 
 // LEFT 60% of the "Activity Heatmap + Stats" row - the punchcard/calendar
 // heatmap, today's hourly rhythm, and the summary stat grid to its right.
@@ -29,6 +40,15 @@ export function ActivityHeatmapCard({
     function getColor(turns: number): string {
         return heatRamp(turns === 0 ? 0 : Math.min(turns / (maxTurns * 0.6), 1));
     }
+    const { apiBase } = useMachine();
+    const todayIso = localYMD(new Date());
+    const minuteUrl = `${apiBase("/api/claude/turns-by-minute")}?date=${todayIso}`;
+    const minuteQ = useQuery<MinuteStats>({
+        queryKey: ["turns-by-minute", todayIso, minuteUrl],
+        queryFn: () => safeFetch<MinuteStats>(minuteUrl, EMPTY_MINUTE_STATS),
+        refetchInterval: 30_000,
+        enabled: intervalTab === "today",
+    });
     return (
         <div style={{ ...cardShell, flex: "0 0 60%", minWidth: 0 }}>
             <div className="mb-3 flex items-center justify-between" style={{ gap: 8, flexWrap: "wrap" }}>
@@ -48,7 +68,6 @@ export function ActivityHeatmapCard({
                 const days = Array.from({ length: 7 }, (_, i) => { const d = new Date(); d.setDate(d.getDate() - (6 - i)); return d; });
                 const isos = days.map(d => localYMD(d));
                 const hourMax = Math.max(1, ...isos.flatMap(iso => byDayHour[iso] ?? []));
-                const fmtH = (h: number) => h === 12 ? "NOON" : `${h % 12 === 0 ? 12 : h % 12}${h < 12 ? "AM" : "PM"}`;
                 const cellColor = (n: number) => heatRamp(!n ? 0 : Math.min(n / (hourMax * 0.7), 1));
                 return (
                     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -73,12 +92,12 @@ export function ActivityHeatmapCard({
                                             const sharedStyle = { aspectRatio: "1", minWidth: 0, borderRadius: 2, background: cellColor(n), display: "flex", alignItems: "center", justifyContent: "center", ...nowStyle } as const;
                                             const label = <span className="opacity-0 group-hover:opacity-100" style={{ fontSize: 7, fontWeight: 700, color: "#000", lineHeight: 1, textShadow: "0 0 2px rgba(255,255,255,0.6)", transition: "opacity 100ms", pointerEvents: "none" }}>{n > 0 ? n : ""}</span>;
                                             return n > 0 ? (
-                                                <Link key={h} href={`/sessions?date=${iso}&hour=${h}&turn=${n}${drillMachine}`} title={`${iso} ${fmtH(h)}: ${n} turns${isNow ? " (now)" : ""} - click to drill down`} aria-label={`${iso} ${fmtH(h)}: ${n} turns, open sessions`} className="group"
+                                                <Link key={h} href={`/sessions?date=${iso}&hour=${h}&turn=${n}${drillMachine}`} title={`${iso} ${fmtHour(h)}: ${n} turns${isNow ? " (now)" : ""} - click to drill down`} aria-label={`${iso} ${fmtHour(h)}: ${n} turns, open sessions`} className="group"
                                                     style={{ ...sharedStyle, cursor: "pointer", textDecoration: "none" }}>
                                                     {label}
                                                 </Link>
                                             ) : (
-                                                <div key={h} title={`${iso} ${fmtH(h)}: 0 turns${isNow ? " (now)" : ""}`} className="group" style={sharedStyle}>{label}</div>
+                                                <div key={h} title={`${iso} ${fmtHour(h)}: 0 turns${isNow ? " (now)" : ""}`} className="group" style={sharedStyle}>{label}</div>
                                             );
                                         })}
                                     </div>
@@ -91,7 +110,70 @@ export function ActivityHeatmapCard({
                             <span style={{ width: 26, flexShrink: 0 }} />
                             <div className="flex justify-between" style={{ flex: 1, fontSize: 8, color: "rgba(255,255,255,0.5)" }}>
                                 {[0, 6, 12, 18, 23].map(idx => (
-                                    <span key={idx}>{fmtH(idx)}</span>
+                                    <span key={idx}>{fmtHour(idx)}</span>
+                                ))}
+                            </div>
+                            <span style={{ width: 32, flexShrink: 0 }} />
+                        </div>
+                    </div>
+                );
+            })() : intervalTab === "today" ? (() => {
+                // 5-minute resolution grid for today only - column = hour (0-23 left to right),
+                // row = 5-minute slot within the hour (0-11 top to bottom, :00 at top, :55 at bottom).
+                const buckets = minuteQ.data?.buckets ?? EMPTY_MINUTE_STATS.buckets;
+                const max = Math.max(1, ...buckets);
+                const now = new Date();
+                const curSlot = now.getHours() * 12 + Math.floor(now.getMinutes() / 5);
+                const cellColor = (n: number) => heatRamp(n === 0 ? 0 : Math.min(n / (max * 0.7), 1));
+                return (
+                    <div>
+                        <div style={{ display: "flex", gap: 8 }}>
+                            <div style={{ display: "grid", gridTemplateRows: "repeat(12, 1fr)", gap: 2, width: 26, flexShrink: 0 }}>
+                                {Array.from({ length: 12 }, (_, row) => (
+                                    <span key={row} style={{ fontSize: 8, color: "rgba(255,255,255,0.5)", display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
+                                        {row === 0 ? ":00" : row === 3 ? ":15" : row === 6 ? ":30" : row === 9 ? ":45" : ""}
+                                    </span>
+                                ))}
+                            </div>
+                            <div style={{ flex: 1, display: "grid", gridTemplateColumns: "repeat(24, 1fr)", gap: 2 }}>
+                                {Array.from({ length: 12 }, (_, row) => (
+                                    Array.from({ length: 24 }, (_, h) => {
+                                        const idx = h * 12 + row;
+                                        const n = buckets[idx] ?? 0;
+                                        const isFuture = idx > curSlot;
+                                        const isNow = idx === curSlot;
+                                        const mm = String(row * 5).padStart(2, "0");
+                                        const mm2 = String(row * 5 + 5).padStart(2, "0");
+                                        const sharedStyle = {
+                                            aspectRatio: "1", minWidth: 0, borderRadius: 2,
+                                            background: isFuture ? "rgba(255,255,255,0.02)" : isNow ? "rgba(255,255,255,0.9)" : cellColor(n),
+                                            outline: isNow ? "1px solid rgba(255,255,255,0.85)" : "none",
+                                            outlineOffset: isNow ? -1 : undefined,
+                                            animation: isNow ? "cellBreathe 5s ease-in-out infinite" : undefined,
+                                            display: "flex", alignItems: "center", justifyContent: "center",
+                                        } as const;
+                                        const label = <span className="opacity-0 group-hover:opacity-100" style={{ fontSize: 7, fontWeight: 700, color: "#000", lineHeight: 1, textShadow: "0 0 2px rgba(255,255,255,0.6)", transition: "opacity 100ms", pointerEvents: "none" }}>{n > 0 ? n : ""}</span>;
+                                        return (!isFuture && n > 0) ? (
+                                            <Link key={idx} href={`/sessions?date=${todayIso}&hour=${h}&turn=${n}${drillMachine}`} title={`${fmtHour(h)} :${mm}-:${mm2}: ${n} turns${isNow ? " (now)" : ""} - click to drill down`} className="group"
+                                                style={{ ...sharedStyle, cursor: "pointer", textDecoration: "none" }}>
+                                                {label}
+                                            </Link>
+                                        ) : (
+                                            <div key={idx} title={`${fmtHour(h)} :${mm}-:${mm2}: ${n} turns${isNow ? " (now)" : isFuture ? " (not yet)" : ""}`} className="group" style={sharedStyle}>
+                                                {label}
+                                            </div>
+                                        );
+                                    })
+                                ))}
+                            </div>
+                            <span style={{ width: 32, flexShrink: 0 }} />
+                        </div>
+                        {/* Hour guide under the grid - matches the 26px left + 32px right spacers used elsewhere so labels line up with the cells above. */}
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 3 }}>
+                            <span style={{ width: 26, flexShrink: 0 }} />
+                            <div className="flex justify-between" style={{ flex: 1, fontSize: 8, color: "rgba(255,255,255,0.5)" }}>
+                                {[0, 6, 12, 18, 23].map(idx => (
+                                    <span key={idx}>{fmtHour(idx)}</span>
                                 ))}
                             </div>
                             <span style={{ width: 32, flexShrink: 0 }} />
@@ -147,8 +229,10 @@ export function ActivityHeatmapCard({
                 const todayHours = byDayHour[todayIso] ?? new Array(24).fill(0);
                 const maxHour = Math.max(...todayHours, 1);
                 const peakHour = todayHours.indexOf(maxHour);
-                const fmtHour = (h: number) => h === 12 ? "NOON" : `${h % 12 === 0 ? 12 : h % 12}${h < 12 ? "AM" : "PM"}`;
                 const nowHour = new Date().getHours();
+                // Red now line at the exact minute, same as the Breakdown hour chart.
+                const nowPct = ((nowHour * 60 + new Date().getMinutes()) / 1440) * 100;
+                const nowLabel = new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
                 const hourColor = (n: number) => heatRamp(n === 0 ? 0 : Math.min(n / (maxHour * 0.7), 1));
                 return (
                     <div style={{ marginTop: 14 }}>
@@ -160,7 +244,10 @@ export function ActivityHeatmapCard({
                         </div>
                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                             <span style={{ width: 26, flexShrink: 0 }} />
-                            <div style={{ flex: 1, display: "flex", gap: 2 }}>
+                            <div style={{ flex: 1, display: "flex", gap: 2, position: "relative" }}>
+                                <div aria-label={`Now ${nowLabel}`} title={nowLabel} style={{ position: "absolute", left: `${nowPct}%`, top: -4, bottom: -4, width: 1, background: "#FF3B30", boxShadow: "0 0 6px rgba(255,59,48,0.8)", zIndex: 2, pointerEvents: "none" }}>
+                                    <span style={{ position: "absolute", top: -12, left: 3, fontSize: 8, fontWeight: 700, color: "#FF3B30", whiteSpace: "nowrap" }}>{nowLabel}</span>
+                                </div>
                                 {todayHours.map((n, h) => {
                                     const isFuture = h > nowHour;
                                     const sharedStyle = {
