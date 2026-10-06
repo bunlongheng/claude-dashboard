@@ -1,6 +1,5 @@
 "use client";
 
-import type { ReactNode } from "react";
 import Link from "next/link";
 import { CalendarDays, Flame, Zap, Star, Cpu, Coins } from "lucide-react";
 import { cardShell, heatRamp } from "@/lib/ui-tokens";
@@ -13,7 +12,6 @@ import type { HeatmapData } from "./types";
 export function ActivityHeatmapCard({
     heatmapData, byDayHour, intervalTab, drillMachine,
     winActiveDays, winTotalDays, winMostActiveLabel, winTotalTokens, favoriteModel,
-    intervalTabsEl,
 }: {
     heatmapData: HeatmapData;
     byDayHour: Record<string, number[]>;
@@ -24,7 +22,6 @@ export function ActivityHeatmapCard({
     winMostActiveLabel: string;
     winTotalTokens: number;
     favoriteModel: string;
-    intervalTabsEl: ReactNode;
 }) {
     const { cellMap, weeksCount, months, maxTurns, longestStreak, currentStreak, dayMap } = heatmapData;
     const cellSize = 11, gap = 2;
@@ -38,7 +35,6 @@ export function ActivityHeatmapCard({
                     <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.55)", margin: 0 }}>Activity</p>
                     <LiveClock />
                 </div>
-                {intervalTabsEl}
             </div>
 
             <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">

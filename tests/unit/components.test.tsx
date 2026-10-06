@@ -207,7 +207,7 @@ describe("JevCard", () => {
   it("fetches /api/claude/jev?days=7 and shows the 3 headline stats", async () => {
     let seenUrl = "";
     server.use(http.get(`${API}/api/claude/jev`, ({ request }) => { seenUrl = request.url; return HttpResponse.json(JEV_FIXTURE); }));
-    withQuery(<JevCard />);
+    withQuery(<JevCard win="7d" />);
     expect(await screen.findByText("LIVE")).toBeInTheDocument();
     expect(seenUrl).toBe(`${API}/api/claude/jev?days=7`);
     expect(screen.getByText("75%")).toBeInTheDocument();
@@ -219,14 +219,14 @@ describe("JevCard", () => {
 
   it("keeps extra precision on a sub-cent cost", async () => {
     server.use(http.get(`${API}/api/claude/jev`, () => HttpResponse.json({ ...JEV_FIXTURE, totals: { ...JEV_FIXTURE.totals, estCostUsd: 0.0042 } })));
-    withQuery(<JevCard />);
+    withQuery(<JevCard win="7d" />);
     expect(await screen.findByText("$0.0042")).toBeInTheDocument();
   });
 
   it("shows the empty state with NEVER when the API fails", async () => {
     server.use(http.get(`${API}/api/claude/jev`, () => HttpResponse.json({ error: "boom" }, { status: 500 })));
-    withQuery(<JevCard />);
-    expect(await screen.findByText("No routed prompts in the last 7 days.")).toBeInTheDocument();
+    withQuery(<JevCard win="7d" />);
+    expect(await screen.findByText("No routed prompts in this window.")).toBeInTheDocument();
     expect(screen.getByText("NEVER")).toBeInTheDocument();
     expect(screen.queryByText("75%")).not.toBeInTheDocument();
   });

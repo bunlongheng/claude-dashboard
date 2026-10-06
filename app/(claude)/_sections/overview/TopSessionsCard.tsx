@@ -1,6 +1,5 @@
 "use client";
 
-import type { ReactNode } from "react";
 import { cardShell } from "@/lib/ui-tokens";
 import type { Token } from "../shared";
 import AppIcon from "../AppIcon";
@@ -9,15 +8,12 @@ const OV_COLORS = ["#ff3b5c", "#ff6347", "#f97316", "#ffb800", "#cddc39", "#00c8
 
 // Top sessions by tokens - windowed list is computed by the parent (it needs
 // the full allTokens + allSessionProjects join), this just renders it.
-export function TopSessionsCard({ tokensBySessionWindowed, intervalTabsEl }: {
-    tokensBySessionWindowed: Token[]; intervalTabsEl: ReactNode;
+export function TopSessionsCard({ tokensBySessionWindowed }: {
+    tokensBySessionWindowed: Token[];
 }) {
     return (
         <div style={cardShell}>
-            <div className="flex items-center justify-between" style={{ marginBottom: 14, gap: 8, flexWrap: "wrap" }}>
-                <h3 style={{ fontSize: 9, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.55)", margin: 0 }}>Top Sessions by Tokens</h3>
-                {intervalTabsEl}
-            </div>
+            <h3 style={{ fontSize: 9, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.55)", margin: "0 0 14px" }}>Top Sessions by Tokens</h3>
             <div className="space-y-2">
                 {tokensBySessionWindowed.slice(0, 6).map((t, i: number) => {
                     const total = t.input_tokens + t.output_tokens;

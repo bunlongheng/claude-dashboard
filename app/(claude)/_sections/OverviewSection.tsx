@@ -4,7 +4,8 @@ import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { RAG_ENABLED } from "@/lib/features";
 import { useMachine } from "./MachineContext";
-import { safeFetch, IntervalTabs, type Token, type ProjectSessions, type Window4 } from "./shared";
+import { safeFetch, SegmentedTabs, WINDOW_TABS, type Token, type ProjectSessions, type Window4 } from "./shared";
+import { HeroSlot } from "./PageHero";
 import { MascotLoader } from "./MascotLoader";
 import SkillUsagePanel from "./SkillUsagePanel";
 import { HeroCardsGrid } from "./overview/HeroCardsGrid";
@@ -261,8 +262,12 @@ export default function OverviewSection() {
         { value: stats.plugins, color: "#5856D6", label: "Plugins" },
     ];
 
-    // Reusable tab control - same UX in Breakdown / Activity / Top Sessions.
-    const intervalTabsEl = <IntervalTabs value={intervalTab} onChange={setIntervalTab} />;
+    // 1 window control in the page hero drives every windowed card below.
+    const heroTabs = (
+        <HeroSlot>
+            <SegmentedTabs<Window4> tabs={WINDOW_TABS} value={intervalTab} onChange={setIntervalTab} />
+        </HeroSlot>
+    );
 
     // Windowed stats for the Activity section
     const winDays = dailyData.filter(d => new Date(d.day + "T12:00:00").getTime() >= windowCutoff);
@@ -317,15 +322,16 @@ export default function OverviewSection() {
             )}
             {/* Hero metrics - 10 boxes, 5 per row. Each: headline + 2-stat breakdown.
                 Order + colors mirror the left nav gradient (red -> indigo, no white). */}
+            {heroTabs}
             <HeroCardsGrid stats={stats} ragStats={ragStats} liveSessions={liveSessions} totalTokens={totalTokens} />
 
             {/* Row 4 - 4 columns: config, top sessions, Jev router, skill usage */}
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
                 <ConfigDonutCard segments={configSegments} />
-                <TopSessionsCard tokensBySessionWindowed={tokensBySessionWindowed} intervalTabsEl={intervalTabsEl} />
-                <JevCard />
+                <TopSessionsCard tokensBySessionWindowed={tokensBySessionWindowed} />
+                <JevCard win={intervalTab} />
                 {/* Skill usage - compact col next to the Jev card */}
-                <SkillUsagePanel />
+                <SkillUsagePanel win={intervalTab} />
             </div>
 
             {/* Activity Heatmap + Stats */}
@@ -341,9 +347,8 @@ export default function OverviewSection() {
                         winMostActiveLabel={winMostActiveLabel}
                         winTotalTokens={winTotalTokens}
                         favoriteModel={favoriteModel}
-                        intervalTabsEl={intervalTabsEl}
                     />
-                    <BreakdownCard dailyData={dailyData} breakdownInterval={breakdownInterval} intervalTabsEl={intervalTabsEl} />
+                    <BreakdownCard dailyData={dailyData} breakdownInterval={breakdownInterval} />
                 </div>
             )}
 

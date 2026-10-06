@@ -383,26 +383,6 @@ const SEGMENT_ACTIVE = "#f97316";
 // The 4 standard time windows every usage card offers, in this order.
 export type Window4 = "today" | "7d" | "30d" | "all";
 export const WINDOW_TABS: { key: Window4; label: string }[] = [{ key: "today", label: "Today" }, { key: "7d", label: "7d" }, { key: "30d", label: "30d" }, { key: "all", label: "All" }];
-
-// Flat grey window tabs - the Overview cards (Activity, Breakdown, Top
-// sessions, Skill usage) all share this one control.
-export function IntervalTabs({ value, onChange }: { value: Window4; onChange: (k: Window4) => void }) {
-    return (
-        <div style={{ display: "inline-flex", background: "rgba(255,255,255,0.04)", borderRadius: 6, padding: 2 }}>
-            {WINDOW_TABS.map(t => {
-                const active = value === t.key;
-                return (
-                    <button key={t.key} type="button" onClick={() => onChange(t.key)} style={{
-                        fontSize: 9, fontWeight: 700, padding: "4px 9px", borderRadius: 4,
-                        background: active ? "rgba(255,255,255,0.14)" : "transparent",
-                        color: active ? "#fff" : "rgba(255,255,255,0.52)",
-                        border: "none", cursor: "pointer", letterSpacing: 0.5,
-                    }}>{t.key === "all" ? "ALL" : t.label}</button>
-                );
-            })}
-        </div>
-    );
-}
 export function SegmentedTabs<K extends string>({ tabs, value, onChange, accent = SEGMENT_ACTIVE }: {
     tabs: { key: K; label: string; count?: number }[];
     value: K;

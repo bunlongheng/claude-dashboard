@@ -1,9 +1,8 @@
 "use client";
 
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useMachine } from "./MachineContext";
-import { safeFetch, IntervalTabs, type Window4 } from "./shared";
+import { safeFetch, type Window4 } from "./shared";
 import { cardShell } from "@/lib/ui-tokens";
 
 type UsageRow = { name: string; count: number; pct: number; lastUsed: number };
@@ -15,16 +14,14 @@ interface SkillUsageData {
     subagents: UsageRow[];
 }
 
-// The standard Today / 7d / 30d / All windows. 30d is the default so the
-// card is never empty first thing in the morning.
+// The standard Today / 7d / 30d / All windows, driven by the Overview hero tabs.
 type Win = Window4;
 const WIN_PARAM: Record<Win, string> = { today: "today=1", "7d": "hours=168", "30d": "hours=720", all: "all=1" };
 
 // Compact card in the Overview 4-col row next to Context Window: skill name +
 // share% + call count, no bars, matching the Context Window style.
-export default function SkillUsagePanel() {
+export default function SkillUsagePanel({ win }: { win: Win }) {
     const { apiBase } = useMachine();
-    const [win, setWin] = useState<Win>("30d");
     // The route scans every session file touched in the window, so poll it
     // gently: 5 min, no refetch on window focus. Keyed by URL so the machine
     // context settling on mount does not trigger a second load.
@@ -39,10 +36,7 @@ export default function SkillUsagePanel() {
 
     return (
         <div style={cardShell}>
-            <div className="flex items-center justify-between flex-wrap" style={{ gap: 8, marginBottom: 12 }}>
-                <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.55)", margin: 0, whiteSpace: "nowrap" }}>Skill Usage</p>
-                <IntervalTabs value={win} onChange={setWin} />
-            </div>
+            <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.55)", margin: "0 0 12px" }}>Skill Usage</p>
             {data && data.skills.length > 0 ? (
                 <div className="space-y-1.5">
                     {data.skills.slice(0, 8).map(r => (
