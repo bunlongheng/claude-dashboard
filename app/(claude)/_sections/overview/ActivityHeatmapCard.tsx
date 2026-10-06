@@ -145,7 +145,8 @@ export function ActivityHeatmapCard({
                                         const mm = String(row * 5).padStart(2, "0");
                                         const mm2 = String(row * 5 + 5).padStart(2, "0");
                                         const sharedStyle = {
-                                            aspectRatio: "1", minWidth: 0, borderRadius: 2,
+                                            // Fixed 12px rows keep the 12 minute rows about as tall as the 7d grid.
+                                            height: 12, minWidth: 0, borderRadius: 2,
                                             background: isFuture ? "rgba(255,255,255,0.02)" : isNow ? "rgba(255,255,255,0.9)" : cellColor(n),
                                             outline: isNow ? "1px solid rgba(255,255,255,0.85)" : "none",
                                             outlineOffset: isNow ? -1 : undefined,
