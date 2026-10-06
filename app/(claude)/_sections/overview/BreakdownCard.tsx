@@ -52,6 +52,10 @@ export function BreakdownCard({ dailyData, breakdownInterval, win, byDayHour }: 
     const hourMax = Math.max(...hourCols.map(r => r.turns), 1);
     const hourLabel = (h: number) => `${h % 12 === 0 ? 12 : h % 12} ${h < 12 ? "AM" : "PM"}`;
     const hourTick = (h: number) => `${h % 12 === 0 ? 12 : h % 12}${h < 12 ? "a" : "p"}`;
+    // Red "now" line sits at the exact minute of the day; gridlines at quarter steps of the tallest hour.
+    const nowPct = ((hourNow * 60 + now.getMinutes()) / 1440) * 100;
+    const nowLabel = now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+    const gridSteps = [0.25, 0.5, 0.75, 1];
 
     return (
         <div style={{ ...cardShell, flex: "0 0 40%", display: "flex", flexDirection: "column", gap: 14 }}>
@@ -79,14 +83,22 @@ export function BreakdownCard({ dailyData, breakdownInterval, win, byDayHour }: 
 
             {/* Hour-by-hour columns (today) */}
             {win === "today" && (
-                <div aria-label="Breakdown by hour">
-                    <div className="flex items-end" style={{ gap: 3, height: 120 }}>
+                <div aria-label="Breakdown by hour" style={{ paddingTop: 14 }}>
+                    <div className="flex items-end" style={{ gap: 3, height: 120, position: "relative" }}>
+                        {gridSteps.map(f => (
+                            <div key={f} aria-hidden style={{ position: "absolute", left: 0, right: 0, bottom: `${f * 100}%`, borderTop: "1px solid rgba(255,255,255,0.07)", pointerEvents: "none" }}>
+                                <span style={{ position: "absolute", right: 0, top: -11, fontSize: 8, color: "rgba(255,255,255,0.22)" }}>{Math.round(hourMax * f)}</span>
+                            </div>
+                        ))}
+                        <div aria-label={`Now ${nowLabel}`} title={nowLabel} style={{ position: "absolute", left: `${nowPct}%`, top: -4, bottom: 0, width: 1, background: "#FF3B30", boxShadow: "0 0 6px rgba(255,59,48,0.8)", zIndex: 2, pointerEvents: "none" }}>
+                            <span style={{ position: "absolute", top: -12, left: 3, fontSize: 8, fontWeight: 700, color: "#FF3B30", whiteSpace: "nowrap" }}>{nowLabel}</span>
+                        </div>
                         {hourCols.map(c => {
                             const isNow = c.h === hourNow;
                             const future = c.h > hourNow;
                             const pct = c.turns > 0 ? Math.max((c.turns / hourMax) * 100, 3) : 0;
                             return (
-                                <div key={c.h} title={`${hourLabel(c.h)} - ${c.turns} messages`} className="flex flex-col items-center justify-end" style={{ flex: 1, minWidth: 0, height: "100%" }}>
+                                <div key={c.h} title={`${hourLabel(c.h)} - ${c.turns} messages`} className="flex flex-col items-center justify-end" style={{ flex: 1, minWidth: 0, height: "100%", position: "relative", zIndex: 1 }}>
                                     {c.turns > 0 && <span style={{ fontSize: 8, lineHeight: "10px", marginBottom: 2, color: isNow ? "#fff" : "rgba(255,255,255,0.45)", fontWeight: isNow ? 700 : 400 }}>{c.turns}</span>}
                                     <div style={{ width: "100%", height: pct > 0 ? `${pct}%` : 2, borderRadius: "3px 3px 0 0", background: isNow ? "rgba(255,255,255,0.9)" : future ? "rgba(255,255,255,0.05)" : c.turns > 0 ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.1)", transition: "height 0.6s" }} />
                                 </div>
