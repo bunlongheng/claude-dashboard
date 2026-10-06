@@ -7,11 +7,12 @@ import type { DayBucket } from "./types";
 // RIGHT 40% of the "Activity Heatmap + Stats" row - message/token/session
 // totals for the selected interval plus a day-by-day bar chart (hour-by-hour
 // rows for Today).
-export function BreakdownCard({ dailyData, breakdownInterval, win, byDayHour }: {
+export function BreakdownCard({ dailyData, breakdownInterval, win, byDayHour, tokens }: {
     dailyData: DayBucket[];
     breakdownInterval: "today" | "7d" | "30d" | "all";
     win: Window4;
     byDayHour?: Record<string, number[]>;
+    tokens?: number; // exact input + output for the window from the tokens route; falls back to the daily sum
 }) {
     const now = new Date();
     const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
@@ -32,7 +33,7 @@ export function BreakdownCard({ dailyData, breakdownInterval, win, byDayHour }: 
         sessions: acc.sessions + d.sessions,
     }), { turns: 0, input: 0, output: 0, sessions: 0 });
 
-    const totalTok = sum.input + sum.output;
+    const totalTok = tokens ?? sum.input + sum.output;
     function ft(n: number) { return n >= 1_000_000 ? `${(n/1_000_000).toFixed(1)}M` : n >= 1_000 ? `${(n/1_000).toFixed(1)}k` : String(n); }
 
     // Bar chart rows - daily (week/month) or single row (today)

@@ -62,6 +62,15 @@ export default function OverviewSection() {
         queryFn: () => safeFetch<DailyStatsResponse>(dailyUrl, { daily: [], byModel: [], tools: [] }, () => setDataError(true)),
     });
     const dailyData = useMemo(() => dailyQuery.data?.daily ?? [], [dailyQuery.data]);
+    // Token totals come from the tokens route (full transcripts, deduped by
+    // message id, subagents included) so the Overview matches the Tokens page.
+    // The daily route tails big files and skips subagents, so its sums run low.
+    type TokenTotals = { totals?: { input: number; output: number } } | null;
+    const tokensWinUrl = apiBase(`/api/claude/tokens?since=${intervalTab}`);
+    const tokensWinQuery = useQuery<TokenTotals>({ queryKey: ["tokens", tokensWinUrl], queryFn: () => safeFetch<TokenTotals>(tokensWinUrl, null), refetchInterval: 60_000, refetchOnWindowFocus: false, placeholderData: prev => prev });
+    const tokensAllUrl = apiBase("/api/claude/tokens?since=all");
+    const tokensAllQuery = useQuery<TokenTotals>({ queryKey: ["tokens", tokensAllUrl], queryFn: () => safeFetch<TokenTotals>(tokensAllUrl, null), refetchInterval: 60_000, refetchOnWindowFocus: false });
+    const winTokensExact = tokensWinQuery.data?.totals ? tokensWinQuery.data.totals.input + tokensWinQuery.data.totals.output : undefined;
     const byDayHour = dailyQuery.data?.byDayHour && typeof dailyQuery.data.byDayHour === "object" ? dailyQuery.data.byDayHour : {};
     const favoriteModel = useMemo(() => {
         const models = dailyQuery.data?.byModel ?? [];
@@ -303,7 +312,9 @@ export default function OverviewSection() {
 
 
     const liveSessions = allSessionProjects.flatMap((p) => (p.sessions || []).filter((s) => s.live)).length;
-    const totalTokens = dailyData.reduce((s, d) => s + (d.input ?? 0) + (d.output ?? 0), 0);
+    const totalTokens = tokensAllQuery.data?.totals
+        ? tokensAllQuery.data.totals.input + tokensAllQuery.data.totals.output
+        : dailyData.reduce((s, d) => s + (d.input ?? 0) + (d.output ?? 0), 0);
 
     return (
         <div className="space-y-6">
@@ -348,7 +359,7 @@ export default function OverviewSection() {
                         winTotalTokens={winTotalTokens}
                         favoriteModel={favoriteModel}
                     />
-                    <BreakdownCard dailyData={dailyData} breakdownInterval={breakdownInterval} win={intervalTab} byDayHour={byDayHour} />
+                    <BreakdownCard dailyData={dailyData} breakdownInterval={breakdownInterval} win={intervalTab} byDayHour={byDayHour} tokens={winTokensExact} />
                 </div>
             )}
 
