@@ -44,11 +44,14 @@ export function BreakdownCard({ dailyData, breakdownInterval, win, byDayHour }: 
     const barRows = barRowsRaw;
     const barMax = Math.max(...barRows.map(d => d.turns), 1);
 
-    // Today: hour rows from midnight to the current hour, 1 row per hour.
+    // Today: 24 columns, midnight to 11 PM, rising from a shared baseline
+    // like a skyline. Hours still to come stay as empty stubs.
     const hourTurns = byDayHour?.[todayStr] ?? [];
-    const hourRows = Array.from({ length: now.getHours() + 1 }, (_, h) => ({ h, turns: hourTurns[h] ?? 0 }));
-    const hourMax = Math.max(...hourRows.map(r => r.turns), 1);
+    const hourNow = now.getHours();
+    const hourCols = Array.from({ length: 24 }, (_, h) => ({ h, turns: hourTurns[h] ?? 0 }));
+    const hourMax = Math.max(...hourCols.map(r => r.turns), 1);
     const hourLabel = (h: number) => `${h % 12 === 0 ? 12 : h % 12} ${h < 12 ? "AM" : "PM"}`;
+    const hourTick = (h: number) => `${h % 12 === 0 ? 12 : h % 12}${h < 12 ? "a" : "p"}`;
 
     return (
         <div style={{ ...cardShell, flex: "0 0 40%", display: "flex", flexDirection: "column", gap: 14 }}>
@@ -74,22 +77,27 @@ export function BreakdownCard({ dailyData, breakdownInterval, win, byDayHour }: 
                 </div>
             </div>
 
-            {/* Hour-by-hour bar rows (today) */}
-            {win === "today" && hourRows.length > 0 && (
-                <div className="space-y-1.5" aria-label="Breakdown by hour">
-                    {hourRows.map(r => {
-                        const pct = Math.max((r.turns / hourMax) * 100, r.turns > 0 ? 2 : 0);
-                        const isNow = r.h === now.getHours();
-                        return (
-                            <div key={r.h} className="flex items-center gap-2">
-                                <span style={{ fontSize: 9, color: isNow ? "#fff" : "rgba(255,255,255,0.25)", width: 70, flexShrink: 0, fontWeight: isNow ? 700 : 400 }}>{hourLabel(r.h)}</span>
-                                <div style={{ flex: 1, height: 5, borderRadius: 3, background: "rgba(255,255,255,0.05)", overflow: "hidden" }}>
-                                    <div style={{ width: `${pct}%`, height: "100%", borderRadius: 3, background: isNow ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.3)", transition: "width 0.6s" }} />
+            {/* Hour-by-hour columns (today) */}
+            {win === "today" && (
+                <div aria-label="Breakdown by hour">
+                    <div className="flex items-end" style={{ gap: 3, height: 120 }}>
+                        {hourCols.map(c => {
+                            const isNow = c.h === hourNow;
+                            const future = c.h > hourNow;
+                            const pct = c.turns > 0 ? Math.max((c.turns / hourMax) * 100, 3) : 0;
+                            return (
+                                <div key={c.h} title={`${hourLabel(c.h)} - ${c.turns} messages`} className="flex flex-col items-center justify-end" style={{ flex: 1, minWidth: 0, height: "100%" }}>
+                                    {c.turns > 0 && <span style={{ fontSize: 8, lineHeight: "10px", marginBottom: 2, color: isNow ? "#fff" : "rgba(255,255,255,0.45)", fontWeight: isNow ? 700 : 400 }}>{c.turns}</span>}
+                                    <div style={{ width: "100%", height: pct > 0 ? `${pct}%` : 2, borderRadius: "3px 3px 0 0", background: isNow ? "rgba(255,255,255,0.9)" : future ? "rgba(255,255,255,0.05)" : c.turns > 0 ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.1)", transition: "height 0.6s" }} />
                                 </div>
-                                <span style={{ fontSize: 9, color: "rgba(255,255,255,0.55)", width: 28, textAlign: "right", flexShrink: 0 }}>{r.turns}</span>
-                            </div>
-                        );
-                    })}
+                            );
+                        })}
+                    </div>
+                    <div className="flex" style={{ gap: 3, marginTop: 4, borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 4 }}>
+                        {hourCols.map(c => (
+                            <span key={c.h} style={{ flex: 1, minWidth: 0, textAlign: "center", fontSize: 8, color: c.h === hourNow ? "#fff" : "rgba(255,255,255,0.25)", fontWeight: c.h === hourNow ? 700 : 400 }}>{c.h % 3 === 0 || c.h === hourNow ? hourTick(c.h) : ""}</span>
+                        ))}
+                    </div>
                 </div>
             )}
 
