@@ -380,6 +380,9 @@ export function SectionHeader({ icon: Icon, title }: { icon: React.ElementType; 
 // Segmented pill tabs - matches the [24h | 7d | 30d | ALL] control style.
 // Used wherever the user toggles between mutually-exclusive views.
 const SEGMENT_ACTIVE = "#f97316";
+// The 4 standard time windows every usage card offers, in this order.
+export type Window4 = "today" | "7d" | "30d" | "all";
+export const WINDOW_TABS: { key: Window4; label: string }[] = [{ key: "today", label: "Today" }, { key: "7d", label: "7d" }, { key: "30d", label: "30d" }, { key: "all", label: "All" }];
 export function SegmentedTabs<K extends string>({ tabs, value, onChange, accent = SEGMENT_ACTIVE }: {
     tabs: { key: K; label: string; count?: number }[];
     value: K;

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowUpRight, ArrowDownLeft, Database, Users, Bot } from "lucide-react";
 import { useMachine } from "./MachineContext";
-import { safeFetch, SegmentedTabs, fmtCompact, fmtCost, fmtTs, timeAgo, FetchError } from "./shared";
+import { safeFetch, SegmentedTabs, WINDOW_TABS, fmtCompact, fmtCost, fmtTs, timeAgo, FetchError } from "./shared";
 import { cardShell } from "@/lib/ui-tokens";
 import { BigStat, MONO, th, td, num } from "./McpLogPanel";
 import { HeroSlot } from "./PageHero";
@@ -96,7 +96,7 @@ export default function TokensSection() {
                     </p>
                 </div>
                 <HeroSlot>
-                    <SegmentedTabs<Since> tabs={[{ key: "today", label: "Today" }, { key: "7d", label: "7d" }, { key: "30d", label: "30d" }, { key: "all", label: "All" }]} value={since} onChange={s => { setSince(s); setLimit(PAGE); }} accent={ACCENT} />
+                    <SegmentedTabs<Since> tabs={WINDOW_TABS} value={since} onChange={s => { setSince(s); setLimit(PAGE); }} accent={ACCENT} />
                 </HeroSlot>
             </div>
 

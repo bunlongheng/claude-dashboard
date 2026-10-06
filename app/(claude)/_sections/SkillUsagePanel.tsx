@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useMachine } from "./MachineContext";
-import { safeFetch, SegmentedTabs } from "./shared";
+import { safeFetch, SegmentedTabs, WINDOW_TABS, type Window4 } from "./shared";
 import { cardShell } from "@/lib/ui-tokens";
 
 type UsageRow = { name: string; count: number; pct: number; lastUsed: number };
@@ -15,9 +15,10 @@ interface SkillUsageData {
     subagents: UsageRow[];
 }
 
-// Time-window tabs: 7d / 30d / ALL (all-time). 30d is the default.
-type Win = "7d" | "30d" | "all";
-const WIN_PARAM: Record<Win, string> = { "7d": "hours=168", "30d": "hours=720", "all": "all=1" };
+// The standard Today / 7d / 30d / All windows. 30d is the default so the
+// card is never empty first thing in the morning.
+type Win = Window4;
+const WIN_PARAM: Record<Win, string> = { today: "today=1", "7d": "hours=168", "30d": "hours=720", all: "all=1" };
 
 // Compact card in the Overview 4-col row next to Context Window: skill name +
 // share% + call count, no bars, matching the Context Window style.
@@ -41,7 +42,7 @@ export default function SkillUsagePanel() {
             <div className="flex items-center justify-between" style={{ gap: 8, marginBottom: 12 }}>
                 <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.55)", margin: 0 }}>Skill Usage</p>
                 <SegmentedTabs<Win>
-                    tabs={[{ key: "7d", label: "7d" }, { key: "30d", label: "30d" }, { key: "all", label: "ALL" }]}
+                    tabs={WINDOW_TABS}
                     value={win}
                     onChange={setWin}
                     accent="#8AC249"
