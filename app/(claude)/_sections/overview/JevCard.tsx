@@ -48,14 +48,11 @@ export function JevCard({ win }: { win: Window4 }) {
     return (
         <div style={{ ...cardShell, display: "flex", flexDirection: "column" }}>
             <div className="flex items-center justify-between" style={{ marginBottom: 12, gap: 8 }}>
-                <p style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: JEV_PINK, margin: 0 }}><JevMark size={14} />Jev Router {routed > 0 ? <span style={{ color: "rgba(255,255,255,0.3)", fontWeight: 600 }}>{routed}</span> : null}</p>
-                <div className="flex items-center" style={{ gap: 6 }}>
-                    <WindowBadge win={win} />
-                    <Link href="/jev" style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 9, fontWeight: 800, letterSpacing: "0.1em", color: health.color, textDecoration: "none" }}>
-                        <span style={{ width: 6, height: 6, borderRadius: 999, background: health.color, boxShadow: `0 0 8px ${health.color}` }} />
-                        {health.label}
-                    </Link>
-                </div>
+                <p style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: JEV_PINK, margin: 0 }}><JevMark size={14} />Jev Router {routed > 0 ? <span style={{ color: "rgba(255,255,255,0.3)", fontWeight: 600 }}>{routed}</span> : null}
+                    {/* Health dot only - the label lives in the tooltip and aria-label */}
+                    <Link href="/jev" aria-label={health.label} title={health.label} style={{ display: "inline-flex", width: 6, height: 6, borderRadius: 999, background: health.color, boxShadow: `0 0 8px ${health.color}` }} />
+                </p>
+                <WindowBadge win={win} />
             </div>
             {routed > 0 && t ? (
                 <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
