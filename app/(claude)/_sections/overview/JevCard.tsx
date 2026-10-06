@@ -44,6 +44,12 @@ export function JevCard({ win }: { win: Window4 }) {
     const routed = segments.reduce((s, x) => s + x.value, 0);
     const t = data?.totals;
     const cost = t ? formatUsd(t.estCostUsd) : "-";
+    // Per-day view of the window: 1 bar per day that had calls, routed share in pink.
+    const dayCalls = (data?.daily ?? []).map(d => ({ day: d.day, calls: d.routed + d.skipped + d.errors, routed: d.routed }));
+    const maxCalls = Math.max(1, ...dayCalls.map(d => d.calls));
+    const dayCount = Math.max(1, dayCalls.length);
+    const callsPerDay = t ? Math.round(t.calls / dayCount) : 0;
+    const costPerDay = t ? formatUsd(t.estCostUsd / dayCount) : "-";
 
     return (
         <div style={{ ...cardShell, display: "flex", flexDirection: "column" }}>
@@ -59,10 +65,23 @@ export function JevCard({ win }: { win: Window4 }) {
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 120, padding: "8px 0" }}>
                         <PolarChart segments={segments} size={156} onSelect={tier => router.push(`/jev?days=${days}&tier=${tier}#tier-split`)} />
                     </div>
+                    <div style={{ display: "flex", alignItems: "flex-end", gap: 2, height: 28, marginTop: 10 }} aria-label="Jev calls per day">
+                        {dayCalls.map(d => (
+                            <div key={d.day} title={`${d.day} - ${d.calls} calls, ${d.routed} routed`} style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "flex-end", height: "100%" }}>
+                                <div style={{ height: `${Math.max(4, (d.calls / maxCalls) * 100)}%`, borderRadius: 2, background: "rgba(255,255,255,0.12)", position: "relative", overflow: "hidden" }}>
+                                    <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: `${d.calls ? (d.routed / d.calls) * 100 : 0}%`, background: JEV_PINK }} />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                     <div className="grid grid-cols-3" style={{ gap: 8, marginTop: 8 }}>
                         <Stat label="Routed" value={`${Math.round(t.routedPct)}%`} color="#22C55E" />
                         <Stat label="Avg ms" value={String(Math.round(t.avgLatencyMs))} color="#4A9EFF" />
                         <Stat label="Cost" value={cost} color="#F97316" />
+                    </div>
+                    <div className="grid grid-cols-2" style={{ gap: 8, marginTop: 8 }}>
+                        <Stat label="Calls / day" value={String(callsPerDay)} color={JEV_PINK} />
+                        <Stat label="Cost / day" value={costPerDay} color="#F97316" />
                     </div>
                 </div>
             ) : (
