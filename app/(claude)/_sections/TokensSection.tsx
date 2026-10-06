@@ -8,7 +8,7 @@ import { safeFetch, SegmentedTabs, fmtCompact, fmtCost, fmtTs, timeAgo, FetchErr
 import { cardShell } from "@/lib/ui-tokens";
 import { BigStat, MONO, th, td, num } from "./McpLogPanel";
 import AppIcon from "./AppIcon";
-import type { TokensData, Since, Role, WhoRow, PeriodRow } from "@/app/api/claude/tokens/route";
+import type { TokensData, Since, Role, WhoRow } from "@/app/api/claude/tokens/route";
 
 const ACCENT = "#FFCC00";
 const OUT = "#7C5CFF";
@@ -16,12 +16,6 @@ const IN = "#4A9EFF";
 const CACHE = "#3FB68B";
 const PAGE = 25;
 const ROLE: Record<Role, { label: string; color: string }> = { main: { label: "main thread", color: ACCENT }, agent: { label: "subagent", color: "#5AC8FA" } };
-type Period = "daily" | "weekly" | "monthly";
-const PERIOD_NOTE: Record<Period, string> = {
-    daily: "1 row per local calendar day, last 31 days",
-    weekly: "weeks start on Monday, last 16 weeks",
-    monthly: "calendar months, full history",
-};
 const SINCE_LABEL: Record<Since, string> = { today: "since 12:00 AM today", "7d": "last 7 days", "30d": "last 30 days", all: "all time" };
 
 const shortModel = (m: string) => m.replace(/^claude-/, "").replace(/-\d{8}$/, "");
@@ -79,7 +73,6 @@ export default function TokensSection() {
     const { apiBase } = useMachine();
     const [since, setSince] = useState<Since>("today");
     const [limit, setLimit] = useState(PAGE);
-    const [period, setPeriod] = useState<Period>("daily");
     const url = apiBase(`/api/claude/tokens?since=${since}`);
     const { data, isFetching, isError, refetch } = useQuery<TokensData | null>({
         queryKey: ["tokens", url],
@@ -88,19 +81,6 @@ export default function TokensSection() {
         refetchOnWindowFocus: false,
         placeholderData: prev => prev,
     });
-    // The breakdown is always all-time so a week or month is never cut by the window above.
-    const allUrl = apiBase("/api/claude/tokens?since=all");
-    const { data: all } = useQuery<TokensData | null>({
-        queryKey: ["tokens", allUrl],
-        queryFn: () => safeFetch<TokensData | null>(allUrl, null),
-        refetchInterval: 300_000,
-        refetchOnWindowFocus: false,
-        placeholderData: prev => prev,
-    });
-    const rows: PeriodRow[] = (period === "daily" ? (all?.daily ?? []).slice(-31).map(({ day, ...d }) => ({ ...d, period: day }))
-        : period === "weekly" ? (all?.weekly ?? []).slice(-16)
-        : (all?.monthly ?? [])).slice().reverse();
-    const sum = rows.reduce((a, r) => ({ turns: a.turns + r.turns, input: a.input + r.input, output: a.output + r.output, cacheRead: a.cacheRead + r.cacheRead, cacheCreate: a.cacheCreate + r.cacheCreate, cost: a.cost + r.cost }), { turns: 0, input: 0, output: 0, cacheRead: 0, cacheCreate: 0, cost: 0 });
     const t = data?.totals;
     const live = data?.sessions.filter(s => s.active).length ?? 0;
     const whoByRole = (data?.who ?? []).reduce<Record<Role, WhoRow[]>>((acc, w) => { acc[w.role].push(w); return acc; }, { main: [], agent: [] });
@@ -172,59 +152,6 @@ export default function TokensSection() {
                 </>
             )}
 
-            <div className="flex items-center justify-between flex-wrap" style={{ gap: 12, marginTop: 22 }}>
-                <div>
-                    <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.55)", margin: 0 }}>Breakdown <span style={{ color: "rgba(255,255,255,0.3)", fontWeight: 400 }}>exact counts, all time</span></p>
-                    <p style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", margin: "2px 0 0" }}>{PERIOD_NOTE[period]} · matches ccusage (Claude rows){all ? ` · as of ${fmtTs(all.generatedAt)}` : " · scanning every transcript, the first load takes a while"}</p>
-                </div>
-                <SegmentedTabs<Period> tabs={[{ key: "daily", label: "Daily" }, { key: "weekly", label: "Weekly" }, { key: "monthly", label: "Monthly" }]} value={period} onChange={setPeriod} accent={ACCENT} />
-            </div>
-            <div style={{ overflowX: "auto", marginTop: 8 }}>
-                <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                    <thead>
-                        <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
-                            <th style={th}>{period === "weekly" ? "week of" : period === "monthly" ? "month" : "day"}</th>
-                            <th style={{ ...th, textAlign: "right" }}>sessions</th>
-                            <th style={{ ...th, textAlign: "right" }}>turns</th>
-                            <th style={{ ...th, textAlign: "right", color: OUT }}>output</th>
-                            <th style={{ ...th, textAlign: "right", color: IN }}>input</th>
-                            <th style={{ ...th, textAlign: "right", color: CACHE }}>cache read</th>
-                            <th style={{ ...th, textAlign: "right" }}>cache write</th>
-                            <th style={{ ...th, textAlign: "right", color: "#fff" }}>total</th>
-                            <th style={{ ...th, textAlign: "right", color: "rgba(255,255,255,0.25)" }}>est $ (fyi)</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {rows.map(r => (
-                            <tr key={r.period} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-                                <td style={{ ...td, fontFamily: MONO, color: "#fff" }}>{r.period}</td>
-                                <td style={num}>{fmtFull(r.sessions)}</td>
-                                <td style={num}>{fmtFull(r.turns)}</td>
-                                <td style={{ ...num, color: OUT, fontWeight: 600 }}>{fmtFull(r.output)}</td>
-                                <td style={{ ...num, color: IN }}>{fmtFull(r.input)}</td>
-                                <td style={{ ...num, color: CACHE }}>{fmtFull(r.cacheRead)}</td>
-                                <td style={{ ...num, color: "rgba(255,255,255,0.45)" }}>{fmtFull(r.cacheCreate)}</td>
-                                <td style={{ ...num, color: "#fff", fontWeight: 600 }}>{fmtFull(r.input + r.output + r.cacheRead + r.cacheCreate)}</td>
-                                <td style={{ ...num, color: "rgba(255,255,255,0.3)" }}>{fmtCost(r.cost)}</td>
-                            </tr>
-                        ))}
-                        {rows.length > 1 && (
-                            <tr style={{ borderTop: "1px solid rgba(255,255,255,0.12)" }}>
-                                <td style={{ ...td, color: "rgba(255,255,255,0.55)", fontWeight: 700 }}>{rows.length} {period === "daily" ? "days" : period === "weekly" ? "weeks" : "months"} shown</td>
-                                <td style={num} />
-                                <td style={num}>{fmtFull(sum.turns)}</td>
-                                <td style={{ ...num, color: OUT, fontWeight: 700 }}>{fmtFull(sum.output)}</td>
-                                <td style={{ ...num, color: IN, fontWeight: 700 }}>{fmtFull(sum.input)}</td>
-                                <td style={{ ...num, color: CACHE, fontWeight: 700 }}>{fmtFull(sum.cacheRead)}</td>
-                                <td style={{ ...num, color: "rgba(255,255,255,0.45)", fontWeight: 700 }}>{fmtFull(sum.cacheCreate)}</td>
-                                <td style={{ ...num, color: "#fff", fontWeight: 700 }}>{fmtFull(sum.input + sum.output + sum.cacheRead + sum.cacheCreate)}</td>
-                                <td style={{ ...num, color: "rgba(255,255,255,0.3)" }}>{fmtCost(sum.cost)}</td>
-                            </tr>
-                        )}
-                        {!rows.length && <tr><td colSpan={9} style={{ ...td, textAlign: "center", color: "rgba(255,255,255,0.3)", padding: 20 }}>{all ? "No usage yet" : "Scanning..."}</td></tr>}
-                    </tbody>
-                </table>
-            </div>
 
             <Title>Sessions <span style={{ color: "rgba(255,255,255,0.3)", fontWeight: 400 }}>{data?.sessions.length ?? 0}</span></Title>
             <div style={{ overflowX: "auto" }}>
