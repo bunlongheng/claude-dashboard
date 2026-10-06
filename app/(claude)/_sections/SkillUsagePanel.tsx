@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useMachine } from "./MachineContext";
-import { safeFetch, type Window4 } from "./shared";
+import { safeFetch, WindowBadge, type Window4 } from "./shared";
 import { cardShell } from "@/lib/ui-tokens";
 
 type UsageRow = { name: string; count: number; pct: number; lastUsed: number };
@@ -36,7 +36,10 @@ export default function SkillUsagePanel({ win }: { win: Win }) {
 
     return (
         <div style={cardShell}>
-            <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.55)", margin: "0 0 12px" }}>Skill Usage</p>
+            <div className="flex items-center justify-between" style={{ marginBottom: 12, gap: 8 }}>
+                <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.55)", margin: 0 }}>Skill Usage</p>
+                <WindowBadge win={win} />
+            </div>
             {data && data.skills.length > 0 ? (
                 <div className="space-y-1.5">
                     {data.skills.slice(0, 8).map(r => (

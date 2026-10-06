@@ -328,7 +328,7 @@ export default function OverviewSection() {
             {/* Row 4 - 4 columns: config, top sessions, Jev router, skill usage */}
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
                 <ConfigDonutCard segments={configSegments} />
-                <TopSessionsCard tokensBySessionWindowed={tokensBySessionWindowed} />
+                <TopSessionsCard tokensBySessionWindowed={tokensBySessionWindowed} win={intervalTab} />
                 <JevCard win={intervalTab} />
                 {/* Skill usage - compact col next to the Jev card */}
                 <SkillUsagePanel win={intervalTab} />
@@ -348,7 +348,7 @@ export default function OverviewSection() {
                         winTotalTokens={winTotalTokens}
                         favoriteModel={favoriteModel}
                     />
-                    <BreakdownCard dailyData={dailyData} breakdownInterval={breakdownInterval} />
+                    <BreakdownCard dailyData={dailyData} breakdownInterval={breakdownInterval} win={intervalTab} />
                 </div>
             )}
 

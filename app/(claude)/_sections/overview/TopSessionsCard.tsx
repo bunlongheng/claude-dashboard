@@ -1,19 +1,23 @@
 "use client";
 
 import { cardShell } from "@/lib/ui-tokens";
-import type { Token } from "../shared";
+import { WindowBadge, type Token, type Window4 } from "../shared";
 import AppIcon from "../AppIcon";
 
 const OV_COLORS = ["#ff3b5c", "#ff6347", "#f97316", "#ffb800", "#cddc39", "#00c853", "#00bfa5", "#4fc3f7", "#2962ff", "#5c4db1", "#ab47bc", "#ff1667"];
 
 // Top sessions by tokens - windowed list is computed by the parent (it needs
 // the full allTokens + allSessionProjects join), this just renders it.
-export function TopSessionsCard({ tokensBySessionWindowed }: {
+export function TopSessionsCard({ tokensBySessionWindowed, win }: {
     tokensBySessionWindowed: Token[];
+    win: Window4;
 }) {
     return (
         <div style={cardShell}>
-            <h3 style={{ fontSize: 9, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.55)", margin: "0 0 14px" }}>Top Sessions by Tokens</h3>
+            <div className="flex items-center justify-between" style={{ marginBottom: 14, gap: 8 }}>
+                <h3 style={{ fontSize: 9, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.55)", margin: 0 }}>Top Sessions by Tokens</h3>
+                <WindowBadge win={win} />
+            </div>
             <div className="space-y-2">
                 {tokensBySessionWindowed.slice(0, 6).map((t, i: number) => {
                     const total = t.input_tokens + t.output_tokens;

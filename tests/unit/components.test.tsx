@@ -213,7 +213,8 @@ describe("JevCard", () => {
     expect(screen.getByText("75%")).toBeInTheDocument();
     expect(screen.getByText("412")).toBeInTheDocument();
     expect(screen.getByText("$0.03")).toBeInTheDocument();
-    expect(screen.getByText(/7d · 9/)).toBeInTheDocument();
+    expect(screen.getByText("9")).toBeInTheDocument();
+    expect(screen.getByText("7d")).toBeInTheDocument();
     expect(screen.getByText("LIVE").closest("a")).toHaveAttribute("href", "/jev");
   });
 

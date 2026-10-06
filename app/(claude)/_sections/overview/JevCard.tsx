@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { cardShell } from "@/lib/ui-tokens";
 import { useMachine } from "../MachineContext";
-import { safeFetch, WINDOW_TABS, type Window4 } from "../shared";
+import { safeFetch, WindowBadge, type Window4 } from "../shared";
 import { PolarChart } from "./PolarChart";
 import JevMark, { JEV_PINK } from "../JevMark";
 // Type-only: jev-log reads files, so a value import would pull fs into the bundle.
@@ -32,7 +32,6 @@ export function JevCard({ win }: { win: Window4 }) {
     const { apiBase } = useMachine();
     const router = useRouter();
     const days = JEV_DAYS[win];
-    const winLabel = WINDOW_TABS.find(t => t.key === win)?.label ?? win;
     const url = `${apiBase("/api/claude/jev")}?days=${days}`;
     const q = useQuery<JevPayload | null>({
         queryKey: ["overview-jev", url],
@@ -49,11 +48,14 @@ export function JevCard({ win }: { win: Window4 }) {
     return (
         <div style={{ ...cardShell, display: "flex", flexDirection: "column" }}>
             <div className="flex items-center justify-between" style={{ marginBottom: 12, gap: 8 }}>
-                <p style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: JEV_PINK, margin: 0 }}><JevMark size={14} />Jev Router <span style={{ color: "rgba(255,255,255,0.3)", fontWeight: 600 }}>{winLabel}{routed > 0 ? ` \u00b7 ${routed}` : ""}</span></p>
-                <Link href="/jev" style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 9, fontWeight: 800, letterSpacing: "0.1em", color: health.color, textDecoration: "none" }}>
-                    <span style={{ width: 6, height: 6, borderRadius: 999, background: health.color, boxShadow: `0 0 8px ${health.color}` }} />
-                    {health.label}
-                </Link>
+                <p style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: JEV_PINK, margin: 0 }}><JevMark size={14} />Jev Router {routed > 0 ? <span style={{ color: "rgba(255,255,255,0.3)", fontWeight: 600 }}>{routed}</span> : null}</p>
+                <div className="flex items-center" style={{ gap: 6 }}>
+                    <WindowBadge win={win} />
+                    <Link href="/jev" style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 9, fontWeight: 800, letterSpacing: "0.1em", color: health.color, textDecoration: "none" }}>
+                        <span style={{ width: 6, height: 6, borderRadius: 999, background: health.color, boxShadow: `0 0 8px ${health.color}` }} />
+                        {health.label}
+                    </Link>
+                </div>
             </div>
             {routed > 0 && t ? (
                 <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>

@@ -1,13 +1,15 @@
 "use client";
 
 import { cardShell } from "@/lib/ui-tokens";
+import { WindowBadge, type Window4 } from "../shared";
 import type { DayBucket } from "./types";
 
 // RIGHT 40% of the "Activity Heatmap + Stats" row - message/token/session
 // totals for the selected interval plus a day-by-day bar chart.
-export function BreakdownCard({ dailyData, breakdownInterval }: {
+export function BreakdownCard({ dailyData, breakdownInterval, win }: {
     dailyData: DayBucket[];
     breakdownInterval: "today" | "7d" | "30d" | "all";
+    win: Window4;
 }) {
     const now = new Date();
     const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
@@ -43,7 +45,10 @@ export function BreakdownCard({ dailyData, breakdownInterval }: {
     return (
         <div style={{ ...cardShell, flex: "0 0 40%", display: "flex", flexDirection: "column", gap: 14 }}>
 
-            <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.55)", margin: 0 }}>Breakdown</p>
+            <div className="flex items-center justify-between" style={{ gap: 8 }}>
+                <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.55)", margin: 0 }}>Breakdown</p>
+                <WindowBadge win={win} />
+            </div>
 
             {/* Big numbers */}
             <div className="flex items-end gap-5">

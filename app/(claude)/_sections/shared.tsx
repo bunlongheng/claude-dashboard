@@ -383,6 +383,14 @@ const SEGMENT_ACTIVE = "#f97316";
 // The 4 standard time windows every usage card offers, in this order.
 export type Window4 = "today" | "7d" | "30d" | "all";
 export const WINDOW_TABS: { key: Window4; label: string }[] = [{ key: "today", label: "Today" }, { key: "7d", label: "7d" }, { key: "30d", label: "30d" }, { key: "all", label: "All" }];
+
+// White window badge at the top right of every windowed Overview card.
+export function WindowBadge({ win }: { win: Window4 }) {
+    const label = WINDOW_TABS.find(t => t.key === win)?.label ?? win;
+    return (
+        <span style={{ display: "inline-flex", alignItems: "center", padding: "2px 8px", borderRadius: 999, background: "#fff", color: "#0b0b0d", fontSize: 9, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", lineHeight: "14px", whiteSpace: "nowrap" }}>{label}</span>
+    );
+}
 export function SegmentedTabs<K extends string>({ tabs, value, onChange, accent = SEGMENT_ACTIVE }: {
     tabs: { key: K; label: string; count?: number }[];
     value: K;

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { CalendarDays, Flame, Zap, Star, Cpu, Coins } from "lucide-react";
 import { cardShell, heatRamp } from "@/lib/ui-tokens";
+import { WindowBadge } from "../shared";
 import { localYMD } from "./utils";
 import { LiveClock } from "./LiveClock";
 import type { HeatmapData } from "./types";
@@ -35,6 +36,7 @@ export function ActivityHeatmapCard({
                     <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.55)", margin: 0 }}>Activity</p>
                     <LiveClock />
                 </div>
+                <WindowBadge win={intervalTab} />
             </div>
 
             <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
