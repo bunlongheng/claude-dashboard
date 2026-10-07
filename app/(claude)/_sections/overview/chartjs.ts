@@ -1,8 +1,14 @@
-import { Chart, ArcElement, DoughnutController, PolarAreaController, RadialLinearScale, Tooltip } from "chart.js";
+import {
+    Chart, ArcElement, DoughnutController, PolarAreaController, RadialLinearScale, Tooltip,
+    LineController, LineElement, PointElement, LinearScale, CategoryScale, Filler,
+} from "chart.js";
 
-// Chart.js is tree-shaken: register once what the overview charts use.
+// Chart.js is tree-shaken: register once what the overview and Jev charts use.
 // Importing this module from a chart component is enough.
-Chart.register(ArcElement, DoughnutController, PolarAreaController, RadialLinearScale, Tooltip);
+Chart.register(
+    ArcElement, DoughnutController, PolarAreaController, RadialLinearScale, Tooltip,
+    LineController, LineElement, PointElement, LinearScale, CategoryScale, Filler,
+);
 
 export const TOOLTIP = {
     backgroundColor: "rgba(8,9,13,0.95)",

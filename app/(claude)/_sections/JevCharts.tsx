@@ -8,11 +8,15 @@ import {
     PieChart, Pie, Cell, LineChart, Line, Legend, LabelList,
     type PieLabelRenderProps,
 } from "recharts";
+import { Line as CostLine } from "react-chartjs-2";
+import type { ChartOptions } from "chart.js";
+import "./overview/chartjs";
+import { TOOLTIP as CHARTJS_TOOLTIP } from "./overview/chartjs";
 import { cardShell } from "@/lib/ui-tokens";
-import { fmtNum, timeAgo } from "./shared";
+import { fmtNum, timeAgo, WindowBadge, type Window4 } from "./shared";
 import AppIcon from "./AppIcon";
 import type { JevAggregate, JevRow, JevSession } from "@/lib/jev-log";
-import { TIER_ORDER, TIER_COLORS, HEALTH_STYLE } from "@/lib/jev-palette";
+import { TIER_ORDER, TIER_COLORS, HEALTH_STYLE, JEV_DAYS } from "@/lib/jev-palette";
 import { formatUsd } from "@/lib/format";
 
 const STATUS_COLORS = {
@@ -156,7 +160,95 @@ function HealthStrip({ data }: { data: JevAggregate }) {
     );
 }
 
-// ── 2. Calls per day / per hour ──────────────────────────────────────────────
+// ── 2. Cost over time ────────────────────────────────────────────────────────
+// Zero-filled across the whole window (not just the days with rows) so a quiet
+// stretch reads as flat, not missing.
+function buildDayRange(startDay: string, endDay: string): string[] {
+    const days: string[] = [];
+    const cursor = new Date(`${startDay}T00:00:00`);
+    const end = new Date(`${endDay}T00:00:00`);
+    while (cursor.getTime() <= end.getTime()) {
+        days.push(cursor.toLocaleDateString("en-CA"));
+        cursor.setDate(cursor.getDate() + 1);
+    }
+    return days;
+}
+
+const usd = (v: number) => (v >= 0.01 ? formatUsd(v) : "$" + v.toFixed(4));
+
+function CostChart({ daily, hourly, win }: { daily: JevAggregate["daily"]; hourly: JevAggregate["hourly"]; win: Window4 }) {
+    const series = useMemo(() => {
+        const today = todayKey();
+        if (win === "today") {
+            // Calendar day since local midnight, same as the Calls today tile and the Overview.
+            return hourly.filter(h => h.hour.slice(0, 10) === today).map(h => ({ label: h.label, value: h.costUsd }));
+        }
+        const byDay = new Map(daily.map(d => [d.day, d.costUsd]));
+        const startDay = win === "all"
+            ? (daily[0]?.day ?? today)
+            : (() => {
+                const d = new Date(`${today}T00:00:00`);
+                d.setDate(d.getDate() - (JEV_DAYS[win] - 1));
+                return d.toLocaleDateString("en-CA");
+            })();
+        return buildDayRange(startDay, today).map(day => ({ label: day.slice(5), value: byDay.get(day) ?? 0 }));
+    }, [daily, hourly, win]);
+    const totalUsd = series.reduce((sum, r) => sum + r.value, 0);
+
+    const data = useMemo(() => ({
+        labels: series.map(r => r.label),
+        datasets: [{
+            data: series.map(r => r.value),
+            borderColor: "#F97316",
+            backgroundColor: "rgba(249,115,22,0.18)",
+            fill: true,
+            tension: 0.35,
+            pointRadius: 0,
+            pointHoverRadius: 4,
+            borderWidth: 2,
+        }],
+    }), [series]);
+
+    const options = useMemo<ChartOptions<"line">>(() => ({
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 700 },
+        interaction: { mode: "index", intersect: false },
+        plugins: {
+            legend: { display: false },
+            tooltip: { ...CHARTJS_TOOLTIP, callbacks: { label: ctx => usd(ctx.parsed.y ?? 0) } },
+        },
+        scales: {
+            x: { grid: { display: false }, ticks: { color: "rgba(255,255,255,0.4)", font: { size: 9 }, maxTicksLimit: 8 } },
+            y: { beginAtZero: true, grid: { color: "rgba(255,255,255,0.06)" }, ticks: { color: "rgba(255,255,255,0.4)", font: { size: 9 }, maxTicksLimit: 4, callback: v => usd(Number(v)) } },
+        },
+    }), []);
+
+    const hasCalls = series.some(r => r.value > 0);
+
+    return (
+        <div style={cardShell}>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+                <div>
+                    <CardLabel title="Cost" sub={win === "today" ? "USD at the flat router rate, per hour" : "USD at the flat router rate, per day"} />
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 18, fontWeight: 800, color: "#F97316", fontVariantNumeric: "tabular-nums" }}>{formatUsd(totalUsd)}</span>
+                    <WindowBadge win={win} />
+                </div>
+            </div>
+            {hasCalls ? (
+                <div style={{ height: 180 }}>
+                    <CostLine data={data} options={options} aria-label="Cost over time" />
+                </div>
+            ) : (
+                <p style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", margin: 0 }}>No router calls in this window.</p>
+            )}
+        </div>
+    );
+}
+
+// ── 3. Calls per day / per hour ──────────────────────────────────────────────
 // One bar per day is a single bar until the log spans a week, so the card opens
 // on the 24 hour view - the shape of a working day is readable from the first
 // session, and the daily view takes over once there is a week to compare.
@@ -234,7 +326,7 @@ function CallsChart({ daily, hourly }: { daily: JevAggregate["daily"]; hourly: J
     );
 }
 
-// ── 3. Tier split ────────────────────────────────────────────────────────────
+// ── 4. Tier split ────────────────────────────────────────────────────────────
 // Count drawn inside the ring at the slice's mid-angle. Slices under 6% are
 // too thin for a 2-digit number, so they stay unlabeled and the legend covers them.
 function sliceLabel(p: PieLabelRenderProps) {
@@ -295,7 +387,7 @@ function TierSplit({ tiers, focus }: { tiers: JevAggregate["tiers"]; focus?: str
     );
 }
 
-// ── 4. Latency per day ───────────────────────────────────────────────────────
+// ── 5. Latency per day ───────────────────────────────────────────────────────
 function LatencyPerDay({ daily }: { daily: JevAggregate["daily"] }) {
     return (
         <div style={cardShell}>
@@ -337,7 +429,7 @@ function ProjectCell({ project }: { project?: string }) {
 }
 const NUM: React.CSSProperties = { ...TD, textAlign: "right", fontVariantNumeric: "tabular-nums" };
 
-// ── 5. Per session ───────────────────────────────────────────────────────────
+// ── 6. Per session ───────────────────────────────────────────────────────────
 const SESSION_PAGE = 25;
 
 function SessionTable({ sessions }: { sessions: JevSession[] }) {
@@ -396,7 +488,7 @@ function SessionTable({ sessions }: { sessions: JevSession[] }) {
     );
 }
 
-// ── 6. Per message ───────────────────────────────────────────────────────────
+// ── 7. Per message ───────────────────────────────────────────────────────────
 const MESSAGE_LIMIT = 100;
 const SNIPPET = 60;
 
@@ -525,7 +617,7 @@ function NeverRan({ logPath, hookPath }: { logPath: string; hookPath: string }) 
 }
 
 // ── Page body ────────────────────────────────────────────────────────────────
-export default function JevCharts({ data, tier }: { data: JevAggregate & { logPath: string; hookPath: string }; tier?: string }) {
+export default function JevCharts({ data, tier, win }: { data: JevAggregate & { logPath: string; hookPath: string }; tier?: string; win: Window4 }) {
     const mounted = useSyncExternalStore(subscribeMounted, getMounted, getMountedServer);
     if (!mounted) return null;
 
@@ -536,6 +628,7 @@ export default function JevCharts({ data, tier }: { data: JevAggregate & { logPa
                 <NeverRan logPath={data.logPath} hookPath={data.hookPath} />
             ) : (
                 <>
+                    <CostChart daily={data.daily} hourly={data.hourly} win={win} />
                     <div className="grid gap-3 grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
                         <CallsChart daily={data.daily} hourly={data.hourly} />
                         <TierSplit tiers={data.tiers} focus={tier} />

@@ -105,6 +105,13 @@ describe("aggregateJev totals", () => {
         expect(agg.totals.estCostUsd).toBeCloseTo(3 * JEV_COST_PER_CALL, 10);
     });
 
+    it("prices every day and hour at the flat router rate", () => {
+        const day = agg.daily[0];
+        expect(day.costUsd).toBeCloseTo((day.routed + day.skipped + day.errors) * JEV_COST_PER_CALL, 10);
+        const hourlyCost = agg.hourly.reduce((s, h) => s + h.costUsd, 0);
+        expect(hourlyCost).toBeCloseTo(agg.totals.estCostUsd, 10);
+    });
+
     it("tracks distinct sessions and the last call vs last routed call", () => {
         expect(agg.totals.sessions).toBe(2);
         expect(agg.totals.lastCallTs).toBe(ERRORED.ts);

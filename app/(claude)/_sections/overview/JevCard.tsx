@@ -10,7 +10,7 @@ import { PolarChart } from "./PolarChart";
 import JevMark, { JEV_PINK } from "../JevMark";
 // Type-only: jev-log reads files, so a value import would pull fs into the bundle.
 import type { JevPayload } from "@/lib/jev-log";
-import { TIER_ORDER, TIER_COLORS, HEALTH_STYLE } from "@/lib/jev-palette";
+import { TIER_ORDER, TIER_COLORS, HEALTH_STYLE, JEV_DAYS } from "@/lib/jev-palette";
 import { formatUsd } from "@/lib/format";
 
 function Stat({ label, value, color }: { label: string; value: string; color: string }) {
@@ -21,10 +21,6 @@ function Stat({ label, value, color }: { label: string; value: string; color: st
         </div>
     );
 }
-
-// Days the Jev API is asked for per Overview window. "all" is capped by the
-// route at 365.
-const JEV_DAYS: Record<Window4, number> = { today: 1, "7d": 7, "30d": 30, all: 365 };
 
 // The Jev router in the Overview window: tier donut plus the 3 numbers that
 // say whether the hook is earning its keep. Drills into /jev for the rest.

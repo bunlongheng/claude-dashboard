@@ -152,6 +152,7 @@ import { JevCard } from "@/app/(claude)/_sections/overview/JevCard";
 import JevCharts from "@/app/(claude)/_sections/JevCharts";
 import ClaudeSidebarNav, { NAV_ITEMS } from "@/app/(claude)/_sections/ClaudeSidebarNav";
 import type { JevPayload } from "@/lib/jev-log";
+import { JEV_COST_PER_CALL } from "@/lib/jev-log";
 
 const API = "http://localhost:3003";
 const routerPush = vi.fn();
@@ -185,10 +186,10 @@ const JEV_FIXTURE: JevPayload = {
   totals: { calls: 12, routed: 9, skipped: 2, errors: 1, routedPct: 75, avgLatencyMs: 412.4, p95LatencyMs: 900, inputTokens: 5000, outputTokens: 1200, estCostUsd: 0.0312, sessions: 2, lastCallTs: new Date().toISOString(), lastRoutedTs: new Date().toISOString() },
   health: "live",
   daily: [
-    { day: today, routed: 5, skipped: 1, errors: 1, avgLatencyMs: 400, p95LatencyMs: 900, tokens: 3200 },
-    { day: "2026-09-20", routed: 4, skipped: 1, errors: 0, avgLatencyMs: 420, p95LatencyMs: 800, tokens: 3000 },
+    { day: today, routed: 5, skipped: 1, errors: 1, avgLatencyMs: 400, p95LatencyMs: 900, tokens: 3200, costUsd: 7 * JEV_COST_PER_CALL },
+    { day: "2026-09-20", routed: 4, skipped: 1, errors: 0, avgLatencyMs: 420, p95LatencyMs: 800, tokens: 3000, costUsd: 5 * JEV_COST_PER_CALL },
   ],
-  hourly: [{ hour: `${today}T14`, label: "14:00", routed: 5, skipped: 1, errors: 1, avgLatencyMs: 400, tokens: 3200 }],
+  hourly: [{ hour: `${today}T14`, label: "14:00", routed: 5, skipped: 1, errors: 1, avgLatencyMs: 400, tokens: 3200, costUsd: 7 * JEV_COST_PER_CALL }],
   tiers: { haiku: 4, sonnet: 3, opus: 2, fable: 0 },
   sessions: [
     { session_id: "sess-aaaa-1111", project: "claude", messages: 7, routed: 5, skipped: 1, errors: 1, topTier: "sonnet", firstTs: new Date().toISOString(), lastTs: new Date().toISOString(), avgConf: 0.91 },
@@ -235,7 +236,7 @@ describe("JevCard", () => {
 
 describe("JevCharts", () => {
   it("renders the health strip numbers from the aggregate", () => {
-    render(<JevCharts data={JEV_FIXTURE} />);
+    render(<JevCharts data={JEV_FIXTURE} win="7d" />);
     expect(screen.getByText("LIVE")).toBeInTheDocument();
     // 5 routed + 1 skipped + 1 error today, 12 in the range
     const callsTile = screen.getByText("Calls today").closest("div")!.parentElement!;
@@ -250,7 +251,7 @@ describe("JevCharts", () => {
   });
 
   it("draws the 3 stacked call series and 2 latency lines", () => {
-    const { container } = render(<JevCharts data={JEV_FIXTURE} />);
+    const { container } = render(<JevCharts data={JEV_FIXTURE} win="7d" />);
     expect(screen.getAllByTestId("chart").length).toBeGreaterThanOrEqual(3);
     expect(container.querySelectorAll(".recharts-bar").length).toBe(3);
     expect(container.querySelectorAll(".recharts-line").length).toBeGreaterThanOrEqual(2);
@@ -258,14 +259,14 @@ describe("JevCharts", () => {
   });
 
   it("lists every session with its project", () => {
-    render(<JevCharts data={JEV_FIXTURE} />);
+    render(<JevCharts data={JEV_FIXTURE} win="7d" />);
     expect(screen.getByText("sess-aaa").closest("a")).toHaveAttribute("href", "/sess-aaaa-1111");
     expect(screen.getByText("sess-bbb").closest("a")).toHaveAttribute("href", "/sess-bbbb-2222");
     expect(screen.getByAltText("claude")).toBeInTheDocument();
   });
 
   it("shows the never-ran setup block instead of charts when there is no log", () => {
-    const { container } = render(<JevCharts data={{ ...JEV_FIXTURE, health: "never", totals: { ...JEV_FIXTURE.totals, calls: 0, lastCallTs: null } }} />);
+    const { container } = render(<JevCharts data={{ ...JEV_FIXTURE, health: "never", totals: { ...JEV_FIXTURE.totals, calls: 0, lastCallTs: null } }} win="7d" />);
     expect(screen.getByText("NEVER")).toBeInTheDocument();
     expect(screen.getByText(/jev\.jsonl/)).toBeInTheDocument();
     expect(container.querySelectorAll(".recharts-bar").length).toBe(0);
