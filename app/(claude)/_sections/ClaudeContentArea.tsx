@@ -134,7 +134,7 @@ export default function ClaudeContentArea({ children }: { children: React.ReactN
                                     }}
                                     title={`${s.id} · ${s.project} · ${Math.round(idleMin)}m idle`}>
                                     <span style={{ display: "inline-flex", filter: isStale ? "grayscale(1)" : "none", opacity: isStale ? 0.3 : 1, transition: "filter 0.2s, opacity 0.2s" }}>
-                                        <AppIcon project={projectName} size={12} />
+                                        <AppIcon project={s.project || projectName} size={12} />
                                     </span>
                                     <span className={`text-[10px] font-bold uppercase ${isStale ? "text-white/25" : (isSelected ? "text-white" : "text-white/70")}`}>{label}</span>
                                 </a>
