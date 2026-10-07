@@ -45,7 +45,20 @@ export function BreakdownCard({ dailyData, breakdownInterval, win, byDayHour, ex
     if (!barRowsRaw.find(d => d.day === todayStr)) {
         barRowsRaw.push({ day: todayStr, turns: 0, input: 0, output: 0, cache_read: 0, cache_creation: 0, sessions: 0 });
     }
-    const barRows = barRowsRaw;
+    // 30d: 30 day rows made the card 3x taller than its neighbours, so the days
+    // roll up into Monday-start calendar weeks (Week 1 oldest, Week 5 this week).
+    type BarRow = { key: string; label: string; sub?: string; turns: number; current: boolean };
+    const short = (d: string) => new Date(d + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    const weekStart = (d: string) => { const dt = new Date(d + "T12:00:00"); dt.setDate(dt.getDate() - ((dt.getDay() + 6) % 7)); return ymd(dt); };
+    const barRows: BarRow[] = win === "30d"
+        ? [...barRowsRaw.reduce((m, d) => {
+            const k = weekStart(d.day);
+            const w = m.get(k) ?? { key: k, first: d.day, last: d.day, turns: 0, current: false };
+            w.last = d.day; w.turns += d.turns; w.current ||= d.day === todayStr;
+            return m.set(k, w);
+        }, new Map<string, { key: string; first: string; last: string; turns: number; current: boolean }>()).values()]
+            .map((w, i) => ({ key: w.key, label: `Week ${i + 1}`, sub: `${short(w.first)} - ${short(w.last)}`, turns: w.turns, current: w.current }))
+        : barRowsRaw.map(d => ({ key: d.day, label: new Date(d.day + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }), turns: d.turns, current: d.day === todayStr }));
     const barMax = Math.max(...barRows.map(d => d.turns), 1);
 
     // Today: 24 columns, midnight to 11 PM, rising from a shared baseline
@@ -122,15 +135,17 @@ export function BreakdownCard({ dailyData, breakdownInterval, win, byDayHour, ex
                 <div className="space-y-1.5" aria-label="Breakdown by day">
                     {barRows.map(d => {
                         const pct = Math.max((d.turns / barMax) * 100, d.turns > 0 ? 2 : 0);
-                        const label = new Date(d.day + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
-                        const isToday = d.day === todayStr;
+                        const isToday = d.current;
                         return (
-                            <div key={d.day} className="flex items-center gap-2">
-                                <span style={{ fontSize: 9, color: isToday ? "#fff" : "rgba(255,255,255,0.25)", width: 70, flexShrink: 0, fontWeight: isToday ? 700 : 400 }}>{label}</span>
+                            <div key={d.key} className="flex items-center gap-2">
+                                <span style={{ fontSize: 9, color: isToday ? "#fff" : "rgba(255,255,255,0.25)", width: 70, flexShrink: 0, fontWeight: isToday ? 700 : 400, lineHeight: 1.2 }}>
+                                    {d.label}
+                                    {d.sub && <span style={{ display: "block", fontSize: 8, fontWeight: 400, color: "rgba(255,255,255,0.3)" }}>{d.sub}</span>}
+                                </span>
                                 <div style={{ flex: 1, height: 5, borderRadius: 3, background: "rgba(255,255,255,0.05)", overflow: "hidden" }}>
                                     <div style={{ width: `${pct}%`, height: "100%", borderRadius: 3, background: isToday ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.3)", transition: "width 0.6s" }} />
                                 </div>
-                                <span style={{ fontSize: 9, color: "rgba(255,255,255,0.55)", width: 28, textAlign: "right", flexShrink: 0 }}>{d.turns}</span>
+                                <span style={{ fontSize: 9, color: "rgba(255,255,255,0.55)", width: 34, textAlign: "right", flexShrink: 0 }}>{d.turns.toLocaleString()}</span>
                             </div>
                         );
                     })}
