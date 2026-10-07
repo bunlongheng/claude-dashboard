@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
-import { readLastBytes } from "@/lib/safe-read";
+import { streamJsonl } from "@/lib/jsonl-walk";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
-import { isRealRepo } from "@/lib/project-utils";
 import { withErrorHandler } from "@/lib/api-handler";
 
 export const runtime = "nodejs";
@@ -11,12 +10,9 @@ export const dynamic = "force-dynamic";
 
 const CLAUDE_DIR = path.join(os.homedir(), ".claude", "projects");
 
-// Session .jsonl files can reach 100MB+. This route can query OLD dates, so a tiny
-// tail cap could miss data near a huge file's start; use an 8MB tail (covers
-// essentially all real single-day session data - hour-bucketed counts tolerate
-// truncation on the rare oversized file) plus a short server-side cache so
-// repeat clicks on the same punchcard cell don't re-scan every file.
-const MAX_BYTES = 8 * 1024 * 1024;
+// Files are streamed line by line (no tail cap, so an old date inside a huge
+// file still counts) behind a short server-side cache so repeat clicks on the
+// same punchcard cell don't re-scan every file.
 const CACHE_TTL_MS = 30_000;
 const cache = new Map<string, { at: number; data: unknown }>();
 
@@ -149,7 +145,7 @@ function isUserPrompt(line: { type?: string; message?: { role?: string; content?
 
 // Drill-down endpoint: given a date (UTC YYYY-MM-DD) and a local hour (0-23),
 // returns which sessions had turns in that exact hour bucket, the count, AND each turn's details.
-// Matches the same counting rule as /api/claude/token-stats/daily so the totals line up.
+// Matches the counting rule of /api/claude/tokens so the totals line up with the Activity card.
 export const GET = withErrorHandler(async (req: Request) => {
     const url = new URL(req.url);
     const date = url.searchParams.get("date") || "";
@@ -179,76 +175,79 @@ export const GET = withErrorHandler(async (req: Request) => {
         return NextResponse.json({ sessionTurns, sessionPrompts, sessionEntries, totalTurns, totalPrompts, totalSessions: 0, date, hour });
     }
 
-    // Local midnight of the target date (matches local-day bucketing in /api/claude/token-stats/daily).
+    // Local midnight of the target date, same local-day bucketing as /api/claude/tokens.
     const [ty, tm, td] = date.split("-").map(Number);
     const targetDateStart = new Date(ty, tm - 1, td).getTime();
-    const currentUser = os.userInfo().username;
 
-    for (const folder of fs.readdirSync(CLAUDE_DIR)) {
-        const folderPath = path.join(CLAUDE_DIR, folder);
-        try { if (!fs.statSync(folderPath).isDirectory()) continue; } catch { continue; }
-        if (!isRealRepo(folder)) continue;
-        const hasUser = folder.includes(`-${currentUser}-`) || folder.endsWith(`-${currentUser}`);
-        if (!hasUser) continue;
-
-        for (const file of fs.readdirSync(folderPath).filter(f => f.endsWith(".jsonl"))) {
-            const filePath = path.join(folderPath, file);
-            try {
-                const stat = fs.statSync(filePath);
-                if (stat.mtime.getTime() < targetDateStart) continue;
-
-                const content = readLastBytes(filePath, MAX_BYTES);
-                const sessionId = file.replace(".jsonl", "");
-                const entries: TurnEntry[] = [];
-                let turnCount = 0;
-                let promptCount = 0;
-                for (const line of content.split("\n")) {
-                    if (!line) continue;
-                    try {
-                        const d = JSON.parse(line);
-                        const ts = d.timestamp;
-                        if (!ts || typeof ts !== "string") continue;
-                        const tsDate = new Date(ts);
-                        if (isNaN(tsDate.getTime())) continue;
-                        if (localYMD(tsDate) !== date) continue;
-                        if (tsDate.getHours() !== hour) continue;
-
-                        const usage = d.message?.usage;
-                        if (usage) {
-                            const full = fullText(d.message);
-                            entries.push({
-                                ts,
-                                role: d.message?.role ?? d.type ?? "assistant",
-                                preview: previewText(d.message),
-                                full: full || undefined,
-                                model: d.message?.model,
-                                inTokens: usage.input_tokens ?? 0,
-                                outTokens: usage.output_tokens ?? 0,
-                                cacheReadTokens: usage.cache_read_input_tokens ?? 0,
-                                cacheCreationTokens: usage.cache_creation_input_tokens ?? 0,
-                            });
-                            turnCount++;
-                        } else if (isUserPrompt(d)) {
-                            const full = fullText(d.message);
-                            entries.push({
-                                ts,
-                                role: "user",
-                                preview: previewText(d.message),
-                                full: full || undefined,
-                            });
-                            promptCount++;
-                        }
-                    } catch { /* skip malformed line */ }
-                }
-                if (entries.length > 0) {
-                    if (turnCount > 0) sessionTurns[sessionId] = turnCount;
-                    if (promptCount > 0) sessionPrompts[sessionId] = promptCount;
-                    sessionEntries[sessionId] = entries;
-                    totalTurns += turnCount;
-                    totalPrompts += promptCount;
-                }
-            } catch { /* skip unreadable file */ }
+    // Same walk and counting rule as /api/claude/tokens so a drilled cell
+    // matches the Activity card: every project folder, main transcripts plus
+    // their subagents (<session>/subagents/**.jsonl, counted under the parent
+    // session), and 1 turn per assistant message id across every file - a
+    // streamed message is written several times and the copy with the most
+    // output is the finished one.
+    const seen = new Map<string, { session: string; entry: TurnEntry; out: number; order: number }>();
+    const prompts: { session: string; entry: TurnEntry; order: number }[] = [];
+    let anon = 0;
+    let order = 0; // file encounter order, breaks timestamp ties (a prompt and its reply can share a second)
+    const visit = async (filePath: string, session: string) => {
+        let stat: fs.Stats;
+        try { stat = fs.statSync(filePath); } catch { return; }
+        if (stat.mtime.getTime() < targetDateStart) return;
+        await streamJsonl(filePath, line => line.includes('"usage"') || line.includes('"type":"user"'), (parsed) => {
+            const d = parsed as { type?: string; timestamp?: unknown; message?: { id?: unknown; role?: string; model?: string; usage?: Record<string, number> } };
+            const ts = d.timestamp;
+            if (!ts || typeof ts !== "string") return;
+            const tsDate = new Date(ts);
+            if (isNaN(tsDate.getTime())) return;
+            if (localYMD(tsDate) !== date) return;
+            if (tsDate.getHours() !== hour) return;
+            const usage = d.message?.usage;
+            if (d.type === "assistant" && usage) {
+                const full = fullText(d.message);
+                const entry: TurnEntry = {
+                    ts,
+                    role: d.message?.role ?? "assistant",
+                    preview: previewText(d.message),
+                    full: full || undefined,
+                    model: d.message?.model,
+                    inTokens: usage.input_tokens ?? 0,
+                    outTokens: usage.output_tokens ?? 0,
+                    cacheReadTokens: usage.cache_read_input_tokens ?? 0,
+                    cacheCreationTokens: usage.cache_creation_input_tokens ?? 0,
+                };
+                const id = typeof d.message?.id === "string" ? d.message.id : `${ts}:${anon++}`;
+                const cur = seen.get(id);
+                if (!cur || (entry.outTokens ?? 0) > cur.out) seen.set(id, { session, entry, out: entry.outTokens ?? 0, order: cur?.order ?? order++ });
+            } else if (isUserPrompt(d)) {
+                const full = fullText(d.message);
+                prompts.push({ session, entry: { ts, role: "user", preview: previewText(d.message), full: full || undefined }, order: order++ });
+            }
+        });
+    };
+    const walk = async (dir: string, session: string) => {
+        let names: fs.Dirent[] = [];
+        try { names = fs.readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name)); } catch { return; }
+        for (const n of names) {
+            const fp = path.join(dir, n.name);
+            if (n.isDirectory()) await walk(fp, session || n.name);
+            else if (n.name.endsWith(".jsonl")) await visit(fp, session || n.name.slice(0, -6));
         }
+    };
+    for (const folder of fs.readdirSync(CLAUDE_DIR)) await walk(path.join(CLAUDE_DIR, folder), "");
+
+    const ordered: Record<string, { entry: TurnEntry; order: number }[]> = {};
+    for (const { session, entry, order: o } of seen.values()) {
+        (ordered[session] ??= []).push({ entry, order: o });
+        sessionTurns[session] = (sessionTurns[session] ?? 0) + 1;
+        totalTurns++;
+    }
+    for (const { session, entry, order: o } of prompts) {
+        (ordered[session] ??= []).push({ entry, order: o });
+        sessionPrompts[session] = (sessionPrompts[session] ?? 0) + 1;
+        totalPrompts++;
+    }
+    for (const [session, list] of Object.entries(ordered)) {
+        sessionEntries[session] = list.sort((x, y) => x.entry.ts.localeCompare(y.entry.ts) || x.order - y.order).map(x => x.entry);
     }
 
     const totalSessions = new Set([...Object.keys(sessionTurns), ...Object.keys(sessionPrompts)]).size;
