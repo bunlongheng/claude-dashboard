@@ -154,15 +154,13 @@ export function ActivityHeatmapCard({
                                             const dark = lit || n >= maxTurns * 0.3;
                                             const style = {
                                                 height: 22, borderRadius: 3, minWidth: 0, overflow: "hidden", padding: "0 5px", textDecoration: "none",
-                                                display: "flex", alignItems: "center", justifyContent: "space-between",
+                                                display: "flex", alignItems: "center",
                                                 background: !inWin ? "transparent" : lit ? "rgba(255,255,255,0.95)" : getColor(n),
                                                 outline: isToday ? "1px solid rgba(255,255,255,0.5)" : !inWin ? "1px dashed rgba(255,255,255,0.06)" : "none", outlineOffset: -1,
                                                 boxShadow: lit ? "0 0 6px rgba(255,255,255,0.25)" : "none",
                                             } as const;
-                                            const inner = <>
-                                                <span style={{ fontSize: 8, fontWeight: 700, lineHeight: 1, color: !inWin ? "rgba(255,255,255,0.12)" : dark ? "rgba(0,0,0,0.6)" : "rgba(255,255,255,0.55)" }}>{x.getDate()}</span>
-                                                {n > 0 && <span style={{ fontSize: 8, fontWeight: 600, lineHeight: 1, color: dark ? "rgba(0,0,0,0.85)" : "rgba(255,255,255,0.75)" }}>{n.toLocaleString()}</span>}
-                                            </>;
+                                            // Date only in the cell; the count lives in the tooltip and the week total.
+                                            const inner = <span style={{ fontSize: 8, fontWeight: 700, lineHeight: 1, color: !inWin ? "rgba(255,255,255,0.12)" : dark ? "rgba(0,0,0,0.7)" : "rgba(255,255,255,0.6)" }}>{x.getDate()}</span>;
                                             return n > 0 ? (
                                                 <Link key={iso} href={`/sessions?date=${iso}${drillMachine}`} title={`${iso}: ${n} turns - click to drill down`} aria-label={`${iso}: ${n} turns, open sessions`} style={{ ...style, cursor: "pointer" }}>{inner}</Link>
                                             ) : (
