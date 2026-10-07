@@ -35,8 +35,7 @@ export function ActivityHeatmapCard({
     winTotalTokens: number;
     favoriteModel: string;
 }) {
-    const { cellMap, weeksCount, months, maxTurns, longestStreak, currentStreak, dayMap } = heatmapData;
-    const cellSize = 11, gap = 2;
+    const { maxTurns, longestStreak, currentStreak, dayMap } = heatmapData;
     function getColor(turns: number): string {
         return heatRamp(turns === 0 ? 0 : Math.min(turns / (maxTurns * 0.6), 1));
     }
@@ -62,7 +61,7 @@ export function ActivityHeatmapCard({
             <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
             {/* Heatmap / strip + by-hour - capped width keeps cells small squares; stats sit to its right */}
             <div style={{ minWidth: 0, flex: "7 1 0" }}>
-            {/* 7d → 7 hour strips; 30d → month grid by week; all → calendar grid. Today → 30-minute grid over the hour strip, same 24h axis. */}
+            {/* 7d → 7 hour strips; 30d → month grid by week; all → 1 row per month. Today → 30-minute grid over the hour strip, same 24h axis. */}
             {intervalTab === "7d" ? (() => {
                 // Each day = a horizontal 24h strip (hour 0 left -> 23 right). 7 rows, oldest on top -> TODAY on bottom.
                 const days = Array.from({ length: 7 }, (_, i) => { const d = new Date(); d.setDate(d.getDate() - (6 - i)); return d; });
@@ -177,6 +176,57 @@ export function ActivityHeatmapCard({
                         })}
                     </div>
                 );
+            })() : intervalTab === "all" ? (() => {
+                // All: 1 row per calendar month from the first recorded day to today, 31 day
+                // columns, so the rows line up with the Breakdown card's month rollup.
+                const days = [...dayMap.keys()].sort();
+                const firstIso = days[0] ?? todayIso;
+                const today = new Date();
+                const months: Date[] = [];
+                for (const m = new Date(firstIso.slice(0, 4) + "-" + firstIso.slice(5, 7) + "-01T12:00:00"); m <= today; m.setMonth(m.getMonth() + 1)) months.push(new Date(m));
+                return (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <span style={{ width: 52, flexShrink: 0 }} />
+                            <div style={{ flex: 1, display: "grid", gridTemplateColumns: "repeat(31, 1fr)", gap: 2, fontSize: 8, color: "rgba(255,255,255,0.4)" }}>
+                                {Array.from({ length: 31 }, (_, i) => <span key={i} style={{ textAlign: "center" }}>{(i + 1) % 5 === 0 || i === 0 ? i + 1 : ""}</span>)}
+                            </div>
+                            <span style={{ width: 36, flexShrink: 0 }} />
+                        </div>
+                        {months.map(m => {
+                            const y = m.getFullYear(), mo = m.getMonth();
+                            const len = new Date(y, mo + 1, 0).getDate();
+                            const isCur = y === today.getFullYear() && mo === today.getMonth();
+                            const isos = Array.from({ length: 31 }, (_, i) => i < len ? localYMD(new Date(y, mo, i + 1, 12)) : null);
+                            const total = isos.reduce((sum, iso) => sum + (iso ? dayMap.get(iso) ?? 0 : 0), 0);
+                            return (
+                                <div key={`${y}-${mo}`} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                    <span style={{ fontSize: 8, color: isCur ? "#fff" : "rgba(255,255,255,0.5)", width: 52, textAlign: "right", flexShrink: 0, fontWeight: isCur ? 700 : 500 }}>{m.toLocaleDateString("en-US", { month: "short", year: "numeric" })}</span>
+                                    <div style={{ flex: 1, display: "grid", gridTemplateColumns: "repeat(31, 1fr)", gap: 2 }}>
+                                        {isos.map((iso, i) => {
+                                            if (!iso) return <div key={i} />;
+                                            const inWin = iso >= firstIso && iso <= todayIso;
+                                            const n = inWin ? dayMap.get(iso) ?? 0 : 0;
+                                            const isToday = iso === todayIso;
+                                            const lit = isToday && n > 0;
+                                            const style = {
+                                                height: 20, borderRadius: 2, minWidth: 0, display: "block",
+                                                background: !inWin ? "transparent" : lit ? "rgba(255,255,255,0.95)" : getColor(n),
+                                                outline: isToday ? "1px solid rgba(255,255,255,0.5)" : !inWin ? "1px dashed rgba(255,255,255,0.06)" : "none", outlineOffset: -1,
+                                            } as const;
+                                            return n > 0 ? (
+                                                <Link key={iso} href={`/sessions?date=${iso}${drillMachine}`} title={`${iso}: ${n} turns - click to drill down`} aria-label={`${iso}: ${n} turns, open sessions`} style={{ ...style, cursor: "pointer" }} />
+                                            ) : (
+                                                <div key={iso} title={inWin ? `${iso}: 0 turns` : undefined} style={style} />
+                                            );
+                                        })}
+                                    </div>
+                                    <span style={{ fontSize: 9, fontWeight: 700, color: total > 0 ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.2)", width: 36, textAlign: "right", flexShrink: 0 }}>{total.toLocaleString()}</span>
+                                </div>
+                            );
+                        })}
+                    </div>
+                );
             })() : intervalTab === "today" ? (() => {
                 // 30-minute grid for today only - column = hour (0-23 left to right), row = half hour
                 // (:00 on top, :30 below). The route returns 5-minute buckets, so 6 are summed per cell.
@@ -242,46 +292,7 @@ export function ActivityHeatmapCard({
                         </div>
                     </div>
                 );
-            })() : (
-            <div style={{ overflowX: "auto", paddingBottom: 4 }}>
-                <div style={{ display: "flex", marginLeft: 26, marginBottom: 2, position: "relative", height: 14 }}>
-                    {months.map((m, i) => (
-                        <span key={i} style={{ position: "absolute", left: m.weekIndex * (cellSize + gap), fontSize: 9, color: "rgba(255,255,255,0.5)", whiteSpace: "nowrap" }}>{m.label}</span>
-                    ))}
-                </div>
-                <div style={{ display: "flex", gap: 0 }}>
-                    <div style={{ display: "flex", flexDirection: "column", gap, width: 26, flexShrink: 0 }}>
-                        {["", "Mon", "", "Wed", "", "Fri", ""].map((d, i) => (
-                            <span key={i} style={{ height: cellSize, fontSize: 8, color: "rgba(255,255,255,0.5)", display: "flex", alignItems: "center" }}>{d}</span>
-                        ))}
-                    </div>
-                    <div style={{ display: "flex", gap }}>
-                        {Array.from({ length: weeksCount }, (_, wi) => (
-                            <div key={wi} style={{ display: "flex", flexDirection: "column", gap }}>
-                                {Array.from({ length: 7 }, (_, di) => {
-                                    const cell = cellMap.get(`${wi}-${di}`);
-                                    const todayStr = localYMD(new Date());
-                                    const isToday = cell?.date === todayStr;
-                                    return (
-                                        <div key={di}
-                                            title={cell ? `${cell.date}: ${cell.turns} turns` : ""}
-                                            role={cell ? "img" : undefined}
-                                            aria-label={cell ? `${cell.date}: ${cell.turns} turns` : undefined}
-                                            style={{
-                                                width: cellSize, height: cellSize, borderRadius: 2,
-                                                background: cell ? (isToday && cell.turns > 0 ? "rgba(255,255,255,0.95)" : getColor(cell.turns)) : "transparent",
-                                                boxShadow: isToday && cell?.turns ? "0 0 6px rgba(255,255,255,0.3)" : "none",
-                                                outline: isToday ? "1px solid rgba(255,255,255,0.4)" : "none",
-                                            }}
-                                        />
-                                    );
-                                })}
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </div>
-            )}
+            })() : null}
 
             {/* Today's hourly rhythm under the 30-minute grid. Today view only: 7d already has
                 today's hour strip as its bottom row, and 30d / all are day grids where it would be noise. */}

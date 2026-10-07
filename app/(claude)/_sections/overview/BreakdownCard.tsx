@@ -50,14 +50,18 @@ export function BreakdownCard({ dailyData, breakdownInterval, win, byDayHour, ex
     type BarRow = { key: string; label: string; sub?: string; turns: number; current: boolean };
     const short = (d: string) => new Date(d + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
     const weekStart = (d: string) => { const dt = new Date(d + "T12:00:00"); dt.setDate(dt.getDate() - ((dt.getDay() + 6) % 7)); return ymd(dt); };
-    const barRows: BarRow[] = win === "30d"
-        ? [...barRowsRaw.reduce((m, d) => {
-            const k = weekStart(d.day);
-            const w = m.get(k) ?? { key: k, first: d.day, last: d.day, turns: 0, current: false };
-            w.last = d.day; w.turns += d.turns; w.current ||= d.day === todayStr;
-            return m.set(k, w);
+    const monthName = (d: string) => new Date(d + "T12:00:00").toLocaleDateString("en-US", { month: "short", year: "numeric" });
+    // 30d groups the days into Monday-start weeks, All into calendar months.
+    const groupBy = (keyOf: (day: string) => string, labelOf: (key: string, first: string, i: number) => string): BarRow[] =>
+        [...barRowsRaw.reduce((m, d) => {
+            const k = keyOf(d.day);
+            const g = m.get(k) ?? { key: k, first: d.day, last: d.day, turns: 0, current: false };
+            g.last = d.day; g.turns += d.turns; g.current ||= d.day === todayStr;
+            return m.set(k, g);
         }, new Map<string, { key: string; first: string; last: string; turns: number; current: boolean }>()).values()]
-            .map((w, i) => ({ key: w.key, label: `Week ${i + 1}`, sub: `${short(w.first)} - ${short(w.last)}`, turns: w.turns, current: w.current }))
+            .map((g, i) => ({ key: g.key, label: labelOf(g.key, g.first, i), sub: `${short(g.first)} - ${short(g.last)}`, turns: g.turns, current: g.current }));
+    const barRows: BarRow[] = win === "30d" ? groupBy(weekStart, (_k, _f, i) => `Week ${i + 1}`)
+        : win === "all" ? groupBy(d => d.slice(0, 7), (_k, first) => monthName(first))
         : barRowsRaw.map(d => ({ key: d.day, label: new Date(d.day + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }), turns: d.turns, current: d.day === todayStr }));
     const barMax = Math.max(...barRows.map(d => d.turns), 1);
 
