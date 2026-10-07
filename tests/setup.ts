@@ -28,6 +28,9 @@ if (typeof window !== "undefined") {
   if (!window.scrollTo) {
     window.scrollTo = (() => {}) as any;
   }
+  // Chart.js asks the canvas for a 2d context; jsdom has none. Returning null
+  // makes Chart.js skip drawing instead of jsdom logging "not implemented".
+  HTMLCanvasElement.prototype.getContext = (() => null) as any;
 }
 
 // ─── MSW lifecycle ──────────────────────────────────────────────────────────────
