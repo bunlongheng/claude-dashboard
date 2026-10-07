@@ -65,6 +65,10 @@ describe("GET /api/claude/tokens", () => {
     expect(d.who[0].share).toBeCloseTo(0.8);
     expect(d.sessions[0]).toMatchObject({ sessionId: "s1", project: "flows", title: "/create-flow login", agents: 1, agentOutput: 50, models: ["claude-opus-5", "claude-sonnet-5"], active: false });
     expect(d.projects).toEqual([expect.objectContaining({ project: "flows", sessions: 1, output: 250 })]);
+    // 12:06, 12:12 and 12:18 local -> slots 145, 146, 147; the duplicate m1 counts once.
+    expect(d.minutes).toHaveLength(288);
+    expect([d.minutes[145], d.minutes[146], d.minutes[147]]).toEqual([1, 1, 1]);
+    expect(d.minutes.reduce((x, y) => x + y, 0)).toBe(3);
   });
 
   it("today starts at local midnight, 7d keeps yesterday, and live sessions are flagged", async () => {

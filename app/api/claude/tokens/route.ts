@@ -42,6 +42,7 @@ export interface TokensData {
     weekly: PeriodRow[];  // period = the Monday the week starts on
     monthly: PeriodRow[]; // period = YYYY-MM
     scannedFiles: number;
+    minutes: number[];    // today's turns per 5-minute slot of the local day (288), same dedupe as totals
 }
 
 interface FileEntry {
@@ -53,9 +54,9 @@ interface FileEntry {
     title: string;
     firstTs: number;
     lastTs: number;
-    msgs: Record<string, MsgRec>; // message id -> [local day, model, input, output, cacheRead, cacheCreate]
+    msgs: Record<string, MsgRec>; // message id -> [local day, model, input, output, cacheRead, cacheCreate, 5-minute slot of the local day]
 }
-type MsgRec = [string, string, number, number, number, number];
+type MsgRec = [string, string, number, number, number, number, number];
 
 const DAY_MS = 86_400_000;
 const ACTIVE_MS = 5 * 60_000;
@@ -63,7 +64,8 @@ const TTL_MS = 30_000;
 const TITLE_MAX = 90;
 const SINCES: Since[] = ["today", "7d", "30d", "all"];
 
-const disk = diskCache<FileEntry>("tokens-cache");
+// v2: records carry the 5-minute slot, so older cache files are ignored.
+const disk = diskCache<FileEntry>("tokens-cache-v2");
 const fileCache = disk.load();
 const memo = new Map<Since, { at: number; data: TokensData }>();
 const inflight = new Map<Since, Promise<TokensData>>();
@@ -125,7 +127,8 @@ async function parseFile(fp: string, fallbackSession: string, roleHint: Role, ke
         const ts = d.timestamp ? Date.parse(d.timestamp) : NaN;
         if (!Number.isFinite(ts)) return;
         const cacheCreate = Math.max(u.cache_creation_input_tokens ?? 0, (u.cache_creation?.ephemeral_5m_input_tokens ?? 0) + (u.cache_creation?.ephemeral_1h_input_tokens ?? 0));
-        const rec: MsgRec = [ymd(ts), d.message?.model ?? "unknown", u.input_tokens ?? 0, u.output_tokens ?? 0, u.cache_read_input_tokens ?? 0, cacheCreate];
+        const dt = new Date(ts);
+        const rec: MsgRec = [ymd(ts), d.message?.model ?? "unknown", u.input_tokens ?? 0, u.output_tokens ?? 0, u.cache_read_input_tokens ?? 0, cacheCreate, Math.floor((dt.getHours() * 60 + dt.getMinutes()) / 5)];
         const id = d.message?.id ?? `${ts}:${anon++}`;
         const cur = e.msgs[id];
         if (!cur || rec[3] >= cur[3]) e.msgs[id] = rec;
@@ -191,7 +194,10 @@ export async function computeTokens(since: Since, now = Date.now()): Promise<Tok
     const owner = new Map<string, { e: FileEntry; rec: MsgRec }>();
     for (const e of entries) for (const [id, rec] of Object.entries(e.msgs)) { if (better(rec, owner.get(id)?.rec)) owner.set(id, { e, rec }); }
     const daysOf = new Map<FileEntry, Record<string, Record<string, Tok>>>();
+    const todayDay = ymd(now);
+    const minutes: number[] = new Array(288).fill(0);
     for (const { e, rec } of owner.values()) {
+        if (rec[0] === todayDay) minutes[rec[6]] += 1;
         const days = daysOf.get(e) ?? {};
         add((days[rec[0]] ??= {})[rec[1]] ??= zero(), toTok(rec));
         daysOf.set(e, days);
@@ -249,7 +255,7 @@ export async function computeTokens(since: Since, now = Date.now()): Promise<Tok
         return [...m.values()].map(({ ids, ...r }) => ({ ...r, sessions: ids.size })).sort((a, b) => a.period.localeCompare(b.period));
     };
 
-    return { since, from, generatedAt: now, totals, who: whoRows, projects: projectRows, sessions: sessionRows, daily: dailyRows, weekly: roll(weekOf), monthly: roll(day => day.slice(0, 7)), scannedFiles: scanned };
+    return { since, from, generatedAt: now, totals, who: whoRows, projects: projectRows, sessions: sessionRows, daily: dailyRows, weekly: roll(weekOf), monthly: roll(day => day.slice(0, 7)), scannedFiles: scanned, minutes };
 }
 
 export const GET = withErrorHandler(async (req: Request) => {

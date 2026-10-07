@@ -16,8 +16,10 @@ function fmtHour(h: number): string {
     return h === 12 ? "NOON" : `${h % 12 === 0 ? 12 : h % 12}${h < 12 ? "AM" : "PM"}`;
 }
 
-type MinuteStats = { date: string; slotMinutes: number; buckets: number[]; total: number };
-const EMPTY_MINUTE_STATS: MinuteStats = { date: "", slotMinutes: 5, buckets: new Array(288).fill(0), total: 0 };
+// Today's 5-minute turn buckets ride on the tokens payload, so the grid, the hour
+// strip and the Breakdown card all count the same deduped turns.
+type TodayTokens = { minutes?: number[] } | null;
+const EMPTY_MINUTES: number[] = new Array(288).fill(0);
 
 // LEFT 60% of the "Activity Heatmap + Stats" row - the punchcard/calendar
 // heatmap, today's hourly rhythm, and the summary stat grid to its right.
@@ -41,11 +43,13 @@ export function ActivityHeatmapCard({
     }
     const { apiBase } = useMachine();
     const todayIso = localYMD(new Date());
-    const minuteUrl = `${apiBase("/api/claude/turns-by-minute")}?date=${todayIso}`;
-    const minuteQ = useQuery<MinuteStats>({
-        queryKey: ["turns-by-minute", todayIso, minuteUrl],
-        queryFn: () => safeFetch<MinuteStats>(minuteUrl, EMPTY_MINUTE_STATS),
-        refetchInterval: 30_000,
+    const minuteUrl = `${apiBase("/api/claude/tokens")}?since=today`;
+    // Same key as the Overview's today query, so react-query serves one fetch to both.
+    const minuteQ = useQuery<TodayTokens>({
+        queryKey: ["tokens", minuteUrl],
+        queryFn: () => safeFetch<TodayTokens>(minuteUrl, null),
+        refetchInterval: 60_000,
+        refetchOnWindowFocus: false,
         enabled: intervalTab === "today",
     });
     return (
@@ -227,8 +231,8 @@ export function ActivityHeatmapCard({
                 );
             })() : intervalTab === "today" ? (() => {
                 // 30-minute grid for today only - column = hour (0-23 left to right), row = half hour
-                // (:00 on top, :30 below). The route returns 5-minute buckets, so 6 are summed per cell.
-                const raw = minuteQ.data?.buckets ?? EMPTY_MINUTE_STATS.buckets;
+                // (:00 on top, :30 below). The payload has 5-minute buckets, so 6 are summed per cell.
+                const raw = minuteQ.data?.minutes ?? EMPTY_MINUTES;
                 const buckets = Array.from({ length: 48 }, (_, i) => raw.slice(i * 6, i * 6 + 6).reduce((a, b) => a + b, 0));
                 const max = Math.max(1, ...buckets);
                 const now = new Date();
@@ -276,7 +280,11 @@ export function ActivityHeatmapCard({
                                     })
                                 ))}
                             </div>
-                            <span style={{ width: 32, flexShrink: 0 }} />
+                            <div style={{ display: "grid", gridTemplateRows: "repeat(2, 1fr)", gap: 2, width: 32, flexShrink: 0 }}>
+                                {[0, 1].map(row => { const t = buckets.filter((_, i) => i % 2 === row).reduce((x, y) => x + y, 0); return (
+                                    <span key={row} style={{ fontSize: 9, fontWeight: 700, color: t > 0 ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "flex-end" }}>{t.toLocaleString()}</span>
+                                ); })}
+                            </div>
                         </div>
                         {/* Hour guide under the grid - matches the 26px left + 32px right spacers used elsewhere so labels line up with the cells above. */}
                         <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 3 }}>
@@ -294,9 +302,12 @@ export function ActivityHeatmapCard({
 
             {/* Today's hourly rhythm under the 30-minute grid. Today view only: 7d already has
                 today's hour strip as its bottom row, and 30d / all are day grids where it would be noise. */}
-            {intervalTab === "today" && Object.keys(byDayHour).length > 0 && (() => {
+            {intervalTab === "today" && (() => {
                 const todayIso = localYMD(new Date());
-                const todayHours = byDayHour[todayIso] ?? new Array(24).fill(0);
+                // Same 5-minute buckets as the grid above (12 per hour), so the strip and the rows agree.
+                const raw = minuteQ.data?.minutes ?? EMPTY_MINUTES;
+                const todayHours = Array.from({ length: 24 }, (_, h) => raw.slice(h * 12, h * 12 + 12).reduce((x, y) => x + y, 0));
+                const dayTotal = todayHours.reduce((x, y) => x + y, 0);
                 const maxHour = Math.max(...todayHours, 1);
                 const peakHour = todayHours.indexOf(maxHour);
                 const nowHour = new Date().getHours();
@@ -340,7 +351,7 @@ export function ActivityHeatmapCard({
                                     );
                                 })}
                             </div>
-                            <span style={{ width: 32, flexShrink: 0 }} />
+                            <span style={{ width: 32, flexShrink: 0, fontSize: 9, fontWeight: 700, textAlign: "right", color: dayTotal > 0 ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.2)" }}>{dayTotal.toLocaleString()}</span>
                         </div>
                         <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 3 }}>
                             <span style={{ width: 26, flexShrink: 0 }} />

@@ -34,7 +34,7 @@ Access rules, all routes are local and have no login:
 | `/api/claude/skill-usage` | GET | `?today=1`, `?hours=168`, `?all=1` - Skill and Agent tool_use counts parsed from session transcripts |
 | `/api/claude/skills` | GET, PUT | Lists MCP servers, skills, commands and plugins; PUT writes CLAUDE.md, a command `.md` or `hooks.json` under `~/.claude`, anything else is 403 |
 | `/api/claude/sync-skill` | POST | Pushes a skill file to a peer through its local-apps monitor (`LOCAL_APPS_PORT`, default 9876) |
-| `/api/claude/tokens` | GET | `?since=today\|7d\|30d\|all` - token totals deduped across every transcript (matches ccusage), who used what (model x main/subagent), per project, every session, daily / weekly / monthly rows |
+| `/api/claude/tokens` | GET | `?since=today\|7d\|30d\|all` - token totals deduped across every transcript (matches ccusage), who used what (model x main/subagent), per project, every session, daily / weekly / monthly rows, `minutes` = today's turns per 5-minute slot |
 | `/api/claude/token-stats` | GET | Token usage and cost aggregated across all sessions and models |
 | `/api/claude/token-stats/daily` | GET | Daily token stats plus the hourly punchcard for the last 7 days |
 | `/api/claude/tool-usage` | GET | Tool-call counts within a query window |
