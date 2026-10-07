@@ -62,7 +62,7 @@ export function ActivityHeatmapCard({
             <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
             {/* Heatmap / strip + by-hour - capped width keeps cells small squares; stats sit to its right */}
             <div style={{ minWidth: 0, flex: "7 1 0" }}>
-            {/* 7d → clean 7-cell day strip; longer windows → calendar grid. Today → 30-minute grid over the hour strip, same 24h axis. */}
+            {/* 7d → 7 hour strips; 30d → month grid by week; all → calendar grid. Today → 30-minute grid over the hour strip, same 24h axis. */}
             {intervalTab === "7d" ? (() => {
                 // Each day = a horizontal 24h strip (hour 0 left -> 23 right). 7 rows, oldest on top -> TODAY on bottom.
                 const days = Array.from({ length: 7 }, (_, i) => { const d = new Date(); d.setDate(d.getDate() - (6 - i)); return d; });
@@ -115,6 +115,66 @@ export function ActivityHeatmapCard({
                             </div>
                             <span style={{ width: 32, flexShrink: 0 }} />
                         </div>
+                    </div>
+                );
+            })() : intervalTab === "30d" ? (() => {
+                // 30d: a month grid - 1 row per Monday-start week, 7 day cells across, so all
+                // 30 days read at a glance and the rows line up with the Breakdown card's weeks.
+                const today = new Date();
+                const start = new Date(today); start.setDate(today.getDate() - 29);
+                const first = new Date(start); first.setDate(start.getDate() - ((start.getDay() + 6) % 7));
+                const startIso = localYMD(start);
+                const weeks: Date[][] = [];
+                for (const d = new Date(first); d <= today; d.setDate(d.getDate() + 7)) {
+                    weeks.push(Array.from({ length: 7 }, (_, i) => { const x = new Date(d); x.setDate(d.getDate() + i); return x; }));
+                }
+                return (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <span style={{ width: 40, flexShrink: 0 }} />
+                            <div style={{ flex: 1, display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 3, fontSize: 8, color: "rgba(255,255,255,0.5)" }}>
+                                {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(d => <span key={d} style={{ textAlign: "center" }}>{d}</span>)}
+                            </div>
+                            <span style={{ width: 32, flexShrink: 0 }} />
+                        </div>
+                        {weeks.map((w, wi) => {
+                            const isos = w.map(x => localYMD(x));
+                            const total = isos.reduce((sum, iso) => sum + (iso >= startIso && iso <= todayIso ? dayMap.get(iso) ?? 0 : 0), 0);
+                            const isCur = isos.includes(todayIso);
+                            return (
+                                <div key={wi} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                    <span style={{ fontSize: 8, color: isCur ? "#fff" : "rgba(255,255,255,0.5)", width: 40, textAlign: "right", flexShrink: 0, fontWeight: isCur ? 700 : 500 }}>Week {wi + 1}</span>
+                                    <div style={{ flex: 1, display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 3 }}>
+                                        {w.map((x, i) => {
+                                            const iso = isos[i];
+                                            const inWin = iso >= startIso && iso <= todayIso;
+                                            const n = inWin ? dayMap.get(iso) ?? 0 : 0;
+                                            const isToday = iso === todayIso;
+                                            const lit = isToday && n > 0;
+                                            // Ramp tops out near white, so the busiest cells need dark text.
+                                            const dark = lit || n >= maxTurns * 0.3;
+                                            const style = {
+                                                height: 22, borderRadius: 3, minWidth: 0, overflow: "hidden", padding: "0 5px", textDecoration: "none",
+                                                display: "flex", alignItems: "center", justifyContent: "space-between",
+                                                background: !inWin ? "transparent" : lit ? "rgba(255,255,255,0.95)" : getColor(n),
+                                                outline: isToday ? "1px solid rgba(255,255,255,0.5)" : !inWin ? "1px dashed rgba(255,255,255,0.06)" : "none", outlineOffset: -1,
+                                                boxShadow: lit ? "0 0 6px rgba(255,255,255,0.25)" : "none",
+                                            } as const;
+                                            const inner = <>
+                                                <span style={{ fontSize: 8, fontWeight: 700, lineHeight: 1, color: !inWin ? "rgba(255,255,255,0.12)" : dark ? "rgba(0,0,0,0.6)" : "rgba(255,255,255,0.55)" }}>{x.getDate()}</span>
+                                                {n > 0 && <span style={{ fontSize: 8, fontWeight: 600, lineHeight: 1, color: dark ? "rgba(0,0,0,0.85)" : "rgba(255,255,255,0.75)" }}>{n.toLocaleString()}</span>}
+                                            </>;
+                                            return n > 0 ? (
+                                                <Link key={iso} href={`/sessions?date=${iso}${drillMachine}`} title={`${iso}: ${n} turns - click to drill down`} aria-label={`${iso}: ${n} turns, open sessions`} style={{ ...style, cursor: "pointer" }}>{inner}</Link>
+                                            ) : (
+                                                <div key={iso} title={inWin ? `${iso}: 0 turns` : undefined} style={style}>{inner}</div>
+                                            );
+                                        })}
+                                    </div>
+                                    <span style={{ fontSize: 9, fontWeight: 700, color: total > 0 ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.2)", width: 32, textAlign: "right", flexShrink: 0 }}>{total.toLocaleString()}</span>
+                                </div>
+                            );
+                        })}
                     </div>
                 );
             })() : intervalTab === "today" ? (() => {
@@ -223,10 +283,9 @@ export function ActivityHeatmapCard({
             </div>
             )}
 
-            {/* Today's hourly rhythm - calendar order, aligned with the per-day punchcard above.
-                Cells past the current hour are genuinely empty (not yet happened today).
-                Hidden on 7d: the top row already shows today's hourly strip with a highlight, so this would duplicate it. */}
-            {intervalTab !== "7d" && Object.keys(byDayHour).length > 0 && (() => {
+            {/* Today's hourly rhythm under the 30-minute grid. Today view only: 7d already has
+                today's hour strip as its bottom row, and 30d / all are day grids where it would be noise. */}
+            {intervalTab === "today" && Object.keys(byDayHour).length > 0 && (() => {
                 const todayIso = localYMD(new Date());
                 const todayHours = byDayHour[todayIso] ?? new Array(24).fill(0);
                 const maxHour = Math.max(...todayHours, 1);

@@ -200,10 +200,11 @@ export default function OverviewSection() {
     }, [allTokens]);
 
     // Memoized heatmap computation - lookback follows the interval tab.
+    // Heatmap days come from the same rows as the Breakdown card, so the 2 cards agree.
     const heatmapData = useMemo(() => {
-        if (dailyData.length === 0) return null;
+        if (breakdownDays.length === 0) return null;
         const today = new Date();
-        const dayMap = new Map(dailyData.map(d => [d.day, d.turns]));
+        const dayMap = new Map(breakdownDays.map(d => [d.day, d.turns]));
         const cells: { date: string; turns: number; weekIndex: number; dayOfWeek: number }[] = [];
         const lookbackDays =
             intervalTab === "today" ? 1 :
@@ -220,7 +221,7 @@ export default function OverviewSection() {
             const iso = localYMD(d);
             cells.push({ date: iso, turns: dayMap.get(iso) ?? 0, weekIndex: Math.floor(i / 7), dayOfWeek: d.getDay() });
         }
-        const allCells = dailyData.map(d => ({ date: d.day, turns: d.turns }));
+        const allCells = breakdownDays.map(d => ({ date: d.day, turns: d.turns }));
         const activeDays = allCells.filter(c => c.turns > 0).length;
         const totalDays = allCells.length;
         const maxTurns = Math.max(...cells.map(c => c.turns), 1);
@@ -264,7 +265,7 @@ export default function OverviewSection() {
             }
         }
         return { cells, cellMap, weeksCount, months, maxTurns, activeDays, totalDays, mostActiveLabel, longestStreak, currentStreak, dayMap };
-    }, [dailyData, intervalTab]);
+    }, [breakdownDays, intervalTab]);
 
     if (loading || !stats) return <MascotLoader label="Loading dashboard" />;
 
