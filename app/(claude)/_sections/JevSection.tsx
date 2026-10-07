@@ -30,14 +30,10 @@ export default function JevSection({ initial, router, tier, win: initialWin }: {
     return (
         <div>
             <HeroSlot>
+                <JevRouterSwitch initial={router} bare />
+                <span aria-hidden style={{ width: 1, height: 28, background: "rgba(255,255,255,0.1)", margin: "0 4px" }} />
                 <SegmentedTabs<Window4> tabs={WINDOW_TABS} value={win} onChange={setWin} />
             </HeroSlot>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                <JevRouterSwitch initial={router} />
-                <span style={{ marginLeft: "auto", fontSize: 9, color: "rgba(255,255,255,0.25)", fontFamily: "ui-monospace, monospace" }}>
-                    {payload.logPath}
-                </span>
-            </div>
             <JevCharts data={payload} tier={tier} win={win} />
         </div>
     );

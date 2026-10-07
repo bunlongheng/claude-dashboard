@@ -24,7 +24,8 @@ const MONO = "ui-monospace, monospace";
 // The router's on/off switch. On = Jev picks a tier per prompt. Off = every
 // prompt is pinned to 1 tier and the session never delegates down. The hook
 // reads the state file on each prompt, so a flip lands on the next message.
-export default function JevRouterSwitch({ initial }: { initial: JevRouterState }) {
+// bare = no card shell, for the page hero slot.
+export default function JevRouterSwitch({ initial, bare = false }: { initial: JevRouterState; bare?: boolean }) {
     const { machine, apiBase } = useMachine();
     const qc = useQueryClient();
     const key = ["jev-router", machine];
@@ -60,7 +61,9 @@ export default function JevRouterSwitch({ initial }: { initial: JevRouterState }
     }
 
     return (
-        <div style={{ ...cardShell, padding: "14px 20px", borderColor: `${accent}33`, display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap" }}>
+        <div style={bare
+            ? { display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }
+            : { ...cardShell, padding: "14px 20px", borderColor: `${accent}33`, display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap" }}>
             <style>{`@keyframes jevSwitchGlow { 0%,100% { box-shadow: 0 0 0 0 ${accent}55 } 50% { box-shadow: 0 0 0 6px ${accent}00 } }`}</style>
 
             {/* Switch */}
@@ -87,7 +90,7 @@ export default function JevRouterSwitch({ initial }: { initial: JevRouterState }
             </button>
 
             {/* Label */}
-            <div style={{ minWidth: 150 }}>
+            <div style={{ minWidth: bare ? 0 : 150 }}>
                 <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.55)" }}>
                     Jev router
                 </div>
@@ -123,7 +126,7 @@ export default function JevRouterSwitch({ initial }: { initial: JevRouterState }
             )}
 
             {/* What the session runs on */}
-            <div style={{ marginLeft: "auto", display: "flex", gap: 22, flexWrap: "wrap" }}>
+            <div style={{ marginLeft: bare ? 0 : "auto", display: "flex", gap: bare ? 16 : 22, flexWrap: "wrap" }}>
                 <Readout label="Per prompt" value={on ? "haiku > sonnet > opus > fable" : state.force ?? ""} color={on ? undefined : accent} />
                 <Readout label="Main thread" value={state.mainModel} />
                 <Readout label="Subagents" value={on ? state.subagentModel : state.force ?? ""} color={on ? undefined : accent} />
