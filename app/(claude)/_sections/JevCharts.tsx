@@ -227,7 +227,7 @@ function CostChart({ daily, hourly, win }: { daily: JevAggregate["daily"]; hourl
     const hasCalls = series.some(r => r.value > 0);
 
     return (
-        <div style={cardShell}>
+        <div style={{ ...cardShell, display: "flex", flexDirection: "column" }}>
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
                 <div>
                     <CardLabel title="Cost" sub={win === "today" ? "USD at the flat router rate, per hour" : "USD at the flat router rate, per day"} />
@@ -238,7 +238,7 @@ function CostChart({ daily, hourly, win }: { daily: JevAggregate["daily"]; hourl
                 </div>
             </div>
             {hasCalls ? (
-                <div style={{ height: 180 }}>
+                <div style={{ flex: 1, minHeight: 200, position: "relative" }}>
                     <CostLine data={data} options={options} aria-label="Cost over time" />
                 </div>
             ) : (
@@ -628,8 +628,8 @@ export default function JevCharts({ data, tier, win }: { data: JevAggregate & { 
                 <NeverRan logPath={data.logPath} hookPath={data.hookPath} />
             ) : (
                 <>
-                    <CostChart daily={data.daily} hourly={data.hourly} win={win} />
-                    <div className="grid gap-3 grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+                    <div className="grid gap-3 grid-cols-1 lg:grid-cols-3">
+                        <CostChart daily={data.daily} hourly={data.hourly} win={win} />
                         <CallsChart daily={data.daily} hourly={data.hourly} />
                         <TierSplit tiers={data.tiers} focus={tier} />
                     </div>
