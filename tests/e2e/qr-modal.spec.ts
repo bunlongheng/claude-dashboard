@@ -17,7 +17,7 @@ test("opens the LAN QR modal with the URL", async ({ page }) => {
 test("renders the QR canvas", async ({ page }) => {
   await page.goto("/dashboard");
   await page.getByRole("button", { name: "LAN Access" }).first().click();
-  await expect(page.locator("canvas")).toBeVisible();
+  await expect(page.getByLabel("LAN QR code")).toBeVisible();
 });
 
 test("the copy button keeps the modal open and copies the URL", async ({ page }) => {
