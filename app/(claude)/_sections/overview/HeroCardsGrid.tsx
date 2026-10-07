@@ -23,17 +23,13 @@ export function HeroCardsGrid({ stats, ragStats, liveSessions, totalTokens }: {
 }) {
     // Same key + URL as JevCard below, so react-query serves one fetch to both.
     const { apiBase } = useMachine();
-    const jevUrl = `${apiBase("/api/claude/jev")}?days=7`;
+    const jevUrl = `${apiBase("/api/claude/jev")}?days=365`;
     const jevQ = useQuery<JevPayload | null>({
         queryKey: ["overview-jev", jevUrl],
         queryFn: () => safeFetch<JevPayload | null>(jevUrl, null),
         refetchInterval: 60_000,
     });
-    // Headline mirrors the sidebar badge: decisions made *today*, from the day
-    // bucket (routed + skipped + errors), not the rolling 7d total.
-    const todayKey = new Date().toLocaleDateString("en-CA");
-    const jevToday = (jevQ.data?.daily ?? []).find(d => d.day === todayKey);
-    const jevDecisions = jevToday ? jevToday.routed + jevToday.skipped + jevToday.errors : 0;
+    // Headline mirrors the sidebar badge: all-time routed prompts.
     const jev = jevQ.data?.totals;
     return (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
@@ -80,8 +76,8 @@ export function HeroCardsGrid({ stats, ragStats, liveSessions, totalTokens }: {
                 { label: "Out", value: fmtCompact(stats.tokens.output) },
             ]} />
             <HeroCard name="Jev" icon={JevMark} color={JEV_PINK} href="/jev" stats={[
-                { label: "Decisions", value: jevDecisions },
-                { label: "Routed 7d", value: jev?.routed ?? 0 },
+                { label: "Routed", value: jev?.routed ?? 0 },
+                { label: "Calls", value: jev?.calls ?? 0 },
                 { label: "Avg ms", value: jev?.avgLatencyMs ?? 0 },
             ]} />
         </div>

@@ -279,7 +279,7 @@ describe("ClaudeSidebarNav", () => {
     http.get(`${API}/api/claude/brain`, () => HttpResponse.json({ totalProjects: 11 })),
     http.get(`${API}/api/claude/tokens`, () => HttpResponse.json({ totals: { input: 900_000, output: 300_000 } })),
     http.get(`${API}/api/rag/stats`, () => HttpResponse.json({ documents: 8 })),
-    http.get(`${API}/api/claude/jev`, () => HttpResponse.json({ daily: [{ day: today, routed: 3, skipped: 1, errors: 0 }] })),
+    http.get(`${API}/api/claude/jev`, () => HttpResponse.json({ totals: { routed: 4 } })),
   );
 
   it("renders every nav link with its href and marks the current one active", async () => {
