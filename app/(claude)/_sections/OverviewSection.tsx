@@ -9,7 +9,7 @@ import { HeroSlot } from "./PageHero";
 import { MascotLoader } from "./MascotLoader";
 import SkillUsagePanel from "./SkillUsagePanel";
 import { HeroCardsGrid } from "./overview/HeroCardsGrid";
-import { ConfigDonutCard } from "./overview/ConfigDonutCard";
+import { UsageMixCard } from "./overview/UsageMixCard";
 import { TopSessionsCard } from "./overview/TopSessionsCard";
 import { JevCard } from "./overview/JevCard";
 import { ActivityHeatmapCard } from "./overview/ActivityHeatmapCard";
@@ -268,16 +268,6 @@ export default function OverviewSection() {
 
     if (loading || !stats) return <MascotLoader label="Loading dashboard" />;
 
-    // Colors mirror the left-nav palette (greens for skills/commands/hooks,
-    // MCP yellow, plugins indigo).
-    const configSegments = [
-        { value: stats.skills, color: "#8AC249", label: "Skills" },
-        { value: stats.commands, color: "#34C759", label: "Commands" },
-        { value: stats.hooks, color: "#30D158", label: "Hooks" },
-        { value: stats.mcp, color: "#FFCC00", label: "MCP" },
-        { value: stats.plugins, color: "#5856D6", label: "Plugins" },
-    ];
-
     // 1 window control in the page hero drives every windowed card below.
     const heroTabs = (
         <HeroSlot>
@@ -345,7 +335,7 @@ export default function OverviewSection() {
 
             {/* Row 4 - 4 columns: config, top sessions, Jev router, skill usage */}
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-                <ConfigDonutCard segments={configSegments} />
+                <UsageMixCard win={intervalTab} />
                 <TopSessionsCard tokensBySessionWindowed={tokensBySessionWindowed} win={intervalTab} />
                 <JevCard win={intervalTab} />
                 {/* Skill usage - compact col next to the Jev card */}

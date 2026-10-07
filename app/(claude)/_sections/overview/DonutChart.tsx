@@ -1,6 +1,6 @@
 "use client";
 
-export function DonutChart({ segments, size = 120 }: { segments: { value: number; color: string; label: string }[]; size?: number }) {
+export function DonutChart({ segments, size = 120, centerLabel = "TOTAL" }: { segments: { value: number; color: string; label: string }[]; size?: number; centerLabel?: string }) {
     const total = segments.reduce((s, seg) => s + seg.value, 0);
     if (total === 0) return null;
     const r = (size - 20) / 2;
@@ -29,15 +29,15 @@ export function DonutChart({ segments, size = 120 }: { segments: { value: number
                     </path>;
                 })}
                 <circle cx={cx} cy={cy} r={r * 0.55} fill="#08090d" />
-                <text x={cx} y={cy - 4} textAnchor="middle" fill="white" fontSize="16" fontWeight="800">{total}</text>
-                <text x={cx} y={cy + 10} textAnchor="middle" fill="rgba(255,255,255,0.5)" fontSize="8" fontWeight="600">TOTAL</text>
+                <text x={cx} y={cy - 4} textAnchor="middle" fill="white" fontSize="16" fontWeight="800">{total.toLocaleString()}</text>
+                <text x={cx} y={cy + 10} textAnchor="middle" fill="rgba(255,255,255,0.5)" fontSize="8" fontWeight="600">{centerLabel}</text>
             </svg>
             <div className="space-y-1">
                 {segments.filter(s => s.value > 0).map(s => (
                     <div key={s.label} className="flex items-center gap-2">
                         <span style={{ width: 8, height: 8, borderRadius: 2, background: s.color, flexShrink: 0 }} />
                         <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>{s.label}</span>
-                        <span style={{ fontSize: 10, fontWeight: 700, color: s.color, marginLeft: "auto" }}>{s.value}</span>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: s.color, marginLeft: "auto" }}>{s.value.toLocaleString()}</span>
                     </div>
                 ))}
             </div>
