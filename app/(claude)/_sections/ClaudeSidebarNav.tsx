@@ -126,7 +126,7 @@ function SidebarContent({ pathname, onClose, badges, onSearchClick, isLocalMachi
                 <div style={{ display: "flex", alignItems: "center", justifyContent: iconOnly ? "center" : "space-between" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                         <div style={{ position: "relative", width: 20, height: 20, flexShrink: 0 }}>
-                            <Image src="/claude-logo.png" alt="Claude" width={20} height={20} className="claude-jump" style={{ imageRendering: "pixelated", display: "block" }} />
+                            <Image src="/claude-logo.png" alt="Claude" width={20} height={20} className="claude-jump" style={{ display: "block", borderRadius: 5 }} />
                             <div className="claude-smoke" />
                         </div>
                         {!iconOnly && (
@@ -259,34 +259,32 @@ export default function ClaudeSidebarNav() {
         sessions: apiBase("/api/claude/sessions"),
         skills: apiBase("/api/claude/skills?slim=1"),
         brain: apiBase("/api/claude/brain?slim=1"),
-        daily: apiBase("/api/claude/token-stats/daily"),
+        tokens: apiBase("/api/claude/tokens?since=all"),
         rag: apiBase("/api/rag/stats"),
-        jev: apiBase("/api/claude/jev?days=1"),
+        jev: apiBase("/api/claude/jev?days=365"),
     };
     type SkillsSummary = { summary?: { claudeMd?: number; mcp?: number; skills?: number; hooks?: number; commands?: number; plugins?: number; settings?: number } };
-    type JevDay = { day: string; routed: number; skipped: number; errors: number };
-    const [sessionsQ, skillsQ, brainQ, dailyQ, ragQ, jevQ] = useQueries({ queries: [
+    const [sessionsQ, skillsQ, brainQ, tokensQ, ragQ, jevQ] = useQueries({ queries: [
         { queryKey: ["sessions-list", u.sessions], queryFn: () => safeFetch<{ projects: ProjectSessions[] }>(u.sessions, { projects: [] }) },
         { queryKey: ["skills-slim", u.skills], queryFn: () => safeFetch<SkillsSummary>(u.skills, { summary: {} }) },
         { queryKey: ["brain-slim", u.brain], queryFn: () => safeFetch<{ totalProjects?: number }>(u.brain, {}) },
-        { queryKey: ["overview-daily", u.daily], queryFn: () => safeFetch<{ daily: { input?: number; output?: number }[] }>(u.daily, { daily: [] }) },
+        // Same key and URL as the Overview hero card, so the badge and the card always agree.
+        { queryKey: ["tokens", u.tokens], queryFn: () => safeFetch<{ totals?: { input: number; output: number } } | null>(u.tokens, null) },
         { queryKey: ["overview-rag", u.rag], queryFn: () => safeFetch<{ documents?: number } | null>(u.rag, null) },
-        { queryKey: ["sidebar-jev", u.jev], queryFn: () => safeFetch<{ daily: JevDay[] }>(u.jev, { daily: [] }) },
+        { queryKey: ["sidebar-jev", u.jev], queryFn: () => safeFetch<{ totals?: { routed: number } }>(u.jev, {}) },
     ] });
 
     // /agents badge is just the machine count (no fetch). The rest appear
     // together once every query has answered, as the single setBadges did.
     const displayBadges = useMemo<Record<string, number | string>>(() => {
         const agents = { "/agents": machines.length || 0 };
-        const sessions = sessionsQ.data, skills = skillsQ.data, brain = brainQ.data, tokens = dailyQ.data, rag = ragQ.data, jev = jevQ.data;
-        if (!sessions || !skills || !brain || !tokens || rag === undefined || !jev) return agents;
-        // The badge is calls *today*, so read the day bucket rather than the
-        // rolling 24 h total the days=1 window returns.
-        const todayKey = new Date().toLocaleDateString("en-CA");
-        const jevToday = (jev.daily ?? []).find(d => d.day === todayKey);
-        const jevCalls = jevToday ? jevToday.routed + jevToday.skipped + jevToday.errors : 0;
+        const sessions = sessionsQ.data, skills = skillsQ.data, brain = brainQ.data, tokens = tokensQ.data, rag = ragQ.data, jev = jevQ.data;
+        if (!sessions || !skills || !brain || tokens === undefined || rag === undefined || !jev) return agents;
+        // All-time routed prompts, the same number the Jev Router card shows for All,
+        // so every sidebar badge is a lifetime total.
+        const jevCalls = jev.totals?.routed ?? 0;
         const totalSessions = (sessions.projects ?? []).reduce((sum, p) => sum + (p.sessions?.length ?? 0), 0);
-        const totalTokens = (tokens.daily ?? []).reduce((sum, d) => sum + (d.input ?? 0) + (d.output ?? 0), 0);
+        const totalTokens = tokens?.totals ? tokens.totals.input + tokens.totals.output : 0;
         return {
             ...agents,
             "/dashboard": brain.totalProjects ?? 0,
@@ -301,7 +299,7 @@ export default function ClaudeSidebarNav() {
             "/rag": rag?.documents ?? 0,
             "/jev": jevCalls,
         };
-    }, [machines.length, sessionsQ.data, skillsQ.data, brainQ.data, dailyQ.data, ragQ.data, jevQ.data]);
+    }, [machines.length, sessionsQ.data, skillsQ.data, brainQ.data, tokensQ.data, ragQ.data, jevQ.data]);
 
     // Close the mobile drawer/dropdown on navigation. Adjusted during render
     // (React's documented pattern for resetting state when a prop changes)
@@ -353,7 +351,7 @@ export default function ClaudeSidebarNav() {
             <div className="md:hidden flex items-center justify-between px-4 py-3 border-b sticky top-0 z-40"
                 style={{ background: "#111118", borderColor: "rgba(255,255,255,0.05)" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <Image src="/claude-logo.png" alt="Claude" width={20} height={20} style={{ imageRendering: "pixelated" }} />
+                    <Image src="/claude-logo.png" alt="Claude" width={20} height={20} style={{ borderRadius: 5 }} />
                     <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.12em", color: "#ffffff", textTransform: "uppercase" }}>CLAUDE</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>

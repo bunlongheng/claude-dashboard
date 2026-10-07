@@ -70,6 +70,7 @@ export interface JevDay {
     avgLatencyMs: number;
     p95LatencyMs: number;
     tokens: number;
+    costUsd: number;
 }
 
 export interface JevHour {
@@ -80,6 +81,7 @@ export interface JevHour {
     errors: number;
     avgLatencyMs: number;
     tokens: number;
+    costUsd: number;
 }
 
 export interface JevSession {
@@ -295,6 +297,7 @@ export function aggregateJev(rows: JevRow[], now: number = Date.now()): JevAggre
             avgLatencyMs: mean(d.lat),
             p95LatencyMs: percentile([...d.lat].sort((a, b) => a - b), 95),
             tokens: d.tokens,
+            costUsd: (d.routed + d.skipped + d.errors) * JEV_COST_PER_CALL,
         }))
         .sort((a, b) => a.day.localeCompare(b.day));
 
@@ -313,6 +316,7 @@ export function aggregateJev(rows: JevRow[], now: number = Date.now()): JevAggre
             errors: h?.errors ?? 0,
             avgLatencyMs: mean(h?.lat ?? []),
             tokens: h?.tokens ?? 0,
+            costUsd: ((h?.routed ?? 0) + (h?.skipped ?? 0) + (h?.errors ?? 0)) * JEV_COST_PER_CALL,
         });
     }
 

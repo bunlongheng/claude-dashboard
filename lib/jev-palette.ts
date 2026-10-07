@@ -17,3 +17,6 @@ export const HEALTH_STYLE: Record<JevHealth, { color: string; label: string; not
     stale: { color: "#E8A23B", label: "STALE", note: "no routing decision recently" },
     never: { color: "#6B7280", label: "NEVER", note: "the router has not answered yet" },
 };
+
+// Days asked of /api/claude/jev per Overview window; the route caps at 365.
+export const JEV_DAYS: Record<"today" | "7d" | "30d" | "all", number> = { today: 1, "7d": 7, "30d": 30, all: 365 };

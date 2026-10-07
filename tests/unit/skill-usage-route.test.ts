@@ -93,6 +93,18 @@ describe("GET /api/claude/skill-usage", () => {
     expect(data.subagents.map((s) => s.name)).toContain("general-purpose");
   });
 
+  it("today=1 counts only events since local midnight", async () => {
+    const midnight = new Date(); midnight.setHours(0, 0, 0, 0);
+    writeFixture(tmpHome, "proj1", "session1.jsonl", [
+      { timestamp: new Date(midnight.getTime() - 3600_000).toISOString(), message: { content: "<command-name>/yesterday</command-name>" } },
+      { timestamp: new Date().toISOString(), message: { content: "<command-name>/today</command-name>" } },
+    ]);
+    const data = await get("http://localhost/api/claude/skill-usage?today=1");
+    expect(data.skills.map((s) => s.name)).toEqual(["today"]);
+    expect(data.hours).toBeGreaterThanOrEqual(1);
+    expect(data.hours).toBeLessThanOrEqual(24);
+  });
+
   it("clamps hours to the 1-720 range", async () => {
     const high = await get("http://localhost/api/claude/skill-usage?hours=99999");
     expect(high.hours).toBe(720);

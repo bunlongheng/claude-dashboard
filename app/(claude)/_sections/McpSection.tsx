@@ -11,7 +11,7 @@ import {
 import { useMachine } from "./MachineContext";
 import { SegmentedTabs, fetchJson, FetchError, useDialog } from "./shared";
 import AppIcon from "./AppIcon";
-import McpLogPanel from "./McpLogPanel";
+import McpLogPanel, { McpRecentCalls } from "./McpLogPanel";
 import type { Win } from "@/app/api/claude/mcp-log/route";
 import McpDirectory from "./McpDirectory";
 
@@ -350,6 +350,8 @@ export default function McpSection() {
                     onClose={() => setSelected(null)}
                 />
             )}
+
+            <McpRecentCalls win={win} />
 
         </div>
     );

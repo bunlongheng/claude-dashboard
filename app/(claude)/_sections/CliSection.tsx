@@ -4,7 +4,7 @@ import { useState } from "react";
 import { cliIconFor } from "./cliIcons";
 import { CLI_DESCRIPTIONS } from "@/lib/cli-tools";
 import { FileViews, ViewModeToggle, type ViewMode } from "./FileViews";
-import McpLogPanel from "./McpLogPanel";
+import McpLogPanel, { McpRecentCalls } from "./McpLogPanel";
 import CliDirectory from "./CliDirectory";
 import type { Win } from "@/app/api/claude/cli-log/route";
 
@@ -38,6 +38,7 @@ export default function CliSection() {
             {mode === "list"
                 ? <CliDirectory win={win} />
                 : <FileViews mode={mode} accent={ACCENT} items={items} getIcon={(i) => cliIconFor(i.id)} />}
+            <McpRecentCalls win={win} kind="cli" />
         </div>
     );
 }

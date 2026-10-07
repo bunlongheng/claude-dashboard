@@ -4,11 +4,12 @@ import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { RAG_ENABLED } from "@/lib/features";
 import { useMachine } from "./MachineContext";
-import { safeFetch, type Token, type ProjectSessions } from "./shared";
+import { safeFetch, SegmentedTabs, WINDOW_TABS, type Token, type ProjectSessions, type Window4 } from "./shared";
+import { HeroSlot } from "./PageHero";
 import { MascotLoader } from "./MascotLoader";
 import SkillUsagePanel from "./SkillUsagePanel";
 import { HeroCardsGrid } from "./overview/HeroCardsGrid";
-import { ConfigDonutCard } from "./overview/ConfigDonutCard";
+import { UsageMixCard } from "./overview/UsageMixCard";
 import { TopSessionsCard } from "./overview/TopSessionsCard";
 import { JevCard } from "./overview/JevCard";
 import { ActivityHeatmapCard } from "./overview/ActivityHeatmapCard";
@@ -42,14 +43,15 @@ export default function OverviewSection() {
     // failed load are not mistaken for real zero activity.
     const [dataError, setDataError] = useState(false);
     // Shared interval used by Breakdown, Activity stats, and Top Sessions tabs.
-    const [intervalTab, setIntervalTab] = useState<"24h" | "7d" | "30d" | "all">("7d");
+    const [intervalTab, setIntervalTab] = useState<Window4>("7d");
     const breakdownInterval = intervalTab;
     const setBreakdownInterval = setIntervalTab;
 
     // Days-in-window for the current interval. Used by all three sections.
-    const windowDays = intervalTab === "24h" ? 1 : intervalTab === "7d" ? 7 : intervalTab === "30d" ? 30 : 999999;
+    const windowDays = intervalTab === "today" ? 1 : intervalTab === "7d" ? 7 : intervalTab === "30d" ? 30 : 999999;
     const now = useNow(30_000);
-    const windowCutoff = now - windowDays * 86400_000;
+    // "today" means since local midnight, not the last 24 hours.
+    const windowCutoff = intervalTab === "today" ? new Date(now).setHours(0, 0, 0, 0) : now - windowDays * 86400_000;
 
     // Daily data - loaded once per machine (slow endpoint, ~3s)
     interface DailyModelBucket { model: string; input: number; output: number; cache_read: number; cache_creation: number; turns: number }
@@ -60,6 +62,22 @@ export default function OverviewSection() {
         queryFn: () => safeFetch<DailyStatsResponse>(dailyUrl, { daily: [], byModel: [], tools: [] }, () => setDataError(true)),
     });
     const dailyData = useMemo(() => dailyQuery.data?.daily ?? [], [dailyQuery.data]);
+    // Token totals come from the tokens route (full transcripts, deduped by
+    // message id, subagents included) so the Overview matches the Tokens page.
+    // The daily route tails big files and skips subagents, so its sums run low.
+    type TokenTotals = { totals?: { input: number; output: number; turns: number; sessions: number }; daily?: { day: string; input: number; output: number; cacheRead: number; cacheCreate: number; turns: number; sessions: number }[] } | null;
+    const tokensWinUrl = apiBase(`/api/claude/tokens?since=${intervalTab}`);
+    const tokensWinQuery = useQuery<TokenTotals>({ queryKey: ["tokens", tokensWinUrl], queryFn: () => safeFetch<TokenTotals>(tokensWinUrl, null), refetchInterval: 60_000, refetchOnWindowFocus: false, placeholderData: prev => prev });
+    const tokensAllUrl = apiBase("/api/claude/tokens?since=all");
+    const tokensAllQuery = useQuery<TokenTotals>({ queryKey: ["tokens", tokensAllUrl], queryFn: () => safeFetch<TokenTotals>(tokensAllUrl, null), refetchInterval: 60_000, refetchOnWindowFocus: false });
+    const winTotals = tokensWinQuery.data?.totals;
+    const winExact = winTotals ? { turns: winTotals.turns, tokens: winTotals.input + winTotals.output, sessions: winTotals.sessions } : undefined;
+    // Breakdown day bars use the same source as its numbers, so the bars sum to the stats.
+    const breakdownDays = useMemo<DayBucket[]>(() => {
+        const rows = tokensWinQuery.data?.daily;
+        if (!rows) return dailyData;
+        return rows.map(r => ({ day: r.day, input: r.input, output: r.output, cache_read: r.cacheRead, cache_creation: r.cacheCreate, turns: r.turns, sessions: r.sessions }));
+    }, [tokensWinQuery.data, dailyData]);
     const byDayHour = dailyQuery.data?.byDayHour && typeof dailyQuery.data.byDayHour === "object" ? dailyQuery.data.byDayHour : {};
     const favoriteModel = useMemo(() => {
         const models = dailyQuery.data?.byModel ?? [];
@@ -182,13 +200,14 @@ export default function OverviewSection() {
     }, [allTokens]);
 
     // Memoized heatmap computation - lookback follows the interval tab.
+    // Heatmap days come from the same rows as the Breakdown card, so the 2 cards agree.
     const heatmapData = useMemo(() => {
-        if (dailyData.length === 0) return null;
+        if (breakdownDays.length === 0) return null;
         const today = new Date();
-        const dayMap = new Map(dailyData.map(d => [d.day, d.turns]));
+        const dayMap = new Map(breakdownDays.map(d => [d.day, d.turns]));
         const cells: { date: string; turns: number; weekIndex: number; dayOfWeek: number }[] = [];
         const lookbackDays =
-            intervalTab === "24h" ? 1 :
+            intervalTab === "today" ? 1 :
             intervalTab === "7d"  ? 7 :
             intervalTab === "30d" ? 30 :
             13 * 7; // "all" caps at 13 weeks for visual sanity
@@ -202,7 +221,7 @@ export default function OverviewSection() {
             const iso = localYMD(d);
             cells.push({ date: iso, turns: dayMap.get(iso) ?? 0, weekIndex: Math.floor(i / 7), dayOfWeek: d.getDay() });
         }
-        const allCells = dailyData.map(d => ({ date: d.day, turns: d.turns }));
+        const allCells = breakdownDays.map(d => ({ date: d.day, turns: d.turns }));
         const activeDays = allCells.filter(c => c.turns > 0).length;
         const totalDays = allCells.length;
         const maxTurns = Math.max(...cells.map(c => c.turns), 1);
@@ -246,35 +265,15 @@ export default function OverviewSection() {
             }
         }
         return { cells, cellMap, weeksCount, months, maxTurns, activeDays, totalDays, mostActiveLabel, longestStreak, currentStreak, dayMap };
-    }, [dailyData, intervalTab]);
+    }, [breakdownDays, intervalTab]);
 
     if (loading || !stats) return <MascotLoader label="Loading dashboard" />;
 
-    // Colors mirror the left-nav palette (greens for skills/commands/hooks,
-    // MCP yellow, plugins indigo).
-    const configSegments = [
-        { value: stats.skills, color: "#8AC249", label: "Skills" },
-        { value: stats.commands, color: "#34C759", label: "Commands" },
-        { value: stats.hooks, color: "#30D158", label: "Hooks" },
-        { value: stats.mcp, color: "#FFCC00", label: "MCP" },
-        { value: stats.plugins, color: "#5856D6", label: "Plugins" },
-    ];
-
-    // Reusable tab control - same UX in Breakdown / Activity / Top Sessions.
-    const intervalTabsEl = (
-        <div style={{ display: "inline-flex", background: "rgba(255,255,255,0.04)", borderRadius: 6, padding: 2 }}>
-            {([["7d","7d"],["30d","30d"],["all","ALL"]] as const).map(([k, l]) => {
-                const active = intervalTab === k;
-                return (
-                    <button key={k} onClick={() => setIntervalTab(k)} style={{
-                        fontSize: 9, fontWeight: 700, padding: "4px 9px", borderRadius: 4,
-                        background: active ? "rgba(255,255,255,0.14)" : "transparent",
-                        color: active ? "#fff" : "rgba(255,255,255,0.52)",
-                        border: "none", cursor: "pointer", letterSpacing: 0.5,
-                    }}>{l}</button>
-                );
-            })}
-        </div>
+    // 1 window control in the page hero drives every windowed card below.
+    const heroTabs = (
+        <HeroSlot>
+            <SegmentedTabs<Window4> tabs={WINDOW_TABS} value={intervalTab} onChange={setIntervalTab} />
+        </HeroSlot>
     );
 
     // Windowed stats for the Activity section
@@ -311,7 +310,9 @@ export default function OverviewSection() {
 
 
     const liveSessions = allSessionProjects.flatMap((p) => (p.sessions || []).filter((s) => s.live)).length;
-    const totalTokens = dailyData.reduce((s, d) => s + (d.input ?? 0) + (d.output ?? 0), 0);
+    const totalTokens = tokensAllQuery.data?.totals
+        ? tokensAllQuery.data.totals.input + tokensAllQuery.data.totals.output
+        : dailyData.reduce((s, d) => s + (d.input ?? 0) + (d.output ?? 0), 0);
 
     return (
         <div className="space-y-6">
@@ -330,15 +331,16 @@ export default function OverviewSection() {
             )}
             {/* Hero metrics - 10 boxes, 5 per row. Each: headline + 2-stat breakdown.
                 Order + colors mirror the left nav gradient (red -> indigo, no white). */}
+            {heroTabs}
             <HeroCardsGrid stats={stats} ragStats={ragStats} liveSessions={liveSessions} totalTokens={totalTokens} />
 
             {/* Row 4 - 4 columns: config, top sessions, Jev router, skill usage */}
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-                <ConfigDonutCard segments={configSegments} />
-                <TopSessionsCard tokensBySessionWindowed={tokensBySessionWindowed} intervalTabsEl={intervalTabsEl} />
-                <JevCard />
+                <UsageMixCard win={intervalTab} />
+                <TopSessionsCard tokensBySessionWindowed={tokensBySessionWindowed} win={intervalTab} />
+                <JevCard win={intervalTab} />
                 {/* Skill usage - compact col next to the Jev card */}
-                <SkillUsagePanel />
+                <SkillUsagePanel win={intervalTab} />
             </div>
 
             {/* Activity Heatmap + Stats */}
@@ -354,9 +356,8 @@ export default function OverviewSection() {
                         winMostActiveLabel={winMostActiveLabel}
                         winTotalTokens={winTotalTokens}
                         favoriteModel={favoriteModel}
-                        intervalTabsEl={intervalTabsEl}
                     />
-                    <BreakdownCard dailyData={dailyData} breakdownInterval={breakdownInterval} intervalTabsEl={intervalTabsEl} />
+                    <BreakdownCard dailyData={breakdownDays} breakdownInterval={breakdownInterval} win={intervalTab} byDayHour={byDayHour} exact={winExact} />
                 </div>
             )}
 

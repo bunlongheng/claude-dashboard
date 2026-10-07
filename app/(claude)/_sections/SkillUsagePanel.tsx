@@ -1,9 +1,8 @@
 "use client";
 
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useMachine } from "./MachineContext";
-import { safeFetch, SegmentedTabs } from "./shared";
+import { safeFetch, WindowBadge, type Window4 } from "./shared";
 import { cardShell } from "@/lib/ui-tokens";
 
 type UsageRow = { name: string; count: number; pct: number; lastUsed: number };
@@ -15,15 +14,14 @@ interface SkillUsageData {
     subagents: UsageRow[];
 }
 
-// Time-window tabs: 7d / 30d / ALL (all-time). 30d is the default.
-type Win = "7d" | "30d" | "all";
-const WIN_PARAM: Record<Win, string> = { "7d": "hours=168", "30d": "hours=720", "all": "all=1" };
+// The standard Today / 7d / 30d / All windows, driven by the Overview hero tabs.
+type Win = Window4;
+const WIN_PARAM: Record<Win, string> = { today: "today=1", "7d": "hours=168", "30d": "hours=720", all: "all=1" };
 
 // Compact card in the Overview 4-col row next to Context Window: skill name +
 // share% + call count, no bars, matching the Context Window style.
-export default function SkillUsagePanel() {
+export default function SkillUsagePanel({ win }: { win: Win }) {
     const { apiBase } = useMachine();
-    const [win, setWin] = useState<Win>("30d");
     // The route scans every session file touched in the window, so poll it
     // gently: 5 min, no refetch on window focus. Keyed by URL so the machine
     // context settling on mount does not trigger a second load.
@@ -38,14 +36,9 @@ export default function SkillUsagePanel() {
 
     return (
         <div style={cardShell}>
-            <div className="flex items-center justify-between" style={{ gap: 8, marginBottom: 12 }}>
+            <div className="flex items-center justify-between" style={{ marginBottom: 12, gap: 8 }}>
                 <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.55)", margin: 0 }}>Skill Usage</p>
-                <SegmentedTabs<Win>
-                    tabs={[{ key: "7d", label: "7d" }, { key: "30d", label: "30d" }, { key: "all", label: "ALL" }]}
-                    value={win}
-                    onChange={setWin}
-                    accent="#8AC249"
-                />
+                <WindowBadge win={win} />
             </div>
             {data && data.skills.length > 0 ? (
                 <div className="space-y-1.5">

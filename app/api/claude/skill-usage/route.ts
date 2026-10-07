@@ -82,11 +82,15 @@ function rank(counts: Map<string, { count: number; lastUsed: number }>): { rows:
 
 export const GET = withErrorHandler(async (req: Request) => {
     const url = new URL(req.url);
-    // all=1 -> all-time (no window); else bounded to `hours` (7d/30d tabs).
-    const allTime = url.searchParams.get("all") === "1";
-    const hours = Math.min(Math.max(parseInt(url.searchParams.get("hours") || "168", 10), 1), 720);
+    // all=1 -> all-time (no window); today=1 -> since local midnight; else
+    // bounded to `hours` (7d/30d tabs).
     const now = Date.now();
-    const winKey = allTime ? "all" : String(hours);
+    const allTime = url.searchParams.get("all") === "1";
+    const today = !allTime && url.searchParams.get("today") === "1";
+    const midnight = new Date(now); midnight.setHours(0, 0, 0, 0);
+    const hours = today ? Math.max(1, Math.ceil((now - midnight.getTime()) / 3600_000)) : Math.min(Math.max(parseInt(url.searchParams.get("hours") || "168", 10), 1), 720);
+    const since = allTime ? 0 : today ? midnight.getTime() : now - hours * 3600_000;
+    const winKey = allTime ? "all" : today ? "today" : String(hours);
     if (cache && cache.key === winKey && now - cache.at < CACHE_TTL_MS) {
         return NextResponse.json(cache.data, CC);
     }
@@ -94,15 +98,13 @@ export const GET = withErrorHandler(async (req: Request) => {
     // Concurrent callers (Overview mount + a focus refetch) share 1 scan.
     let pending = inflight.get(winKey);
     if (!pending) {
-        pending = scan(allTime, hours, now).finally(() => inflight.delete(winKey));
+        pending = scan(winKey, since, hours, now).finally(() => inflight.delete(winKey));
         inflight.set(winKey, pending);
     }
     return NextResponse.json(await pending, CC);
 }) as (req: Request) => Promise<Response>;
 
-async function scan(allTime: boolean, hours: number, now: number): Promise<SkillUsageData> {
-    const winKey = allTime ? "all" : String(hours);
-    const since = allTime ? 0 : now - hours * 3600_000;
+async function scan(winKey: string, since: number, hours: number, now: number): Promise<SkillUsageData> {
     const skillCounts = new Map<string, { count: number; lastUsed: number }>();
     const subagentCounts = new Map<string, { count: number; lastUsed: number }>();
 
@@ -118,7 +120,7 @@ async function scan(allTime: boolean, hours: number, now: number): Promise<Skill
         else map.set(name, { count: 1, lastUsed: ts });
     };
 
-    const oldest = allTime ? 0 : now - MAX_WINDOW_MS;
+    const oldest = since ? now - MAX_WINDOW_MS : 0;
     const seen = new Map<string, FileEntry>();
     let dirty = false;
     for (const projectDir of fs.readdirSync(PROJECTS_DIR)) {
