@@ -23,10 +23,12 @@ export function UsageMixCard({ win }: { win: Window4 }) {
     const skillUrl = `${apiBase("/api/claude/skill-usage")}?${SKILL_Q[win]}`;
     const mcpUrl = `${apiBase("/api/claude/mcp-log")}?win=${LOG_WIN[win]}`;
     const cliUrl = `${apiBase("/api/claude/cli-log")}?win=${LOG_WIN[win]}`;
+    // Keep the last window's numbers while the next load, so the arcs slide instead of restarting from 0.
+    const keepPrev = <T,>(prev: T | undefined) => prev;
     const [skillQ, mcpQ, cliQ] = useQueries({ queries: [
-        { queryKey: ["usage-mix", skillUrl], queryFn: () => safeFetch<SkillUsage>(skillUrl, null), refetchInterval: 60_000 },
-        { queryKey: ["usage-mix", mcpUrl], queryFn: () => safeFetch<ToolLog>(mcpUrl, null), refetchInterval: 60_000 },
-        { queryKey: ["usage-mix", cliUrl], queryFn: () => safeFetch<ToolLog>(cliUrl, null), refetchInterval: 60_000 },
+        { queryKey: ["usage-mix", skillUrl], queryFn: () => safeFetch<SkillUsage>(skillUrl, null), refetchInterval: 60_000, placeholderData: keepPrev },
+        { queryKey: ["usage-mix", mcpUrl], queryFn: () => safeFetch<ToolLog>(mcpUrl, null), refetchInterval: 60_000, placeholderData: keepPrev },
+        { queryKey: ["usage-mix", cliUrl], queryFn: () => safeFetch<ToolLog>(cliUrl, null), refetchInterval: 60_000, placeholderData: keepPrev },
     ] });
     const segments = [
         { value: skillQ.data?.totalSkills ?? 0, color: "#8AC249", label: "Skills" },
