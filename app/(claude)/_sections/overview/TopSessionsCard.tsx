@@ -19,7 +19,7 @@ export function TopSessionsCard({ tokensBySessionWindowed, win }: {
                 <WindowBadge win={win} />
             </div>
             <div className="space-y-2">
-                {tokensBySessionWindowed.slice(0, 6).map((t, i: number) => {
+                {tokensBySessionWindowed.slice(0, 5).map((t, i: number) => {
                     const total = t.input_tokens + t.output_tokens;
                     const maxTotal = tokensBySessionWindowed[0] ? tokensBySessionWindowed[0].input_tokens + tokensBySessionWindowed[0].output_tokens : 1;
                     const pct = Math.min((total / maxTotal) * 100, 100);

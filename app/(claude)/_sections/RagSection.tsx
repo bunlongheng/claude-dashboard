@@ -5,51 +5,53 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { DatabaseZap, Search, RefreshCw } from "lucide-react";
 import { MascotLoader } from "./MascotLoader";
 import { useMachine } from "./MachineContext";
-import { SegmentedTabs, WINDOW_TABS, type Window4 } from "./shared";
+import { SegmentedTabs, WINDOW_TABS, safeFetch, type Window4 } from "./shared";
 import { HeroSlot } from "./PageHero";
 import { JEV_DAYS } from "@/lib/jev-palette";
-import EvalTab from "./EvalTab";
-import { ACCENT, type Stats, type Pref, type SearchResult, type RagTab, type DocInfo } from "./rag/types";
+import { ACCENT, type Stats, type SearchResult, type RagTab, type DocInfo } from "./rag/types";
 import SearchResultsPanel from "./rag/SearchResultsPanel";
 import OverviewTab from "./rag/OverviewTab";
 import DocumentsTab from "./rag/DocumentsTab";
-import PreferencesTab from "./rag/PreferencesTab";
 
 export type { RagTab };
 
-type RagAllData = { stats: Stats; prefs: Pref[]; docs: DocInfo[] };
+type RagAllData = { stats: Stats; docs: DocInfo[] };
 
 export default function RagSection({ initialTab = "overview" }: { initialTab?: RagTab }) {
-    const { machine, apiBase } = useMachine();
+    const { apiBase } = useMachine();
     // 1 page, no tabs: the old tab routes and the hero cards scroll to a section instead.
     const jump = useCallback((t: RagTab) => {
         document.getElementById(`rag-${t}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, []);
 
-    // Stats + preferences + docs are fetched together (same as the original
-    // Promise.all) so a failure on any one leaves all three at their fallback,
+    // Stats + docs are fetched together (same as the original
+    // Promise.all) so a failure on any one leaves both at their fallback,
     // matching the old fetchAll() try/catch behavior.
     const queryClient = useQueryClient();
     const [win, setWin] = useState<Window4>("today");
     const days = JEV_DAYS[win];
     const { data: ragData, isLoading, dataUpdatedAt } = useQuery<RagAllData>({
-        queryKey: ["rag", "all", machine, days],
+        // Keyed on the resolved URL, not the machine id: machine starts null and resolves
+        // to the local id, which would change the key and fetch everything twice.
+        queryKey: ["rag", "all", apiBase("/api/rag/stats"), days],
         placeholderData: prev => prev,
         queryFn: async () => {
-            const [s, p, d] = await Promise.all([
+            const [s, d] = await Promise.all([
                 fetch(apiBase(`/api/rag/stats?days=${days}`)).then(r => r.json()),
-                fetch(apiBase(`/api/rag/preferences`)).then(r => r.json()),
                 fetch(apiBase(`/api/rag/docs`)).then(r => r.json()),
             ]);
-            return { stats: s, prefs: p, docs: d };
+            return { stats: s, docs: d };
         },
     });
+    // Start the charts fetch alongside stats (same key as RagCharts) so the charts
+    // do not wait for stats to land and then show a second loading pass.
+    const chartsUrl = `${apiBase("/api/rag/charts")}?days=${days}`;
+    useQuery({ queryKey: ["rag-charts", chartsUrl], queryFn: () => safeFetch<unknown>(chartsUrl, null) });
     const stats = ragData?.stats ?? null;
     const ready = stats !== null;
     useEffect(() => {
         if (ready && initialTab !== "overview" && initialTab !== "search") jump(initialTab);
     }, [ready, initialTab, jump]);
-    const prefs = ragData?.prefs ?? [];
     // Documents tab lists what was added inside the hero window, counted the same
     // way as the hero card: created_at (SQLite UTC text) since local midnight days-1 ago.
     const start = new Date(dataUpdatedAt); start.setHours(0, 0, 0, 0);
@@ -142,12 +144,6 @@ export default function RagSection({ initialTab = "overview" }: { initialTab?: R
 
             {sectionTitle("documents", "Documents", docs.length)}
             <DocumentsTab docs={docs} apiBase={apiBase} />
-
-            {sectionTitle("preferences", "Preferences", prefs.length)}
-            <PreferencesTab prefs={prefs} />
-
-            {sectionTitle("eval", "Benchmark")}
-            <EvalTab apiBase={apiBase} />
 
             <style>{`
                 @keyframes spin { to { transform: rotate(360deg); } }

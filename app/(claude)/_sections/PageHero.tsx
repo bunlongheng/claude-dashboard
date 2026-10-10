@@ -23,7 +23,6 @@ const PAGE_SUBTITLES: Record<string, string> = {
     "/rag":              "Personal knowledge base & retrieval",
     "/rag/documents":    "All indexed documents",
     "/rag/search":       "Search your knowledge base",
-    "/rag/preferences":  "Extracted preferences & patterns",
 };
 
 // Renders page-specific controls (a window picker, a mode toggle) on the

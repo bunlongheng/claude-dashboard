@@ -1,6 +1,7 @@
 import {
     Chart, ArcElement, DoughnutController, PolarAreaController, RadialLinearScale, Tooltip,
     LineController, LineElement, PointElement, LinearScale, CategoryScale, Filler,
+    BarController, BarElement, Legend,
 } from "chart.js";
 
 // Chart.js is tree-shaken: register once what the overview and Jev charts use.
@@ -8,6 +9,7 @@ import {
 Chart.register(
     ArcElement, DoughnutController, PolarAreaController, RadialLinearScale, Tooltip,
     LineController, LineElement, PointElement, LinearScale, CategoryScale, Filler,
+    BarController, BarElement, Legend,
 );
 
 export const TOOLTIP = {

@@ -45,9 +45,9 @@ export function UsageMixCard({ win }: { win: Window4 }) {
                 <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.55)", margin: 0 }}>Usage mix</p>
                 <WindowBadge win={win} />
             </div>
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 180, gap: 10 }}>
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 150, gap: 10 }}>
                 {total > 0
-                    ? <DonutChart segments={segments} size={156} centerLabel="CALLS" />
+                    ? <DonutChart segments={segments} size={132} centerLabel="CALLS" />
                     : <p style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", margin: 0 }}>{pending ? "Loading" : "No skill, subagent or MCP calls yet."}</p>}
                 {cliCalls > 0 && (
                     <p style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", margin: 0 }}>

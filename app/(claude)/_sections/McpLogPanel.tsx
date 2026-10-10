@@ -17,8 +17,8 @@ const PAGE = 40;
 // The same panel serves the MCP page and the CLI page; only the words and the
 // accent change.
 const KIND = {
-    mcp: { title: "MCP Log", calls: "MCP calls", noun: "servers", route: "mcp-log", accent: "#FFCC00", sep: "." },
-    cli: { title: "CLI Log", calls: "Tool calls", noun: "tools", route: "cli-log", accent: "#34C759", sep: " " },
+    mcp: { calls: "MCP calls", noun: "servers", route: "mcp-log", accent: "#FFCC00", sep: "." },
+    cli: { calls: "Tool calls", noun: "tools", route: "cli-log", accent: "#34C759", sep: " " },
 } as const;
 
 // One colour per decision so the table reads top to bottom as a verdict list.
@@ -145,25 +145,20 @@ function useLogData(win: Win, kind: Kind) {
 // title) so the page has no extra row; the parent owns the value.
 export default function McpLogPanel({ win, onWin, kind = "mcp" }: { win: Win; onWin?: (w: Win) => void; kind?: Kind }) {
     const k = KIND[kind];
-    const { data, isFetching } = useLogData(win, kind);
+    const { data } = useLogData(win, kind);
 
     const servers: McpServerStat[] = data?.servers ?? [];
     const t = data?.totals;
 
+    // Hero cards sit straight on the page like /jev, not inside a panel; the
+    // window filter lives in the page hero.
     return (
-        <div style={{ ...cardShell, marginBottom: 20 }}>
-            <div className="flex items-center justify-between flex-wrap" style={{ gap: 12, marginBottom: 14 }}>
-                <div>
-                    <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.55)", margin: 0 }}>{k.title} <span style={{ color: k.accent }}>{WIN_LABEL[win]}</span></p>
-                    <p style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", margin: "2px 0 0" }}>what was called, when, from where, why, by which model, and what it cost{isFetching && !data ? " - scanning transcripts..." : ""}</p>
-                </div>
-                {onWin && (
-                    <HeroSlot>
-                        <SegmentedTabs<Win> tabs={[...WIN_TABS]} value={win} onChange={onWin} accent={k.accent} />
-                    </HeroSlot>
-                )}
-            </div>
-
+        <>
+            {onWin && (
+                <HeroSlot>
+                    <SegmentedTabs<Win> tabs={[...WIN_TABS]} value={win} onChange={onWin} accent={k.accent} />
+                </HeroSlot>
+            )}
             {t && (
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3" style={{ marginBottom: 20 }}>
                     <BigStat label={k.calls} value={t.calls.toLocaleString()} sub={`${t.sessions} sessions`} icon={Activity} color={k.accent} />
@@ -172,7 +167,7 @@ export default function McpLogPanel({ win, onWin, kind = "mcp" }: { win: Win; on
                     <BigStat label="Errors" value={String(t.errors)} sub={`${t.servers} of ${servers.length} ${k.noun} used`} icon={t.errors ? AlertTriangle : Radio} color={t.errors ? "#ef4444" : "#8AC249"} />
                 </div>
             )}
-        </div>
+        </>
     );
 }
 
