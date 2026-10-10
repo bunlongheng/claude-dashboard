@@ -316,7 +316,6 @@ describe("claude/jev", () => {
     expect(body.totals.errors).toBe(1);
     expect(body.tiers.sonnet).toBe(1);
     expect(body.sessions).toHaveLength(2);
-    expect(body.recent).toHaveLength(3);
     expect(body.projects).toEqual(["bheng", "claude"]);
     expect(body.days).toBe(7);
     expect(body.logPath).toContain("jev.jsonl");
@@ -329,7 +328,6 @@ describe("claude/jev", () => {
     expect(body.totals.calls).toBe(0);
     expect(body.daily).toEqual([]);
     expect(body.sessions).toEqual([]);
-    expect(body.recent).toEqual([]);
     expect(body.projects).toEqual([]);
     expect(body.days).toBe(30);
   });

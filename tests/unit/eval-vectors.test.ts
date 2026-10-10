@@ -67,6 +67,11 @@ function wipe() {
   conn.exec("DELETE FROM chunk_vectors; DELETE FROM chunks; DELETE FROM documents;");
 }
 
+function vectorCount(): number {
+  const conn = db.getDb();
+  return (conn.prepare("SELECT COUNT(*) as c FROM chunk_vectors").get() as { c: number }).c;
+}
+
 describe("eval/vectors", () => {
   it("indexChunks returns embedded=0 and total=0 when nothing is missing", async () => {
     wipe();
@@ -83,7 +88,7 @@ describe("eval/vectors", () => {
     const result = await vectors.indexChunks();
     expect(result.embedded).toBe(2);
     expect(result.total).toBe(2);
-    expect(vectors.vectorCount()).toBe(2);
+    expect(vectorCount()).toBe(2);
 
     const again = await vectors.indexChunks();
     expect(again).toEqual({ embedded: 0, total: 2 });
@@ -98,7 +103,7 @@ describe("eval/vectors", () => {
     const result = await vectors.indexChunks();
     expect(result.embedded).toBe(70);
     expect(result.total).toBe(70);
-    expect(vectors.vectorCount()).toBe(70);
+    expect(vectorCount()).toBe(70);
   });
 
   it("vectorSearch scores by cosine similarity, sorts, and respects limit", async () => {
@@ -130,6 +135,6 @@ describe("eval/vectors", () => {
 
   it("vectorCount returns 0 for an empty table", () => {
     wipe();
-    expect(vectors.vectorCount()).toBe(0);
+    expect(vectorCount()).toBe(0);
   });
 });

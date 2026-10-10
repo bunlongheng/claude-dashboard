@@ -7,14 +7,14 @@ import { readLastBytes } from "@/lib/safe-read";
 // Shared home of every ~/.claude/projects/<folder>/<session>.jsonl walk.
 export const PROJECTS_DIR = path.join(os.homedir(), ".claude", "projects");
 
-export interface JsonlWalkOptions {
+interface JsonlWalkOptions {
     // Skip files whose mtime predates this (ms epoch). Omit/0 to walk every file.
     sinceMs?: number;
     // Tail size read per file via readLastBytes.
     maxBytes: number;
 }
 
-export interface JsonlEntryCtx {
+interface JsonlEntryCtx {
     folder: string;   // raw project dir name, e.g. "-Users-alice-Sites-myapp"
     filePath: string;
     fileName: string; // e.g. "abc123.jsonl"

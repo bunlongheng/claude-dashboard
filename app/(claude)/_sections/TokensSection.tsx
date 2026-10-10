@@ -2,16 +2,18 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowUpRight, ArrowDownLeft, Database, Users, Bot } from "lucide-react";
+import { ArrowUpRight, ArrowDownLeft, Database, Users, Bot, DollarSign } from "lucide-react";
 import { useMachine } from "./MachineContext";
 import { safeFetch, SegmentedTabs, WINDOW_TABS, fmtCompact, fmtCost, fmtTs, timeAgo, FetchError } from "./shared";
 import { cardShell } from "@/lib/ui-tokens";
-import { BigStat, MONO, th, td, num } from "./McpLogPanel";
+import { BigStat, MONO, th, td, num, shortModel } from "./McpLogPanel";
 import { HeroSlot } from "./PageHero";
 import AppIcon from "./AppIcon";
 import type { TokensData, Since, Role, WhoRow } from "@/app/api/claude/tokens/route";
 
 const ACCENT = "#FFCC00";
+const COST = "#FF6347";
+const usdShort = (n: number) => n >= 1000 ? `$${(n / 1000).toFixed(1)}K` : `$${n.toFixed(2)}`;
 const OUT = "#7C5CFF";
 const IN = "#4A9EFF";
 const CACHE = "#3FB68B";
@@ -19,7 +21,6 @@ const PAGE = 25;
 const ROLE: Record<Role, { label: string; color: string }> = { main: { label: "main thread", color: ACCENT }, agent: { label: "subagent", color: "#5AC8FA" } };
 const SINCE_LABEL: Record<Since, string> = { today: "since 12:00 AM today", "7d": "last 7 days", "30d": "last 30 days", all: "all time" };
 
-const shortModel = (m: string) => m.replace(/^claude-/, "").replace(/-\d{8}$/, "");
 const fmtFull = (n: number) => n.toLocaleString("en-US");
 
 function RoleTag({ role }: { role: Role }) {
@@ -84,6 +85,9 @@ export default function TokensSection() {
     });
     const t = data?.totals;
     const live = data?.sessions.filter(s => s.active).length ?? 0;
+    // Trend for the stat boxes: per hour up to now on Today, per day otherwise.
+    const rows = since === "today" && data ? data.hourly.slice(0, new Date(data.generatedAt).getHours() + 1) : data?.daily ?? [];
+    const trend = (k: "input" | "output" | "cacheRead" | "sessions" | "cost") => rows.map(r => r[k]);
     const whoByRole = (data?.who ?? []).reduce<Record<Role, WhoRow[]>>((acc, w) => { acc[w.role].push(w); return acc; }, { main: [], agent: [] });
 
     return (
@@ -103,11 +107,12 @@ export default function TokensSection() {
             {isError && <FetchError what="token stats" onRetry={() => refetch()} />}
 
             {t && (
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <BigStat label="Output tokens" value={fmtCompact(t.output)} sub={`${fmtCompact(t.mainOutput)} main thread · ${fmtCompact(t.agentOutput)} subagents`} icon={ArrowUpRight} color={OUT} />
-                    <BigStat label="Input tokens" value={fmtCompact(t.input)} sub="uncached prompt tokens" icon={ArrowDownLeft} color={IN} />
-                    <BigStat label="Cache read" value={fmtCompact(t.cacheRead)} sub={`${fmtCompact(t.cacheCreate)} written to cache`} icon={Database} color={CACHE} />
-                    <BigStat label="Sessions" value={String(t.sessions)} sub={`${live} live now · ${t.agents} subagent runs · ${fmtFull(t.turns)} turns`} icon={Users} color={ACCENT} />
+                <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3">
+                    <BigStat label="Output tokens" value={fmtCompact(t.output)} sub={`${fmtCompact(t.mainOutput)} main thread · ${fmtCompact(t.agentOutput)} subagents`} icon={ArrowUpRight} color={OUT} trend={trend("output")} />
+                    <BigStat label="Input tokens" value={fmtCompact(t.input)} sub="uncached prompt tokens" icon={ArrowDownLeft} color={IN} trend={trend("input")} />
+                    <BigStat label="Cache read" value={fmtCompact(t.cacheRead)} sub={`${fmtCompact(t.cacheCreate)} written to cache`} icon={Database} color={CACHE} trend={trend("cacheRead")} />
+                    <BigStat label="Sessions" value={String(t.sessions)} sub={`${live} live now · ${t.agents} subagent runs · ${fmtFull(t.turns)} turns`} icon={Users} color={ACCENT} trend={trend("sessions")} />
+                    <BigStat label="API value" value={usdShort(t.cost)} sub={`${usdShort(t.grossCost - t.cost)} saved by cache · ${usdShort(t.grossCost)} uncached`} icon={DollarSign} color={COST} trend={trend("cost")} />
                 </div>
             )}
             {t && (

@@ -3,6 +3,7 @@ import { streamJsonl } from "@/lib/jsonl-walk";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
+import { localYMD } from "@/lib/format";
 import { withErrorHandler } from "@/lib/api-handler";
 
 export const runtime = "nodejs";
@@ -15,13 +16,6 @@ const CLAUDE_DIR = path.join(os.homedir(), ".claude", "projects");
 // same punchcard cell don't re-scan every file.
 const CACHE_TTL_MS = 30_000;
 const cache = new Map<string, { at: number; data: unknown }>();
-
-
-// Local-time YYYY-MM-DD - must match the punchcard's local bucketing so cell counts
-// in /api/claude/token-stats/daily and drill totals stay aligned.
-function localYMD(d: Date): string {
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
 
 type TurnEntry = {
     ts: string;          // ISO timestamp

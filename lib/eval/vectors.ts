@@ -34,7 +34,7 @@ export async function indexChunks(): Promise<{ embedded: number; total: number }
   return { embedded, total };
 }
 
-export type VectorHit = ChunkRow & { score: number };
+type VectorHit = ChunkRow & { score: number };
 
 // Brute-force cosine search over stored vectors. Fine for a few thousand chunks.
 export async function vectorSearch(query: string, limit = 5): Promise<VectorHit[]> {
@@ -56,9 +56,4 @@ export async function vectorSearch(query: string, limit = 5): Promise<VectorHit[
 
   scored.sort((a, b) => b.score - a.score);
   return scored.slice(0, limit);
-}
-
-export function vectorCount(): number {
-  const db = getDb();
-  return (db.prepare("SELECT COUNT(*) as c FROM chunk_vectors").get() as { c: number }).c;
 }

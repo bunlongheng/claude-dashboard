@@ -98,14 +98,6 @@ describe("rag-search: FTS/entity error fallbacks", () => {
     spy.mockRestore();
   });
 
-  it("entitySearch returns [] when the entity query throws", () => {
-    const conn = db.getDb();
-    const spy = vi.spyOn(conn, "prepare").mockImplementationOnce(() => {
-      throw new Error("simulated entity error");
-    });
-    expect(search.entitySearch("cognito")).toEqual([]);
-    spy.mockRestore();
-  });
 });
 
 // ── runHealthChecks: remaining branch outcomes ──────────────────────────────

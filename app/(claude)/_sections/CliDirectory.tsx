@@ -6,7 +6,7 @@ import { ChevronRight, Search, AlertTriangle } from "lucide-react";
 import { useMachine } from "./MachineContext";
 import { safeFetch, SegmentedTabs, fmtCompact, fmtCost, fmtTs, timeAgo } from "./shared";
 import { cardShell } from "@/lib/ui-tokens";
-import { VerdictChip, Spark, VERDICT, MONO, th, td, num, WIN_LABEL, UNIT_LABEL } from "./McpLogPanel";
+import { VerdictChip, Spark, Chips, VERDICT, MONO, th, td, num, WIN_LABEL, UNIT_LABEL } from "./McpLogPanel";
 import { cliIconFor } from "./cliIcons";
 import { CLI_DESCRIPTIONS, cliTargetNoun } from "@/lib/cli-tools";
 import type { CliLogData, CliToolStat, Win } from "@/app/api/claude/cli-log/route";
@@ -16,18 +16,6 @@ type Sort = "calls" | "recent" | "name";
 type Row = { name: string; builtIn: boolean; stat: CliToolStat | null };
 
 const ACCENT = "#34C759";
-
-function Chips({ title, items }: { title: string; items: string[] }) {
-    if (!items.length) return null;
-    return (
-        <div style={{ marginTop: 10 }}>
-            <div style={{ ...th, padding: "0 0 4px" }}>{title}</div>
-            <div className="flex flex-wrap" style={{ gap: 4 }}>
-                {items.map(i => <span key={i} style={{ fontSize: 10, fontFamily: MONO, padding: "2px 7px", borderRadius: 6, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.7)" }}>{i}</span>)}
-            </div>
-        </div>
-    );
-}
 
 // Every built-in tool in 1 list with its usage in the page window: the 28
 // known tools plus anything the harness added since (called but not yet in

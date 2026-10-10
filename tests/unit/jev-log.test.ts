@@ -102,12 +102,12 @@ describe("aggregateJev totals", () => {
     it("sums tokens and prices every call at the flat router rate", () => {
         expect(agg.totals.inputTokens).toBe(505);
         expect(agg.totals.outputTokens).toBe(86);
-        expect(agg.totals.estCostUsd).toBeCloseTo(3 * JEV_COST_PER_CALL, 10);
+        expect(agg.totals.estCostUsd).toBeCloseTo(2 * JEV_COST_PER_CALL, 10); // routed + error, the skip never called the API
     });
 
     it("prices every day and hour at the flat router rate", () => {
         const day = agg.daily[0];
-        expect(day.costUsd).toBeCloseTo((day.routed + day.skipped + day.errors) * JEV_COST_PER_CALL, 10);
+        expect(day.costUsd).toBeCloseTo((day.routed + day.errors) * JEV_COST_PER_CALL, 10);
         const hourlyCost = agg.hourly.reduce((s, h) => s + h.costUsd, 0);
         expect(hourlyCost).toBeCloseTo(agg.totals.estCostUsd, 10);
     });
@@ -129,7 +129,6 @@ describe("aggregateJev totals", () => {
         expect(empty.totals.lastRoutedTs).toBeNull();
         expect(empty.daily).toEqual([]);
         expect(empty.sessions).toEqual([]);
-        expect(empty.recent).toEqual([]);
     });
 
     it("treats an unrecognised status as skipped", () => {
@@ -147,7 +146,6 @@ describe("aggregateJev totals", () => {
     it("sorts unordered input before reading first and last", () => {
         const agg2 = aggregateJev([ERRORED, ROUTED, SKIPPED], NOW);
         expect(agg2.totals.lastCallTs).toBe(ERRORED.ts);
-        expect(agg2.recent[0].ts).toBe(ERRORED.ts);
     });
 });
 
@@ -165,6 +163,13 @@ describe("aggregateJev health", () => {
     it("is never when nothing has routed, even with skipped and errored rows", () => {
         expect(aggregateJev([SKIPPED, ERRORED], NOW).health).toBe("never");
         expect(aggregateJev([], NOW).health).toBe("never");
+    });
+
+    it("is off while a switch flip to a tier is still open, even with a live routed row", () => {
+        const flip = { ts: "2026-09-24T11:49:00-0400", source: "switch", from: null, to: "fable" } as JevRow;
+        expect(aggregateJev([ROUTED, flip], Date.parse("2026-09-24T11:58:00-0400")).health).toBe("off");
+        const back = { ts: "2026-09-24T11:49:30-0400", source: "switch", from: "fable", to: null } as JevRow;
+        expect(aggregateJev([ROUTED, flip, back], Date.parse("2026-09-24T11:58:00-0400")).health).toBe("live");
     });
 });
 
@@ -327,20 +332,6 @@ describe("aggregateJev sessions", () => {
     });
 });
 
-// ── recent ──────────────────────────────────────────────────────────────────
-describe("aggregateJev recent", () => {
-    it("returns at most the last 200 rows, newest first", () => {
-        const rows: JevRow[] = Array.from({ length: 250 }, (_, i) => ({
-            ts: new Date(Date.parse("2026-09-01T00:00:00-0400") + i * 60_000).toISOString(),
-            status: "routed", tier: "haiku",
-        }));
-        const { recent } = aggregateJev(rows, NOW);
-        expect(recent).toHaveLength(200);
-        expect(Date.parse(recent[0].ts)).toBeGreaterThan(Date.parse(recent[199].ts));
-        expect(recent[0].ts).toBe(rows[249].ts);
-    });
-});
-
 // ── readJevLog ──────────────────────────────────────────────────────────────
 // JEV_LOG_PATH is computed once at module load from os.homedir(), so each test
 // needs a fresh module instance to pick up its own tmpHome override.
@@ -399,5 +390,120 @@ describe("readJevLog", () => {
         expect(readJevLog(7).map(r => r.session_id)).toEqual(["older", "recent"]);
         expect(readJevLog(1).map(r => r.session_id)).toEqual(["recent"]);
         expect(readJevLog().map(r => r.session_id)).toEqual(["older", "recent"]);
+    });
+
+    it("days=1 is calendar today from local midnight, not a rolling 24 hours", async () => {
+        const midnight = new Date(); midnight.setHours(0, 0, 0, 0);
+        const lastNight = { ...ROUTED, ts: new Date(midnight.getTime() - 3_600_000).toISOString(), session_id: "last-night" };
+        const thisMorning = { ...ROUTED, ts: new Date(midnight.getTime() + 60_000).toISOString(), session_id: "this-morning" };
+        writeLog(tmpHome, jsonl(lastNight, thisMorning));
+        const { readJevLog } = await loadLib();
+        expect(readJevLog(1).map(r => r.session_id)).toEqual(["this-morning"]);
+        expect(readJevLog(2).map(r => r.session_id)).toEqual(["last-night", "this-morning"]);
+    });
+});
+
+// ── forcedWindows ───────────────────────────────────────────────────────────
+describe("forcedWindows", () => {
+    const sw = (ts: string, from: string | null, to: string | null) => ({ ts, source: "switch", from, to });
+    const forced = (ts: string, tier = "fable") => ({ ts, status: "skipped", reason: `forced:${tier}`, prompt: "x" });
+    const routed = (ts: string) => ({ ts, status: "routed", tier: "sonnet", prompt: "x" });
+    const NOW_TS = Date.parse("2026-10-09T12:00:00-0400");
+
+    it("uses switch flips as exact edges and counts prompts inside", async () => {
+        const { forcedWindows } = await import("@/lib/jev-log");
+        const w = forcedWindows([
+            sw("2026-10-09T09:00:00-0400", null, "fable"),
+            forced("2026-10-09T09:10:00-0400"), forced("2026-10-09T09:20:00-0400"),
+            sw("2026-10-09T10:00:00-0400", "fable", null),
+            routed("2026-10-09T10:05:00-0400"),
+        ], [], NOW_TS);
+        expect(w).toEqual([{ from: "2026-10-09T09:00:00-0400", to: "2026-10-09T10:00:00-0400", tier: "fable", prompts: 2, inferred: false, subagents: {} }]);
+    });
+
+    it("rebuilds an inferred window from forced prompt lines alone, closed by the next routed prompt", async () => {
+        const { forcedWindows } = await import("@/lib/jev-log");
+        const w = forcedWindows([
+            routed("2026-10-08T08:00:00-0400"),
+            forced("2026-10-08T09:00:00-0400"), forced("2026-10-08T09:30:00-0400"),
+            { ts: "2026-10-08T09:40:00-0400", status: "skipped", reason: "slash" },
+            routed("2026-10-08T11:00:00-0400"),
+        ], [], NOW_TS);
+        expect(w).toHaveLength(1);
+        expect(w[0]).toMatchObject({ from: "2026-10-08T09:00:00-0400", to: "2026-10-08T11:00:00-0400", prompts: 2, inferred: true });
+    });
+
+    it("leaves the current window open and buckets subagent runs by tier, newest first", async () => {
+        const { forcedWindows } = await import("@/lib/jev-log");
+        const w = forcedWindows([
+            sw("2026-10-09T08:00:00-0400", null, "opus"), sw("2026-10-09T08:30:00-0400", "opus", null),
+            sw("2026-10-09T11:00:00-0400", null, "fable"),
+        ], [
+            { ts: "2026-10-09T11:10:00-0400", tier: "fable" }, { ts: "2026-10-09T11:20:00-0400", tier: "sonnet" },
+            { ts: "2026-10-09T08:10:00-0400", tier: "opus" }, { ts: "2026-10-09T07:00:00-0400", tier: "haiku" },
+        ], NOW_TS);
+        expect(w.map(x => [x.tier, x.to])).toEqual([["fable", null], ["opus", "2026-10-09T08:30:00-0400"]]);
+        expect(w[0].subagents).toEqual({ fable: 1, sonnet: 1 });
+        expect(w[1].subagents).toEqual({ opus: 1 });
+    });
+
+    it("tiersTotal adds forced prompts at the pinned tier on top of the routed picks", async () => {
+        const { aggregateJev } = await import("@/lib/jev-log");
+        const agg = aggregateJev([routed("2026-10-09T09:00:00-0400"), forced("2026-10-09T09:10:00-0400"), forced("2026-10-09T09:20:00-0400", "opus"),
+            { ts: "2026-10-09T09:30:00-0400", status: "skipped", reason: "slash" }], NOW_TS);
+        expect(agg.tiers).toEqual({ haiku: 0, sonnet: 1, opus: 0, fable: 0 });
+        expect(agg.tiersTotal).toEqual({ haiku: 0, sonnet: 1, opus: 1, fable: 1 });
+    });
+
+    it("keeps switch lines out of the prompt totals", async () => {
+        const { aggregateJev } = await import("@/lib/jev-log");
+        const agg = aggregateJev([sw("2026-10-09T09:00:00-0400", null, "fable"), forced("2026-10-09T09:10:00-0400")], NOW_TS);
+        expect(agg.totals.calls).toBe(1);
+        expect(agg.windows).toHaveLength(1);
+    });
+});
+
+// ── decision outcomes ───────────────────────────────────────────────────────
+describe("decision outcomes", () => {
+    const routed = (ts: string, tier: string, extra = {}) => ({ ts, status: "routed", tier, conf: 0.9, session_id: "s1", prompt: "x", ...extra });
+    const run = (ts: string, tier: string) => ({ ts, tier, session: "s1" });
+    const NOW_TS = Date.parse("2026-10-09T12:00:00-0400");
+
+    it("matches each route to the subagents started before the next prompt", async () => {
+        const { aggregateJev } = await loadLib();
+        const agg = aggregateJev([
+            routed("2026-10-09T09:00:00-0400", "sonnet"),
+            routed("2026-10-09T09:05:00-0400", "haiku"),
+            routed("2026-10-09T09:10:00-0400", "opus"),
+            routed("2026-10-09T09:15:00-0400", "sonnet", { applied: "opus" }),
+        ], NOW_TS, [
+            run("2026-10-09T13:01:00Z", "sonnet"),   // 09:01 local: followed
+            run("2026-10-09T13:06:00Z", "opus"),     // 09:06: haiku route ran stronger
+            run("2026-10-09T13:16:00Z", "opus"),     // 09:16: gate bumped sonnet to opus, followed
+        ]);
+        expect(agg.decisions.map(d => d.outcome)).toEqual(["followed", "main", "over", "followed"]);
+        expect(agg.outcomes).toEqual({ followed: 2, over: 1, under: 0, main: 1 });
+    });
+
+    it("leaves outcome null without subagent data", async () => {
+        const { aggregateJev } = await loadLib();
+        expect(aggregateJev([routed("2026-10-09T09:00:00-0400", "sonnet")], NOW_TS).decisions[0].outcome).toBeNull();
+    });
+});
+
+// ── subagent launch checks ──────────────────────────────────────────────────
+describe("agent checks", () => {
+    it("counts shadow verdicts and keeps them out of the prompt totals", async () => {
+        const { aggregateJev } = await loadLib();
+        const check = (ts: string, verdict: "agree" | "under", requested: string) =>
+            ({ ts, source: "agent", status: "checked", subagent_type: "rock", requested, floor: "opus", verdict, prompt: "task" });
+        const agg = aggregateJev([
+            { ts: "2026-10-09T09:00:00-0400", status: "routed", tier: "sonnet", prompt: "x" },
+            check("2026-10-09T09:01:00-0400", "under", "claude-haiku-5-5"),
+            check("2026-10-09T09:02:00-0400", "agree", "opus"),
+        ], Date.parse("2026-10-09T12:00:00-0400"));
+        expect(agg.totals.calls).toBe(1);
+        expect(agg.agentChecks.counts).toEqual({ agree: 1, under: 1, over: 0 });
+        expect(agg.agentChecks.recent.map(c => c.requested)).toEqual(["opus", "haiku"]);
     });
 });

@@ -5,23 +5,39 @@ import { PolarArea } from "react-chartjs-2";
 import type { ChartOptions } from "chart.js";
 import { TOOLTIP } from "./chartjs";
 
-type Segment = { value: number; color: string; label: string };
+type Segment = { value: number; color: string; label: string; total?: number };
+
+// The white ring: how many prompts ran on that tier in total, routed ones plus
+// the ones a forced switch pinned there. Drawn as an outline behind the filled
+// wedge so the gap between the 2 is what Jev actually decided.
+const TOTAL_LINE = "rgba(255,255,255,0.85)";
 
 // Polar area chart (Chart.js): every segment gets the same angle, the value
 // drives the radius. Plotted on a square-root scale so a tier that is 65x
 // another still stays visible; the tooltip and legend show the real counts.
 export function PolarChart({ segments, size = 130, onSelect }: { segments: Segment[]; size?: number; onSelect?: (label: string) => void }) {
     const total = segments.reduce((s, seg) => s + seg.value, 0);
+    const hasTotals = segments.some(s => s.total != null && s.total > s.value);
     const data = useMemo(() => ({
         labels: segments.map(s => s.label),
-        datasets: [{
-            data: segments.map(s => Math.sqrt(s.value)),
-            backgroundColor: segments.map(s => `${s.color}B3`),
-            hoverBackgroundColor: segments.map(s => s.color),
-            borderColor: segments.map(s => s.color),
-            borderWidth: 1,
-        }],
-    }), [segments]);
+        datasets: [
+            // Drawn first so the filled wedges sit on top of the outline.
+            ...(hasTotals ? [{
+                data: segments.map(s => Math.sqrt(s.total ?? s.value)),
+                backgroundColor: "rgba(255,255,255,0.04)",
+                hoverBackgroundColor: "rgba(255,255,255,0.1)",
+                borderColor: TOTAL_LINE,
+                borderWidth: 1.5,
+            }] : []),
+            {
+                data: segments.map(s => Math.sqrt(s.value)),
+                backgroundColor: segments.map(s => `${s.color}B3`),
+                hoverBackgroundColor: segments.map(s => s.color),
+                borderColor: segments.map(s => s.color),
+                borderWidth: 1,
+            },
+        ],
+    }), [segments, hasTotals]);
     const options = useMemo<ChartOptions<"polarArea">>(() => ({
         responsive: false,
         animation: { duration: 700, animateRotate: true, animateScale: true },
@@ -30,9 +46,15 @@ export function PolarChart({ segments, size = 130, onSelect }: { segments: Segme
         scales: { r: { grid: { color: "rgba(255,255,255,0.07)" }, angleLines: { display: false }, ticks: { display: false }, beginAtZero: true } },
         plugins: {
             legend: { display: false },
-            tooltip: { ...TOOLTIP, callbacks: { label: ctx => `${segments[ctx.dataIndex].value.toLocaleString()}` } },
+            tooltip: { ...TOOLTIP, callbacks: { label: ctx => {
+                const seg = segments[ctx.dataIndex];
+                const isTotalRing = hasTotals && ctx.datasetIndex === 0;
+                return isTotalRing
+                    ? `${(seg.total ?? seg.value).toLocaleString()} total`
+                    : `${seg.value.toLocaleString()} routed`;
+            } } },
         },
-    }), [segments, onSelect]);
+    }), [segments, onSelect, hasTotals]);
     if (total === 0) return null;
 
     return (
@@ -47,9 +69,18 @@ export function PolarChart({ segments, size = 130, onSelect }: { segments: Segme
                             <span style={{ width: 8, height: 8, borderRadius: 2, background: s.color, flexShrink: 0 }} />
                             <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>{s.label}</span>
                             <span style={{ fontSize: 10, fontWeight: 700, color: s.color, marginLeft: "auto" }}>{s.value}</span>
+                            {hasTotals && (
+                                <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.75)", marginLeft: -4 }}>/{(s.total ?? s.value).toLocaleString()}</span>
+                            )}
                         </Row>
                     );
                 })}
+                {hasTotals && (
+                    <div className="flex items-center gap-2" style={{ paddingTop: 4 }}>
+                        <span style={{ width: 8, height: 8, borderRadius: 2, border: `1.5px solid ${TOTAL_LINE}`, flexShrink: 0 }} />
+                        <span style={{ fontSize: 9, color: "rgba(255,255,255,0.45)" }}>total</span>
+                    </div>
+                )}
             </div>
         </div>
     );

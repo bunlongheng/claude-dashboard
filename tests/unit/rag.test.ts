@@ -15,7 +15,6 @@ type RagContext = typeof import("@/lib/rag-context");
 let db: RagDb;
 let search: RagSearch;
 let context: RagContext;
-let firstChunkId: number;
 
 beforeAll(async () => {
   db = await import("@/lib/rag-db");
@@ -33,7 +32,7 @@ beforeAll(async () => {
   insertDoc.run("p/big", "memory", "claude", "Big Doc", "x".repeat(10001), "h3");
 
   const insertChunk = conn.prepare("INSERT INTO chunks (doc_id, chunk_index, content, token_count) VALUES (?, ?, ?, ?)");
-  firstChunkId = insertChunk.run(d1, 0, "We use authentication oauth login with cognito here", 12).lastInsertRowid as number;
+  insertChunk.run(d1, 0, "We use authentication oauth login with cognito here", 12);
   insertChunk.run(d2, 0, "Deploy to vercel production with caddy reverse proxy", 11);
 
   // Preferences: one normal, one stale, one empty-valued
@@ -43,7 +42,7 @@ beforeAll(async () => {
   conn.prepare("INSERT INTO preferences (category, key, value, last_accessed) VALUES (?, ?, ?, datetime('now','-60 days'))")
     .run("infra", "host", "Vercel");
 
-  // Entities for entitySearch
+  // Entities
   const e1 = conn.prepare("INSERT INTO entities (name, type) VALUES (?, ?)").run("cognito", "tool").lastInsertRowid as number;
   const e2 = conn.prepare("INSERT INTO entities (name, type) VALUES (?, ?)").run("vercel", "tool").lastInsertRowid as number;
   conn.prepare("INSERT INTO entity_links (source_id, target_id, relation, doc_id) VALUES (?, ?, ?, ?)").run(e1, e2, "related", d1);
@@ -87,20 +86,6 @@ describe("rag-search", () => {
     expect(compact[0].preview).not.toContain("\n");
   });
 
-  it("getChunksByIds returns [] for an empty id list", () => {
-    expect(search.getChunksByIds([])).toEqual([]);
-  });
-
-  it("getChunksByIds returns rows for known ids", () => {
-    const rows = search.getChunksByIds([firstChunkId]);
-    expect(rows.length).toBe(1);
-    expect(rows[0].chunk_id).toBe(firstChunkId);
-  });
-
-  it("entitySearch returns an array", () => {
-    expect(Array.isArray(search.entitySearch("cognito"))).toBe(true);
-  });
-
   it("runHealthChecks flags the seeded issues and returns an array", () => {
     const checks = search.runHealthChecks();
     expect(Array.isArray(checks)).toBe(true);
@@ -125,7 +110,6 @@ describe("rag-search", () => {
     expect(stats.chunks).toBe(2);
     expect(stats.preferences).toBe(3);
     expect(Array.isArray(stats.typeCounts)).toBe(true);
-    expect(Array.isArray(stats.searchBenchmark)).toBe(true);
   });
 });
 

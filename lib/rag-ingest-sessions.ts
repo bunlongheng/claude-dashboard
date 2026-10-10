@@ -1,12 +1,7 @@
 import fs from "fs";
 import path from "path";
-import crypto from "crypto";
 import { glob } from "glob";
-import { getDb, syncFts } from "./rag-db";
-
-function sha256(content: string): string {
-  return crypto.createHash("sha256").update(content).digest("hex");
-}
+import { getDb, syncFts, sha256 } from "./rag-db";
 
 function extractProject(filePath: string): string {
   const user = require("os").userInfo().username;

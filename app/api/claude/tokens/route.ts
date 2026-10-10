@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { withErrorHandler } from "@/lib/api-handler";
 import { PROJECTS_DIR, streamJsonl, diskCache } from "@/lib/jsonl-walk";
 import { getModelRates } from "@/lib/pricing";
+import type { Window4 } from "@/app/(claude)/_sections/shared";
 
 // Trustworthy token accounting, built from the full transcripts. Verified
 // against `ccusage daily/weekly/monthly --json` (Claude rows): every day matches
@@ -22,19 +23,22 @@ import { getModelRates } from "@/lib/pricing";
 //  - "today" means since local midnight, not a rolling 24h
 //  - whole files are streamed, never a 50 KB tail
 
-export type Since = "today" | "7d" | "30d" | "all";
+// shared.tsx's Window4 plus "all" - the UI windows stop at 30d, but the sidebar
+// badge still asks for every transcript on disk.
+export type Since = Window4 | "all";
 export type Role = "main" | "agent";
 export interface Tok { input: number; output: number; cacheRead: number; cacheCreate: number; turns: number }
 export interface WhoRow extends Tok { model: string; role: Role; cost: number; share: number }
 export interface ProjectRow extends Tok { project: string; cost: number; sessions: number }
 export interface SessionRow extends Tok { sessionId: string; project: string; branch: string; title: string; firstTs: number; lastTs: number; active: boolean; models: string[]; agents: number; agentOutput: number; cost: number }
 export interface DayRow extends Tok { day: string; sessions: number; cost: number }
+export interface HourRow { input: number; output: number; cacheRead: number; sessions: number; cost: number }
 export interface PeriodRow extends Tok { period: string; sessions: number; cost: number }
 export interface TokensData {
     since: Since;
     from: number;
     generatedAt: number;
-    totals: Tok & { cost: number; sessions: number; agents: number; mainOutput: number; agentOutput: number };
+    totals: Tok & { cost: number; grossCost: number; sessions: number; agents: number; mainOutput: number; agentOutput: number };
     who: WhoRow[];
     projects: ProjectRow[];
     sessions: SessionRow[];
@@ -43,6 +47,7 @@ export interface TokensData {
     monthly: PeriodRow[]; // period = YYYY-MM
     scannedFiles: number;
     minutes: number[];    // today's turns per 5-minute slot of the local day (288), same dedupe as totals
+    hourly: HourRow[];    // today per local hour (24): tokens and distinct sessions, for the trend charts
 }
 
 interface FileEntry {
@@ -187,7 +192,7 @@ export async function computeTokens(since: Since, now = Date.now()): Promise<Tok
     const projects = new Map<string, ProjectRow & { ids: Set<string> }>();
     const sessions = new Map<string, SessionRow & { modelSet: Set<string> }>();
     const daily = new Map<string, DayRow & { ids: Set<string> }>();
-    const totals: TokensData["totals"] = { ...zero(), cost: 0, sessions: 0, agents: 0, mainOutput: 0, agentOutput: 0 };
+    const totals: TokensData["totals"] = { ...zero(), cost: 0, grossCost: 0, sessions: 0, agents: 0, mainOutput: 0, agentOutput: 0 };
 
     // Global dedupe: one owner per message id across every file, then the
     // owner's records grouped by local day and model.
@@ -196,8 +201,15 @@ export async function computeTokens(since: Since, now = Date.now()): Promise<Tok
     const daysOf = new Map<FileEntry, Record<string, Record<string, Tok>>>();
     const todayDay = ymd(now);
     const minutes: number[] = new Array(288).fill(0);
+    const hourly: HourRow[] = Array.from({ length: 24 }, () => ({ input: 0, output: 0, cacheRead: 0, sessions: 0, cost: 0 }));
+    const hourIds = Array.from({ length: 24 }, () => new Set<string>());
     for (const { e, rec } of owner.values()) {
-        if (rec[0] === todayDay) minutes[rec[6]] += 1;
+        if (rec[0] === todayDay) {
+            const h = Math.floor(rec[6] / 12);
+            minutes[rec[6]] += 1;
+            hourly[h].input += rec[2]; hourly[h].output += rec[3]; hourly[h].cacheRead += rec[4]; hourly[h].cost += costOf(rec[1], toTok(rec));
+            hourIds[h].add(e.sessionId);
+        }
         const days = daysOf.get(e) ?? {};
         add((days[rec[0]] ??= {})[rec[1]] ??= zero(), toTok(rec));
         daysOf.set(e, days);
@@ -211,6 +223,8 @@ export async function computeTokens(since: Since, now = Date.now()): Promise<Tok
                 used = true;
                 const cost = costOf(model, tok);
                 add(totals, tok); totals.cost += cost;
+                // Same tokens with nothing cached: cache reads and writes billed as plain input.
+                totals.grossCost += costOf(model, { ...tok, input: tok.input + tok.cacheRead + tok.cacheCreate, cacheRead: 0, cacheCreate: 0 });
                 if (e.role === "agent") totals.agentOutput += tok.output; else totals.mainOutput += tok.output;
 
                 const wk = `${model}|${e.role}`;
@@ -255,7 +269,7 @@ export async function computeTokens(since: Since, now = Date.now()): Promise<Tok
         return [...m.values()].map(({ ids, ...r }) => ({ ...r, sessions: ids.size })).sort((a, b) => a.period.localeCompare(b.period));
     };
 
-    return { since, from, generatedAt: now, totals, who: whoRows, projects: projectRows, sessions: sessionRows, daily: dailyRows, weekly: roll(weekOf), monthly: roll(day => day.slice(0, 7)), scannedFiles: scanned, minutes };
+    return { since, from, generatedAt: now, totals, who: whoRows, projects: projectRows, sessions: sessionRows, daily: dailyRows, weekly: roll(weekOf), monthly: roll(day => day.slice(0, 7)), scannedFiles: scanned, minutes, hourly: hourly.map((r, h) => ({ ...r, sessions: hourIds[h].size })) };
 }
 
 export const GET = withErrorHandler(async (req: Request) => {

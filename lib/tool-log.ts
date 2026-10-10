@@ -67,7 +67,7 @@ export interface ToolLogData {
     recent: ToolCall[];
 }
 
-export const WINS: Win[] = ["today", "7d", "30d", "90d"];
+const WINS: Win[] = ["today", "7d", "30d", "90d"];
 const MAX_HOURS = 2160; // 90d
 const RECENT_CAP = 500;
 // MCP calls are rare and worth a readable snippet; built-in calls number in
@@ -89,7 +89,7 @@ const ym = (ms: number) => { const d = new Date(ms); return `${d.getFullYear()}-
 
 // Calendar buckets so the sparkline reads like a clock or a calendar: today by
 // hour, 7d and 30d by day, 90d by month. All local time.
-export function buildBuckets(win: Win, now: number): { since: number; unit: ToolLogData["buckets"]["unit"]; labels: string[]; indexOf: (ts: number) => number } {
+function buildBuckets(win: Win, now: number): { since: number; unit: ToolLogData["buckets"]["unit"]; labels: string[]; indexOf: (ts: number) => number } {
     if (win === "today") {
         const since = midnight(now);
         const labels = Array.from({ length: 24 }, (_, h) => h === 0 ? "12a" : h < 12 ? `${h}a` : h === 12 ? "12p" : `${h - 12}p`);
@@ -234,7 +234,7 @@ export function firstCommand(cmd: string): string {
 
 // What a built-in tool call was aimed at, so the drill-in answers "Bash did
 // what?" rather than just counting Bash.
-export function cliTarget(name: string, input: unknown): string {
+function cliTarget(name: string, input: unknown): string {
     const i = (input ?? {}) as Record<string, unknown>;
     const str = (k: string) => (typeof i[k] === "string" ? (i[k] as string) : "");
     const cap = (s: string) => (s.length > TARGET_MAX ? `${s.slice(0, TARGET_MAX)}...` : s);

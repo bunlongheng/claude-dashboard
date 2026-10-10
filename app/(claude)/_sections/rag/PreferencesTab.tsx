@@ -9,12 +9,12 @@ const catColors: Record<string, string> = {
     infra: "#06b6d4", security: "#ef4444", ui: "#ec4899", general: "#64748b",
 };
 
-// Preferences tab - collapsible per-category preference list. Lifted
-// verbatim from RagSection.tsx's `tab === "preferences"` block.
+// Preferences section - per-category list, every category collapsed until
+// clicked: 2,500+ rows open by default made the 1-page RAG view 80,000 px tall.
 function PreferencesTab({ prefs }: { prefs: Pref[] }) {
-    const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+    const [expanded, setExpanded] = useState<Set<string>>(new Set());
     const toggleCat = (cat: string) => {
-        setCollapsed(prev => { const n = new Set(prev); n.has(cat) ? n.delete(cat) : n.add(cat); return n; });
+        setExpanded(prev => { const n = new Set(prev); n.has(cat) ? n.delete(cat) : n.add(cat); return n; });
     };
 
     const grouped: Record<string, Pref[]> = {};
@@ -24,7 +24,7 @@ function PreferencesTab({ prefs }: { prefs: Pref[] }) {
         <div>
             {Object.entries(grouped).sort().map(([cat, items]) => {
                 const color = catColors[cat] || "#64748b";
-                const isCollapsed = collapsed.has(cat);
+                const isCollapsed = !expanded.has(cat);
                 return (
                     <div key={cat} style={{ marginBottom: 8 }}>
                         <button onClick={() => toggleCat(cat)} style={{

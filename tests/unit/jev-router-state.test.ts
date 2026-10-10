@@ -120,3 +120,16 @@ describe("/api/claude/jev/router", () => {
         expect((await (await GET(new Request("http://x/api/claude/jev/router"), {})).json()).force).toBeNull();
     });
 });
+
+describe("setRouterForce audit line", () => {
+    it("appends 1 switch line to jev.jsonl per flip and none when the value is unchanged", async () => {
+        const { setRouterForce } = await loadLib();
+        const log = path.join(tmpHome, ".claude", "logs", "jev.jsonl");
+        setRouterForce("fable");
+        setRouterForce("fable");
+        setRouterForce(null);
+        const lines = fs.readFileSync(log, "utf8").trim().split("\n").map(l => JSON.parse(l) as { source: string; from: string | null; to: string | null; ts: string });
+        expect(lines.map(l => [l.source, l.from, l.to])).toEqual([["switch", null, "fable"], ["switch", "fable", null]]);
+        expect(lines[0].ts).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{4}$/);
+    });
+});

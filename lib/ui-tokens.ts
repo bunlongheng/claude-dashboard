@@ -27,3 +27,11 @@ export function heatRamp(intensity: number): string {
     if (intensity < 0.75) return "rgba(255,255,255,0.6)";
     return "rgba(255,255,255,0.9)";
 }
+
+// One color per cross-card metric, so the same number is the same color on the
+// hero row, the Breakdown card and the Activity stats. Matches the sidebar.
+export const METRIC_COLORS = {
+    sessions: "#007AFF",
+    tokens: "#5856D6",
+    messages: "#ffffff",
+} as const;

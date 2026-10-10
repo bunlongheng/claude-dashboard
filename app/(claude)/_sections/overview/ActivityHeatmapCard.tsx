@@ -2,13 +2,18 @@
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { CalendarDays, Flame, Zap, Star, Cpu, Coins } from "lucide-react";
-import { cardShell, heatRamp } from "@/lib/ui-tokens";
-import { WindowBadge, safeFetch } from "../shared";
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, ReferenceLine, ReferenceDot } from "recharts";
+import { cardShell, heatRamp, METRIC_COLORS } from "@/lib/ui-tokens";
+import { WindowBadge, safeFetch, type Window4 } from "../shared";
 import { useMachine } from "../MachineContext";
-import { localYMD } from "./utils";
+import { localYMD } from "@/lib/format";
 import { LiveClock } from "./LiveClock";
 import type { HeatmapData } from "./types";
+
+// Compact token count for the area chart axis, tooltip and total.
+function fmtTok(n: number): string {
+    return n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(0)}K` : `${n}`;
+}
 
 // 12-hour label e.g. "6AM", "NOON", "11PM" - shared by the 7d strip, the
 // hourly rhythm row, and the minute grid below.
@@ -22,22 +27,24 @@ type TodayTokens = { minutes?: number[] } | null;
 const EMPTY_MINUTES: number[] = new Array(288).fill(0);
 
 // LEFT 60% of the "Activity Heatmap + Stats" row - the punchcard/calendar
-// heatmap, today's hourly rhythm, and the summary stat grid to its right.
+// heatmap, today's hourly rhythm, and a token-use area chart to its right.
 export function ActivityHeatmapCard({
     heatmapData, byDayHour, intervalTab, drillMachine,
-    winActiveDays, winTotalDays, winMostActiveLabel, winTotalTokens, favoriteModel,
+    tokenSeries,
 }: {
     heatmapData: HeatmapData;
     byDayHour: Record<string, number[]>;
-    intervalTab: "today" | "7d" | "30d" | "all";
+    intervalTab: Window4;
     drillMachine: string;
-    winActiveDays: number;
-    winTotalDays: number;
-    winMostActiveLabel: string;
-    winTotalTokens: number;
-    favoriteModel: string;
+    tokenSeries: { label: string; tokens: number }[];
 }) {
-    const { maxTurns, longestStreak, currentStreak, dayMap } = heatmapData;
+    const { maxTurns, dayMap } = heatmapData;
+    // Baked-in stats for the token chart: average per slot, the peak slot, active slots.
+    const tokTotal = tokenSeries.reduce((a, p) => a + p.tokens, 0);
+    const tokAvg = tokenSeries.length ? tokTotal / tokenSeries.length : 0;
+    const tokPeak = tokenSeries.reduce((b, p) => p.tokens > b.tokens ? p : b, { label: "", tokens: 0 });
+    const tokActive = tokenSeries.filter(p => p.tokens > 0).length;
+    const tokUnit = intervalTab === "today" ? "hr" : "day";
     function getColor(turns: number): string {
         return heatRamp(turns === 0 ? 0 : Math.min(turns / (maxTurns * 0.6), 1));
     }
@@ -173,57 +180,6 @@ export function ActivityHeatmapCard({
                                         })}
                                     </div>
                                     <span style={{ fontSize: 9, fontWeight: 700, color: total > 0 ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.2)", width: 32, textAlign: "right", flexShrink: 0 }}>{total.toLocaleString()}</span>
-                                </div>
-                            );
-                        })}
-                    </div>
-                );
-            })() : intervalTab === "all" ? (() => {
-                // All: 1 row per calendar month from the first recorded day to today, 31 day
-                // columns, so the rows line up with the Breakdown card's month rollup.
-                const days = [...dayMap.keys()].sort();
-                const firstIso = days[0] ?? todayIso;
-                const today = new Date();
-                const months: Date[] = [];
-                for (const m = new Date(firstIso.slice(0, 4) + "-" + firstIso.slice(5, 7) + "-01T12:00:00"); m <= today; m.setMonth(m.getMonth() + 1)) months.push(new Date(m));
-                return (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <span style={{ width: 52, flexShrink: 0 }} />
-                            <div style={{ flex: 1, display: "grid", gridTemplateColumns: "repeat(31, 1fr)", gap: 2, fontSize: 8, color: "rgba(255,255,255,0.4)" }}>
-                                {Array.from({ length: 31 }, (_, i) => <span key={i} style={{ textAlign: "center" }}>{(i + 1) % 5 === 0 || i === 0 ? i + 1 : ""}</span>)}
-                            </div>
-                            <span style={{ width: 36, flexShrink: 0 }} />
-                        </div>
-                        {months.map(m => {
-                            const y = m.getFullYear(), mo = m.getMonth();
-                            const len = new Date(y, mo + 1, 0).getDate();
-                            const isCur = y === today.getFullYear() && mo === today.getMonth();
-                            const isos = Array.from({ length: 31 }, (_, i) => i < len ? localYMD(new Date(y, mo, i + 1, 12)) : null);
-                            const total = isos.reduce((sum, iso) => sum + (iso ? dayMap.get(iso) ?? 0 : 0), 0);
-                            return (
-                                <div key={`${y}-${mo}`} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                    <span style={{ fontSize: 8, color: isCur ? "#fff" : "rgba(255,255,255,0.5)", width: 52, textAlign: "right", flexShrink: 0, fontWeight: isCur ? 700 : 500 }}>{m.toLocaleDateString("en-US", { month: "short", year: "numeric" })}</span>
-                                    <div style={{ flex: 1, display: "grid", gridTemplateColumns: "repeat(31, 1fr)", gap: 2 }}>
-                                        {isos.map((iso, i) => {
-                                            if (!iso) return <div key={i} />;
-                                            const inWin = iso >= firstIso && iso <= todayIso;
-                                            const n = inWin ? dayMap.get(iso) ?? 0 : 0;
-                                            const isToday = iso === todayIso;
-                                            const lit = isToday && n > 0;
-                                            const style = {
-                                                height: 20, borderRadius: 2, minWidth: 0, display: "block",
-                                                background: !inWin ? "transparent" : lit ? "rgba(255,255,255,0.95)" : getColor(n),
-                                                outline: isToday ? "1px solid rgba(255,255,255,0.5)" : !inWin ? "1px dashed rgba(255,255,255,0.06)" : "none", outlineOffset: -1,
-                                            } as const;
-                                            return n > 0 ? (
-                                                <Link key={iso} href={`/sessions?date=${iso}${drillMachine}`} title={`${iso}: ${n} turns - click to drill down`} aria-label={`${iso}: ${n} turns, open sessions`} style={{ ...style, cursor: "pointer" }} />
-                                            ) : (
-                                                <div key={iso} title={inWin ? `${iso}: 0 turns` : undefined} style={style} />
-                                            );
-                                        })}
-                                    </div>
-                                    <span style={{ fontSize: 9, fontWeight: 700, color: total > 0 ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.2)", width: 36, textAlign: "right", flexShrink: 0 }}>{total.toLocaleString()}</span>
                                 </div>
                             );
                         })}
@@ -367,24 +323,33 @@ export function ActivityHeatmapCard({
             })()}
             </div>
 
-            {/* Stats - label left, colored value right-aligned, stacked to the right of the heatmap */}
-            <div className="border-t border-white/[0.06] pt-3 lg:border-t-0 lg:pt-0 lg:border-l lg:pl-6" style={{ flex: "3 1 0", minWidth: 0, display: "grid", gridTemplateColumns: "1fr 1fr", columnGap: 24, rowGap: 12, alignContent: "center" }}>
-                {[
-                    { label: "Active days",    Icon: CalendarDays, value: `${winActiveDays}/${winTotalDays}`, color: "#4ade80" },
-                    { label: "Longest streak", Icon: Flame,        value: `${longestStreak}d`,           color: "#f472b6" },
-                    { label: "Current streak", Icon: Zap,          value: `${currentStreak}d`,           color: "#7C5CFF" },
-                    { label: "Most active",    Icon: Star,         value: winMostActiveLabel,            color: "#22d3ee" },
-                    { label: "Total tokens",   Icon: Coins,        value: winTotalTokens >= 1e6 ? `${(winTotalTokens/1e6).toFixed(1)}M` : `${(winTotalTokens/1e3).toFixed(0)}K`, color: "#4A9EFF" },
-                    { label: "Top model",      Icon: Cpu,          value: favoriteModel || "-",          color: "#a3e635" },
-                ].map(s => (
-                    <div key={s.label} className="flex items-center justify-between" style={{ gap: 10, minWidth: 0 }} title={s.label}>
-                        <span className="flex items-center" style={{ gap: 6, minWidth: 0, color: "rgba(255,255,255,0.55)" }}>
-                            <s.Icon size={13} style={{ flexShrink: 0 }} />
-                            <span className="hidden min-[2100px]:inline" style={{ fontSize: 8, textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>{s.label}</span>
-                        </span>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: s.color, whiteSpace: "nowrap", flexShrink: 0 }}>{s.value}</span>
-                    </div>
-                ))}
+            {/* Token use (input + output) over the window - hourly on Today, daily otherwise */}
+            <div className="border-t border-white/[0.06] pt-3 lg:border-t-0 lg:pt-0 lg:border-l lg:pl-6" style={{ flex: "3 1 0", minWidth: 0, minHeight: 160, display: "flex", flexDirection: "column" }}>
+                <div className="flex items-baseline" style={{ columnGap: 14, rowGap: 2, flexWrap: "wrap", margin: "0 0 6px", fontSize: 9, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>
+                    <span style={{ fontWeight: 700 }}>Token use <span style={{ color: METRIC_COLORS.tokens }}>{fmtTok(tokTotal)}</span></span>
+                    {[["Avg", `${fmtTok(Math.round(tokAvg))}/${tokUnit}`], ["Peak", tokPeak.tokens ? `${fmtTok(tokPeak.tokens)} ${tokPeak.label}` : "-"], ["Active", `${tokActive}/${tokenSeries.length}`]].map(([k, v]) => (
+                        <span key={k}>{k} <b style={{ color: "rgba(255,255,255,0.9)", fontWeight: 700, textTransform: "none" }}>{v}</b></span>
+                    ))}
+                </div>
+                <div style={{ flex: 1, minHeight: 140 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={tokenSeries} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+                            <defs>
+                                <linearGradient id="tokFill" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stopColor={METRIC_COLORS.tokens} stopOpacity={0.45} />
+                                    <stop offset="100%" stopColor={METRIC_COLORS.tokens} stopOpacity={0} />
+                                </linearGradient>
+                            </defs>
+                            <CartesianGrid stroke="rgba(255,255,255,0.06)" strokeDasharray="3 3" />
+                            <XAxis dataKey="label" tick={{ fontSize: 9, fill: "rgba(255,255,255,0.45)" }} tickLine={false} axisLine={false} interval="preserveStartEnd" minTickGap={16} />
+                            <YAxis tickFormatter={fmtTok} tick={{ fontSize: 9, fill: "rgba(255,255,255,0.45)" }} tickLine={false} axisLine={false} width={36} />
+                            <Tooltip formatter={(v) => [fmtTok(Number(v)), "Tokens"]} contentStyle={{ background: "#111", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 11 }} labelStyle={{ color: "rgba(255,255,255,0.6)" }} />
+                            <Area type="monotone" dataKey="tokens" stroke={METRIC_COLORS.tokens} strokeWidth={2} fill="url(#tokFill)" />
+                            {tokAvg > 0 && <ReferenceLine y={tokAvg} stroke="rgba(255,255,255,0.4)" strokeDasharray="4 4" label={{ value: "avg", position: "insideBottomRight", fontSize: 8, fill: "rgba(255,255,255,0.5)" }} />}
+                            {tokPeak.tokens > 0 && <ReferenceDot x={tokPeak.label} y={tokPeak.tokens} r={3} fill="#fff" stroke={METRIC_COLORS.tokens} strokeWidth={2} />}
+                        </AreaChart>
+                    </ResponsiveContainer>
+                </div>
             </div>
             </div>
         </div>

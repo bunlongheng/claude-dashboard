@@ -1,7 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
-import { JEV_TIERS, type JevTier } from "./jev-log";
+import { JEV_TIERS, JEV_LOG_PATH, type JevTier } from "./jev-log";
 
 // The router's on/off switch. ~/.claude/hooks/jev-router.sh reads this file on
 // every prompt, so a change here lands on the next message in every running
@@ -43,8 +43,25 @@ export function getRouterState(): JevRouterState {
     };
 }
 
+// Same shape the hook stamps: local time with offset ("2026-10-09T06:32:27-0400").
+function localTs(d = new Date()): string {
+    const p = (n: number) => String(n).padStart(2, "0");
+    const off = -d.getTimezoneOffset();
+    const abs = Math.abs(off);
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}${off < 0 ? "-" : "+"}${p(Math.floor(abs / 60))}${p(abs % 60)}`;
+}
+
 export function setRouterForce(force: JevTier | null): JevRouterState {
+    const prev = getRouterState().force;
     fs.mkdirSync(path.dirname(JEV_STATE_PATH), { recursive: true });
     fs.writeFileSync(JEV_STATE_PATH, JSON.stringify({ force }) + "\n");
+    // 1 line per flip in the log the hook appends to, so the /jev page can show
+    // exactly when the router was off - not only the prompts typed while it was.
+    if (prev !== force) {
+        try {
+            fs.mkdirSync(path.dirname(JEV_LOG_PATH), { recursive: true });
+            fs.appendFileSync(JEV_LOG_PATH, JSON.stringify({ ts: localTs(), source: "switch", from: prev, to: force }) + "\n");
+        } catch { /* the switch still works without the audit line */ }
+    }
     return getRouterState();
 }

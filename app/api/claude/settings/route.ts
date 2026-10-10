@@ -2,20 +2,13 @@ import { NextResponse } from "next/server";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
-import { safeRead } from "@/lib/safe-read";
+import { safeRead, safeJson, dirExists } from "@/lib/safe-read";
 import { requireSameSite } from "@/lib/route-guard";
 import { withErrorHandler } from "@/lib/api-handler";
 
 const HOME = os.homedir();
 const CLAUDE_DIR = path.join(HOME, ".claude");
 const SITES_DIR = path.join(HOME, "Sites");
-
-function safeJson(p: string): Record<string, unknown> | null {
-    try { return JSON.parse(fs.readFileSync(p, "utf-8")); } catch { return null; }
-}
-function dirExists(p: string): boolean {
-    try { return fs.statSync(p).isDirectory(); } catch { return false; }
-}
 
 interface ProjectSettings {
     project: string;

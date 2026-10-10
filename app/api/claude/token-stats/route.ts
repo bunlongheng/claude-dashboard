@@ -4,6 +4,7 @@ import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
 import { getModelRates } from "@/lib/pricing";
+import { folderToPath } from "@/lib/project-utils";
 import { withErrorHandler } from "@/lib/api-handler";
 
 export const dynamic = "force-dynamic";
@@ -60,12 +61,6 @@ function calcCost(input: number, output: number, cacheRead: number, cacheCreate:
     );
 }
 
-// ─── File reading ────────────────────────────────────────────────────────────
-
-function folderToPath(folder: string): string {
-    return folder.replace(/-/g, "/");
-}
-
 // ─── Accumulator ─────────────────────────────────────────────────────────────
 interface SessionAccum {
     session_id: string;
@@ -116,7 +111,10 @@ export const GET = withErrorHandler(async () => {
 
     // Per-file accumulators, keyed by filePath (one session per file).
     const accums = new Map<string, SessionAccum>();
+    const seenIds = new Set<string>(); // the same assistant message is written once per content block
     walkProjectJsonl({ maxBytes: MAX_BYTES }, (parsed, ctx) => {
+        const id = (parsed as { message?: { id?: string } }).message?.id;
+        if (id) { if (seenIds.has(`${ctx.filePath}:${id}`)) return; seenIds.add(`${ctx.filePath}:${id}`); }
         let accum = accums.get(ctx.filePath);
         if (!accum) {
             accum = {

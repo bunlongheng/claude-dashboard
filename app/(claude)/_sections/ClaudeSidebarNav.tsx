@@ -53,7 +53,6 @@ export const NAV_SECTIONS: NavSection[] = [
         { href: "/sessions", label: "Sessions",  Icon: FolderOpen,      exact: false, color: "#007AFF" },
         { href: "/tokens",   label: "Tokens",    Icon: Coins,           exact: false, color: "#5856D6" },
         { href: "/jev",      label: "Jev",       Icon: JevMark,         exact: false, color: JEV_PINK },
-        { href: "/usage",    label: "Usage",     Icon: DollarSign,      exact: false, color: "#FF6347" },
     ]},
 ];
 
@@ -258,36 +257,32 @@ export default function ClaudeSidebarNav() {
     const u = {
         sessions: apiBase("/api/claude/sessions"),
         skills: apiBase("/api/claude/skills?slim=1"),
-        brain: apiBase("/api/claude/brain?slim=1"),
         tokens: apiBase("/api/claude/tokens?since=all"),
         rag: apiBase("/api/rag/stats"),
         jev: apiBase("/api/claude/jev?days=365"),
     };
-    type SkillsSummary = { summary?: { claudeMd?: number; mcp?: number; skills?: number; hooks?: number; commands?: number; plugins?: number; settings?: number } };
-    const [sessionsQ, skillsQ, brainQ, tokensQ, ragQ, jevQ] = useQueries({ queries: [
+    type SkillsSummary = { summary?: { claudeMd?: number; mcp?: number; skills?: number; hooks?: number; commands?: number; plugins?: number; settings?: number; agents?: number } };
+    const [sessionsQ, skillsQ, tokensQ, ragQ, jevQ] = useQueries({ queries: [
         { queryKey: ["sessions-list", u.sessions], queryFn: () => safeFetch<{ projects: ProjectSessions[] }>(u.sessions, { projects: [] }) },
         { queryKey: ["skills-slim", u.skills], queryFn: () => safeFetch<SkillsSummary>(u.skills, { summary: {} }) },
-        { queryKey: ["brain-slim", u.brain], queryFn: () => safeFetch<{ totalProjects?: number }>(u.brain, {}) },
         // Same key and URL as the Overview hero card, so the badge and the card always agree.
         { queryKey: ["tokens", u.tokens], queryFn: () => safeFetch<{ totals?: { input: number; output: number } } | null>(u.tokens, null) },
         { queryKey: ["overview-rag", u.rag], queryFn: () => safeFetch<{ documents?: number } | null>(u.rag, null) },
         { queryKey: ["sidebar-jev", u.jev], queryFn: () => safeFetch<{ totals?: { routed: number } }>(u.jev, {}) },
     ] });
 
-    // /agents badge is just the machine count (no fetch). The rest appear
-    // together once every query has answered, as the single setBadges did.
+    // Badges appear together once every query has answered, as the single
+    // setBadges did. Overview carries none on purpose.
     const displayBadges = useMemo<Record<string, number | string>>(() => {
-        const agents = { "/agents": machines.length || 0 };
-        const sessions = sessionsQ.data, skills = skillsQ.data, brain = brainQ.data, tokens = tokensQ.data, rag = ragQ.data, jev = jevQ.data;
-        if (!sessions || !skills || !brain || tokens === undefined || rag === undefined || !jev) return agents;
+        const sessions = sessionsQ.data, skills = skillsQ.data, tokens = tokensQ.data, rag = ragQ.data, jev = jevQ.data;
+        if (!sessions || !skills || tokens === undefined || rag === undefined || !jev) return {} as Record<string, number | string>;
         // All-time routed prompts, the same number the Jev Router card shows for All,
         // so every sidebar badge is a lifetime total.
         const jevCalls = jev.totals?.routed ?? 0;
         const totalSessions = (sessions.projects ?? []).reduce((sum, p) => sum + (p.sessions?.length ?? 0), 0);
         const totalTokens = tokens?.totals ? tokens.totals.input + tokens.totals.output : 0;
         return {
-            ...agents,
-            "/dashboard": brain.totalProjects ?? 0,
+            "/agents": skills.summary?.agents ?? 0,
             "/global": skills.summary?.claudeMd ?? 0,
             "/mcp": skills.summary?.mcp ?? 0,
             "/cli": CLI_TOOL_COUNT,
@@ -299,7 +294,7 @@ export default function ClaudeSidebarNav() {
             "/rag": rag?.documents ?? 0,
             "/jev": jevCalls,
         };
-    }, [machines.length, sessionsQ.data, skillsQ.data, brainQ.data, tokensQ.data, ragQ.data, jevQ.data]);
+    }, [sessionsQ.data, skillsQ.data, tokensQ.data, ragQ.data, jevQ.data]);
 
     // Close the mobile drawer/dropdown on navigation. Adjusted during render
     // (React's documented pattern for resetting state when a prop changes)

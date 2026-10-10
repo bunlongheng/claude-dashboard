@@ -10,8 +10,8 @@ import { NextRequest } from "next/server";
 //   3. brain/route.ts      - full config/memory dump gated behind requireBearerOrSameSite
 //   4. project-icon/route.ts - path traversal on ?project= is rejected / contained to SITES_DIR
 //
-// (lib/db/simple-auth.ts's timingSafePasswordEqual already has equal/unequal/no-throw
-// coverage via tests/unit/simple-auth.test.ts's signIn() cases - not duplicated here.)
+// (lib/route-guard.ts's requireSameSite is the guard under test here - this file is
+// its only coverage; there is no separate auth module to avoid duplicating.)
 
 // os is a Node ESM built-in - its namespace export isn't configurable, so
 // vi.spyOn can't patch it directly. Route through a mutable override hook

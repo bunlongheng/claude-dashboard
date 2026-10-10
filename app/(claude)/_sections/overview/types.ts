@@ -40,7 +40,5 @@ export interface HeatmapData {
     weeksCount: number;
     months: { label: string; weekIndex: number }[];
     maxTurns: number;
-    longestStreak: number;
-    currentStreak: number;
     dayMap: Map<string, number>;
 }

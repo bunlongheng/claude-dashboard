@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
-import { isRealRepo } from "@/lib/project-utils";
+import { isRealRepo, folderToPath } from "@/lib/project-utils";
 import { getLiveSessionIds } from "@/lib/live-sessions";
 import { openMachinesDb, localMachineId as sharedLocalMachineId } from "@/lib/machines-db";
 import { withErrorHandler } from "@/lib/api-handler";
@@ -19,11 +19,6 @@ const STALE_DAYS = 7;
 // Promise.all re-scans ~1 GB on every poll. Live-session flags refresh inside TTL.
 const CACHE_TTL_MS = 15_000;
 const sessionsCache = new Map<string, { at: number; data: { projects: ProjectData[] } }>();
-
-function folderToPath(folder: string): string {
-    // "-Users-alice-Sites-myapp" → "/Users/alice/Sites/myapp"
-    return folder.replace(/-/g, "/");
-}
 
 function formatBytes(bytes: number): string {
     if (bytes < 1024) return `${bytes} B`;

@@ -4,7 +4,7 @@ const GOTO = { waitUntil: "domcontentloaded" as const };
 
 const ROUTES = [
   "/dashboard", "/agents", "/rag", "/global", "/mcp", "/skills",
-  "/cli", "/extensions", "/settings", "/sessions", "/tokens", "/usage", "/jev", "/hooks",
+  "/cli", "/extensions", "/settings", "/sessions", "/tokens", "/jev", "/hooks",
   "/commands", "/plugins",
   "/rag/search", "/rag/preferences", "/rag/documents",
 ];

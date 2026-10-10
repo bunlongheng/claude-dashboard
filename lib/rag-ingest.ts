@@ -1,13 +1,8 @@
 import fs from "fs";
 import path from "path";
-import crypto from "crypto";
-import { getDb, syncFts } from "./rag-db";
+import { getDb, syncFts, sha256 } from "./rag-db";
 import { glob } from "glob";
 import { extractPreferences } from "./rag-extract-preferences";
-
-function sha256(content: string): string {
-  return crypto.createHash("sha256").update(content).digest("hex");
-}
 
 function extractTitle(content: string, filePath: string): string {
   // Try frontmatter name
@@ -179,6 +174,12 @@ export async function ingestAll(): Promise<{ total: number; created: number; upd
     else skipped++;
     totalChunks += result.chunks;
   }
+
+  // Prune docs whose file is gone (Claude Code purges transcripts after 30 days),
+  // unless a search ever used them. Chunks + vectors cascade; FTS rebuilds below.
+  const del = db.prepare("DELETE FROM documents WHERE id = ?");
+  const rows = db.prepare("SELECT id, source_path FROM documents WHERE access_count = 0 AND source_path LIKE '/%'").all() as { id: number; source_path: string }[];
+  for (const r of rows) if (!fs.existsSync(r.source_path)) del.run(r.id);
 
   // Rebuild FTS index
   syncFts(db);

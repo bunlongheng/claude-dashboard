@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useState, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { DatabaseZap, Search, RefreshCw } from "lucide-react";
 import { MascotLoader } from "./MascotLoader";
 import { useMachine } from "./MachineContext";
-import { SegmentedTabs } from "./shared";
+import { SegmentedTabs, WINDOW_TABS, type Window4 } from "./shared";
+import { HeroSlot } from "./PageHero";
+import { JEV_DAYS } from "@/lib/jev-palette";
 import EvalTab from "./EvalTab";
 import { ACCENT, type Stats, type Pref, type SearchResult, type RagTab, type DocInfo } from "./rag/types";
 import SearchResultsPanel from "./rag/SearchResultsPanel";
@@ -20,23 +21,23 @@ type RagAllData = { stats: Stats; prefs: Pref[]; docs: DocInfo[] };
 
 export default function RagSection({ initialTab = "overview" }: { initialTab?: RagTab }) {
     const { machine, apiBase } = useMachine();
-    const router = useRouter();
-    const pathname = usePathname();
-    const [tab, setTabState] = useState<RagTab>(initialTab);
-    const setTab = useCallback((t: RagTab) => {
-        setTabState(t);
-        router.replace(`${pathname}?tab=${t}`, { scroll: false });
-    }, [router, pathname]);
+    // 1 page, no tabs: the old tab routes and the hero cards scroll to a section instead.
+    const jump = useCallback((t: RagTab) => {
+        document.getElementById(`rag-${t}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, []);
 
     // Stats + preferences + docs are fetched together (same as the original
     // Promise.all) so a failure on any one leaves all three at their fallback,
     // matching the old fetchAll() try/catch behavior.
     const queryClient = useQueryClient();
-    const { data: ragData, isLoading } = useQuery<RagAllData>({
-        queryKey: ["rag", "all", machine],
+    const [win, setWin] = useState<Window4>("today");
+    const days = JEV_DAYS[win];
+    const { data: ragData, isLoading, dataUpdatedAt } = useQuery<RagAllData>({
+        queryKey: ["rag", "all", machine, days],
+        placeholderData: prev => prev,
         queryFn: async () => {
             const [s, p, d] = await Promise.all([
-                fetch(apiBase(`/api/rag/stats`)).then(r => r.json()),
+                fetch(apiBase(`/api/rag/stats?days=${days}`)).then(r => r.json()),
                 fetch(apiBase(`/api/rag/preferences`)).then(r => r.json()),
                 fetch(apiBase(`/api/rag/docs`)).then(r => r.json()),
             ]);
@@ -44,8 +45,16 @@ export default function RagSection({ initialTab = "overview" }: { initialTab?: R
         },
     });
     const stats = ragData?.stats ?? null;
+    const ready = stats !== null;
+    useEffect(() => {
+        if (ready && initialTab !== "overview" && initialTab !== "search") jump(initialTab);
+    }, [ready, initialTab, jump]);
     const prefs = ragData?.prefs ?? [];
-    const docs = ragData?.docs ?? [];
+    // Documents tab lists what was added inside the hero window, counted the same
+    // way as the hero card: created_at (SQLite UTC text) since local midnight days-1 ago.
+    const start = new Date(dataUpdatedAt); start.setHours(0, 0, 0, 0);
+    const cutoff = start.getTime() - (days - 1) * 86400_000;
+    const docs = (ragData?.docs ?? []).filter(d => Date.parse(d.created_at.replace(" ", "T") + "Z") >= cutoff);
     const loading = isLoading;
 
     const ingestMutation = useMutation({
@@ -85,22 +94,20 @@ export default function RagSection({ initialTab = "overview" }: { initialTab?: R
         </div>
     );
 
-    const tabs: { label: string; value: string; count?: number }[] = [
-        { label: "Overview", value: "overview" },
-        { label: "Documents", value: "documents", count: docs.length },
-        { label: "Preferences", value: "preferences", count: prefs.length },
-        { label: "Benchmark", value: "eval" },
-    ];
+    const sectionTitle = (id: RagTab, label: string, count?: number) => (
+        <div id={`rag-${id}`} className="flex items-baseline gap-2 mt-8 mb-3 scroll-mt-4">
+            <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.7)", textTransform: "uppercase", letterSpacing: "0.1em" }}>{label}</span>
+            {count !== undefined && <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>{count.toLocaleString()}</span>}
+        </div>
+    );
 
     return (
         <div>
-            {/* Tab bar + Ingest */}
+            <HeroSlot>
+                <SegmentedTabs<Window4> tabs={WINDOW_TABS} value={win} onChange={setWin} />
+            </HeroSlot>
+            {/* Search + Ingest */}
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
-                <SegmentedTabs
-                    value={tab}
-                    onChange={(v) => setTab(v as RagTab)}
-                    tabs={tabs.map(t => ({ key: t.value, label: t.label, count: t.count }))}
-                />
                 <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg flex-1 max-w-[240px]"
                     style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
                     <Search size={11} style={{ color: "rgba(255,255,255,0.5)", flexShrink: 0 }} />
@@ -129,19 +136,18 @@ export default function RagSection({ initialTab = "overview" }: { initialTab?: R
                 </button>
             </div>
 
-            {/* Search results - shown on any tab when there are results */}
             <SearchResultsPanel results={results} onClear={() => { setResults([]); setQuery(""); }} />
 
-            {/* ── Overview ── */}
-            {tab === "overview" && <OverviewTab stats={stats} onNavigate={setTab} />}
+            <OverviewTab stats={stats} onNavigate={jump} />
 
-            {/* ── Documents ── */}
-            {tab === "documents" && <DocumentsTab docs={docs} apiBase={apiBase} />}
+            {sectionTitle("documents", "Documents", docs.length)}
+            <DocumentsTab docs={docs} apiBase={apiBase} />
 
-            {/* ── Preferences ── */}
-            {tab === "preferences" && <PreferencesTab prefs={prefs} />}
+            {sectionTitle("preferences", "Preferences", prefs.length)}
+            <PreferencesTab prefs={prefs} />
 
-            {tab === "eval" && <EvalTab apiBase={apiBase} />}
+            {sectionTitle("eval", "Benchmark")}
+            <EvalTab apiBase={apiBase} />
 
             <style>{`
                 @keyframes spin { to { transform: rotate(360deg); } }

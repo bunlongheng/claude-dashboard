@@ -16,7 +16,6 @@ export const JEV_HOOK_PATH = path.join(os.homedir(), ".claude", "hooks", "jev-ro
 export const JEV_COST_PER_CALL = 0.00002;
 
 const MAX_BYTES = 5 * 1024 * 1024; // 5 MB tail
-const RECENT_LIMIT = 200;
 const LIVE_MS = 15 * 60 * 1000;
 const HOUR_MS = 60 * 60 * 1000;
 const HOURLY_WINDOW = 24; // always a full day of buckets, however few are filled
@@ -24,7 +23,7 @@ const HOURLY_WINDOW = 24; // always a full day of buckets, however few are fille
 export const JEV_TIERS = ["haiku", "sonnet", "opus", "fable"] as const;
 export type JevTier = (typeof JEV_TIERS)[number];
 export type JevStatus = "routed" | "skipped" | "error";
-export type JevHealth = "live" | "stale" | "never";
+export type JevHealth = "live" | "stale" | "never" | "off";
 
 export interface JevRow {
     ts: string;
@@ -38,12 +37,37 @@ export interface JevRow {
     status?: string;
     tier?: string;
     conf?: number;
+    agent?: string;
+    agent_conf?: number;
+    // Tier the hook actually told the main model to use after the confidence gate.
+    applied?: string;
+    // source "agent" only: the PreToolUse shadow check on a subagent launch.
+    subagent_type?: string;
+    requested?: string;
+    floor?: string;
+    verdict?: "agree" | "under" | "over" | "unknown";
     e2e?: number;
     question?: number;
     input_tokens?: number;
     output_tokens?: number;
     reason?: string;
     body?: string;
+    // source "switch" only: the dashboard toggle moving from one tier to another.
+    from?: string | null;
+    to?: string | null;
+}
+
+// A stretch of time the router was off and every prompt was pinned to 1 tier.
+export interface JevWindow {
+    from: string;
+    to: string | null; // null = still forced right now
+    tier: string;
+    prompts: number;
+    // Rebuilt from the per-prompt "forced:<tier>" lines alone, from before the
+    // switch logged its own flips - edges are the first and last prompt, not the click.
+    inferred: boolean;
+    // Subagent runs started inside the window, by ladder rung of the model they ran on.
+    subagents: Record<string, number>;
 }
 
 export interface JevTotals {
@@ -97,14 +121,47 @@ export interface JevSession {
     avgConf: number | null;
 }
 
+// One routed prompt with Jev's pick and how sure it was. Under 0.5 the hook
+// tells the main model to ignore the tier and pick for itself.
+export interface JevDecision {
+    ts: string;
+    session_id?: string;
+    project?: string;
+    prompt: string;
+    tier: string;
+    conf: number;
+    agent: string;
+    agentConf: number;
+    // What really ran after this prompt: a subagent on the routed tier
+    // (followed), a stronger or weaker one, or none (main model did it).
+    // null when no subagent data was passed in.
+    outcome: JevOutcome | null;
+}
+
+// Shadow check on 1 subagent launch: the model it was launched on against the
+// cheapest tier Jev says its task needs.
+export interface JevAgentCheck {
+    ts: string; project?: string; agent: string; task: string;
+    requested: string; floor: string; verdict: string;
+}
+
+export type JevOutcome = "followed" | "over" | "under" | "main";
+
 export interface JevAggregate {
     totals: JevTotals;
     health: JevHealth;
     daily: JevDay[];
     hourly: JevHour[];
     tiers: Record<JevTier, number>;
+    // Every prompt that ended up on a rung: the routed ones at Jev's pick plus
+    // the forced ones at the pinned tier. Slash, short and notification skips
+    // have no rung and stay out.
+    tiersTotal: Record<JevTier, number>;
     sessions: JevSession[];
-    recent: JevRow[];
+    windows: JevWindow[];
+    decisions: JevDecision[];
+    outcomes: Record<JevOutcome, number>;
+    agentChecks: { counts: Record<"agree" | "under" | "over", number>; recent: JevAgentCheck[] };
 }
 
 // What /api/claude/jev and the server-side prefetch both hand the page.
@@ -162,11 +219,20 @@ export function parseJevLines(chunk: string): JevRow[] {
 export function readJevLog(days = 30): JevRow[] {
     const chunk = readLastBytes(JEV_LOG_PATH, MAX_BYTES);
     if (!chunk) return [];
-    const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
-    const rows = parseJevLines(chunk).filter(r => {
+    // Calendar days in local time, like the usage mix card: days=1 is since
+    // midnight today, 7 is today plus the 6 days before. Never a rolling 24 h,
+    // so "today" on every card counts the same hours.
+    const start = new Date(); start.setHours(0, 0, 0, 0);
+    const cutoff = start.getTime() - (days - 1) * 24 * 60 * 60 * 1000;
+    const all = parseJevLines(chunk);
+    const rows = all.filter(r => {
         const t = Date.parse(r.ts);
         return Number.isFinite(t) && t >= cutoff;
     });
+    // The last switch flip before the window sets the router state at its start,
+    // so a router turned off yesterday still reads off today with its real click time.
+    const before = all.filter(r => r.source === "switch" && typeof r.to === "string" && Date.parse(r.ts) < cutoff).pop();
+    if (before) rows.push(before);
     rows.sort((a, b) => Date.parse(a.ts) - Date.parse(b.ts));
     return rows;
 }
@@ -196,12 +262,75 @@ function latencyOf(row: JevRow): number | null {
 
 // Pure: takes rows, returns everything the page needs. No fs, no Date.now()
 // beyond the health clock, so a fixture array fully determines the output.
-export function aggregateJev(rows: JevRow[], now: number = Date.now()): JevAggregate {
-    const sorted = [...rows].sort((a, b) => Date.parse(a.ts) - Date.parse(b.ts));
+export interface SubagentRun { ts: string; tier: string; session?: string }
+
+function forcedTier(row: JevRow): string | null {
+    return row.reason?.startsWith("forced:") ? row.reason.slice(7) : null;
+}
+
+// When the router was off. A flip of the dashboard switch logs 1 "switch" line,
+// which gives exact edges. Before that existed the only trace is the
+// "forced:<tier>" line the hook writes per prompt, so a run of those becomes a
+// window from its first prompt to the next prompt Jev actually answered.
+export function forcedWindows(sorted: JevRow[], runs: SubagentRun[] = [], now: number = Date.now()): JevWindow[] {
+    const out: JevWindow[] = [];
+    // Held in an object so the helpers below can reassign it without TS
+    // narrowing the let to null at every read site.
+    const st: { open: JevWindow | null } = { open: null };
+    const close = (ts: string) => { if (st.open) { st.open.to = ts; st.open = null; } };
+    const start = (ts: string, tier: string, inferred: boolean) => {
+        st.open = { from: ts, to: null, tier, prompts: 0, inferred, subagents: {} };
+        out.push(st.open);
+        return st.open;
+    };
+    for (const row of sorted) {
+        if (row.source === "switch") {
+            if (st.open && st.open.tier !== row.to) close(row.ts);
+            if (typeof row.to === "string" && (JEV_TIERS as readonly string[]).includes(row.to) && !st.open) start(row.ts, row.to, false);
+            continue;
+        }
+        const tier = forcedTier(row);
+        if (tier) {
+            if (st.open && st.open.tier !== tier) close(row.ts);
+            (st.open ?? start(row.ts, tier, true)).prompts++;
+        } else if (st.open?.inferred && statusOf(row) !== "skipped") {
+            close(row.ts); // Jev answered, so the switch was back on before this prompt
+        }
+    }
+    for (const w of out) {
+        const from = Date.parse(w.from), to = w.to ? Date.parse(w.to) : now;
+        for (const r of runs) {
+            const t = Date.parse(r.ts);
+            if (t >= from && t < to) w.subagents[r.tier] = (w.subagents[r.tier] ?? 0) + 1;
+        }
+    }
+    return out.reverse();
+}
+
+const DECISION_LIMIT = 200;
+
+export function aggregateJev(rows: JevRow[], now: number = Date.now(), runs: SubagentRun[] = []): JevAggregate {
+    const sortedRows = [...rows].sort((a, b) => Date.parse(a.ts) - Date.parse(b.ts));
+    // Subagent launch checks are not prompts; they get their own block below.
+    const all = sortedRows.filter(r => r.source !== "agent" && r.source !== "effort");
+    const checked = sortedRows.filter(r => r.source === "agent" && r.verdict);
+    const agentCounts = { agree: 0, under: 0, over: 0 };
+    for (const r of checked) if (r.verdict && r.verdict !== "unknown") agentCounts[r.verdict]++;
+    const agentChecks = {
+        counts: agentCounts,
+        recent: checked.slice(-DECISION_LIMIT).reverse().map(r => ({
+            ts: r.ts, project: r.project, agent: r.subagent_type ?? "", task: r.prompt ?? "",
+            requested: JEV_TIERS.find(t => (r.requested ?? "").toLowerCase().includes(t)) ?? r.requested ?? "", floor: r.floor ?? "", verdict: r.verdict ?? "unknown",
+        })),
+    };
+    const windows = forcedWindows(all, runs, now);
+    // Switch flips are not prompts, so every count below leaves them out.
+    const sorted = all.filter(r => r.source !== "switch");
 
     let routed = 0, skipped = 0, errors = 0, inputTokens = 0, outputTokens = 0;
     const latencies: number[] = [];
     const tiers: Record<JevTier, number> = { haiku: 0, sonnet: 0, opus: 0, fable: 0 };
+    const tiersTotal: Record<JevTier, number> = { haiku: 0, sonnet: 0, opus: 0, fable: 0 };
     const dayMap = new Map<string, { routed: number; skipped: number; errors: number; lat: number[]; tokens: number }>();
     const hourMap = new Map<string, { routed: number; skipped: number; errors: number; lat: number[]; tokens: number }>();
     const sessionMap = new Map<string, JevSession & { tierCounts: Map<string, number>; confs: number[] }>();
@@ -223,7 +352,10 @@ export function aggregateJev(rows: JevRow[], now: number = Date.now()): JevAggre
 
         if (status === "routed" && row.tier && (JEV_TIERS as readonly string[]).includes(row.tier)) {
             tiers[row.tier as JevTier]++;
+            tiersTotal[row.tier as JevTier]++;
         }
+        const forced = forcedTier(row);
+        if (forced && (JEV_TIERS as readonly string[]).includes(forced)) tiersTotal[forced as JevTier]++;
 
         // ── per day ──
         const day = dayOf(row.ts);
@@ -274,7 +406,9 @@ export function aggregateJev(rows: JevRow[], now: number = Date.now()): JevAggre
         p95LatencyMs: percentile(latSorted, 95),
         inputTokens,
         outputTokens,
-        estCostUsd: calls * JEV_COST_PER_CALL,
+        // Only lines that reached the API cost anything - a skipped prompt (slash,
+        // short, notification, forced tier) never leaves the hook.
+        estCostUsd: (routed + errors) * JEV_COST_PER_CALL,
         sessions: sessionMap.size,
         lastCallTs: calls > 0 ? sorted[calls - 1].ts : null,
         lastRoutedTs,
@@ -287,6 +421,9 @@ export function aggregateJev(rows: JevRow[], now: number = Date.now()): JevAggre
     if (lastRoutedTs) {
         health = now - Date.parse(lastRoutedTs) < LIVE_MS ? "live" : "stale";
     }
+    // An open forced window means the switch is off right now, whatever the
+    // last routed row says. The card then reads "off", not "stale".
+    if (windows[0]?.to === null) health = "off";
 
     const daily: JevDay[] = [...dayMap.entries()]
         .map(([day, d]) => ({
@@ -297,7 +434,7 @@ export function aggregateJev(rows: JevRow[], now: number = Date.now()): JevAggre
             avgLatencyMs: mean(d.lat),
             p95LatencyMs: percentile([...d.lat].sort((a, b) => a - b), 95),
             tokens: d.tokens,
-            costUsd: (d.routed + d.skipped + d.errors) * JEV_COST_PER_CALL,
+            costUsd: (d.routed + d.errors) * JEV_COST_PER_CALL,
         }))
         .sort((a, b) => a.day.localeCompare(b.day));
 
@@ -316,7 +453,7 @@ export function aggregateJev(rows: JevRow[], now: number = Date.now()): JevAggre
             errors: h?.errors ?? 0,
             avgLatencyMs: mean(h?.lat ?? []),
             tokens: h?.tokens ?? 0,
-            costUsd: ((h?.routed ?? 0) + (h?.skipped ?? 0) + (h?.errors ?? 0)) * JEV_COST_PER_CALL,
+            costUsd: ((h?.routed ?? 0) + (h?.errors ?? 0)) * JEV_COST_PER_CALL,
         });
     }
 
@@ -338,7 +475,38 @@ export function aggregateJev(rows: JevRow[], now: number = Date.now()): JevAggre
         })
         .sort((a, b) => Date.parse(b.lastTs) - Date.parse(a.lastTs));
 
-    const recent = sorted.slice(-RECENT_LIMIT).reverse();
 
-    return { totals, health, daily, hourly, tiers, sessions, recent };
+    // Ground truth for a route: the subagents that started in the same session
+    // after the prompt and before the next one (capped at 10 min).
+    const promptTimes = new Map<string, number[]>();
+    for (const r of sorted) if (r.session_id) {
+        const list = promptTimes.get(r.session_id) ?? [];
+        list.push(Date.parse(r.ts));
+        promptTimes.set(r.session_id, list);
+    }
+    const rank = (t: string) => (JEV_TIERS as readonly string[]).indexOf(t);
+    const outcomeOf = (r: JevRow): JevOutcome | null => {
+        if (!runs.length || !r.session_id) return null;
+        const from = Date.parse(r.ts);
+        const next = (promptTimes.get(r.session_id) ?? []).find(t => t > from) ?? Infinity;
+        const until = Math.min(next, from + 10 * 60_000);
+        const ran = runs.filter(x => x.session === r.session_id && rank(x.tier) >= 0)
+            .map(x => ({ at: Date.parse(x.ts), tier: x.tier })).filter(x => x.at >= from && x.at < until);
+        if (!ran.length) return "main";
+        const want = rank(r.applied ?? r.tier ?? "");
+        if (ran.some(x => rank(x.tier) === want)) return "followed";
+        return Math.max(...ran.map(x => rank(x.tier))) > want ? "over" : "under";
+    };
+    const outcomes: Record<JevOutcome, number> = { followed: 0, over: 0, under: 0, main: 0 };
+    const decisions: JevDecision[] = sorted.filter(r => statusOf(r) === "routed").slice(-DECISION_LIMIT).reverse()
+        .map(r => {
+            const outcome = outcomeOf(r);
+            if (outcome) outcomes[outcome]++;
+            return {
+                ts: r.ts, session_id: r.session_id, project: r.project, prompt: r.prompt ?? "",
+                tier: r.tier ?? "", conf: r.conf ?? 0, agent: r.agent ?? "none", agentConf: r.agent_conf ?? 0, outcome,
+            };
+        });
+
+    return { totals, health, daily, hourly, tiers, tiersTotal, sessions, windows, decisions, outcomes, agentChecks };
 }

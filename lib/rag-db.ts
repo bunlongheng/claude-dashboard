@@ -1,6 +1,7 @@
 import type Database from "better-sqlite3";
 import path from "path";
 import fs from "fs";
+import crypto from "crypto";
 
 const DB_DIR = path.join(process.cwd(), "data");
 // RAG_DB_PATH lets tests point at an isolated throwaway DB (mirrors SQLITE_PATH
@@ -188,6 +189,11 @@ export function getDb(): Database.Database {
   }
 
   return db;
+}
+
+// Content hash for the documents.content_hash column (ingest skips unchanged files).
+export function sha256(content: string): string {
+  return crypto.createHash("sha256").update(content).digest("hex");
 }
 
 // Rebuild FTS index from chunks table

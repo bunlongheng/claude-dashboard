@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
-import { safeRead } from "@/lib/safe-read";
+import { safeRead, dirExists } from "@/lib/safe-read";
 import { requireSameSite } from "@/lib/route-guard";
 import { withErrorHandler } from "@/lib/api-handler";
 
@@ -21,9 +21,6 @@ const BRAIN_TTL_MS = 15_000;
 // it's never read field-by-field, so `unknown` is the precise fit here.
 const brainCache = new Map<string, { at: number; data: unknown }>();
 
-function dirExists(p: string): boolean {
-    try { return fs.statSync(p).isDirectory(); } catch { return false; }
-}
 function fileStat(p: string): { mtime: string; size: number } | null {
     try { const s = fs.statSync(p); return { mtime: s.mtime.toISOString(), size: s.size }; } catch { return null; }
 }

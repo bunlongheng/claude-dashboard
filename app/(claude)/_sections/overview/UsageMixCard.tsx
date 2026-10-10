@@ -8,8 +8,8 @@ import { DonutChart } from "./DonutChart";
 
 // Query strings per Overview window. skill-usage takes hours / today / all;
 // the tool logs take win and cap at 90d, so "all" shows the last 90 days there.
-const SKILL_Q: Record<Window4, string> = { today: "today=1", "7d": "hours=168", "30d": "hours=720", all: "all=1" };
-const LOG_WIN: Record<Window4, string> = { today: "today", "7d": "7d", "30d": "30d", all: "90d" };
+export const SKILL_Q: Record<Window4, string> = { today: "today=1", "7d": "hours=168", "30d": "hours=720" };
+export const LOG_WIN: Record<Window4, string> = { today: "today", "7d": "7d", "30d": "30d" };
 
 type SkillUsage = { totalSkills: number; totalSubagents: number } | null;
 type ToolLog = { totals: { calls: number } } | null;

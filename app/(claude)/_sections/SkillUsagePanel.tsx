@@ -16,7 +16,7 @@ interface SkillUsageData {
 
 // The standard Today / 7d / 30d / All windows, driven by the Overview hero tabs.
 type Win = Window4;
-const WIN_PARAM: Record<Win, string> = { today: "today=1", "7d": "hours=168", "30d": "hours=720", all: "all=1" };
+const WIN_PARAM: Record<Win, string> = { today: "today=1", "7d": "hours=168", "30d": "hours=720" };
 
 // Compact card in the Overview 4-col row next to Context Window: skill name +
 // share% + call count, no bars, matching the Context Window style.

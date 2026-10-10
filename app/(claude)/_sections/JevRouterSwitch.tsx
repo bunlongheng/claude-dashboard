@@ -1,37 +1,42 @@
 "use client";
 
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { cardShell } from "@/lib/ui-tokens";
 // Type-only: jev-log reads files, so a value import would pull fs into the bundle.
 import type { JevTier } from "@/lib/jev-log";
 import type { JevRouterState } from "@/lib/jev-router-state";
-import { safeFetch } from "./shared";
+import { safeFetch, timeAgo } from "./shared";
 import { useMachine } from "./MachineContext";
+import { JEV_PINK } from "./JevMark";
 
-// Same ladder palette as JevCharts, so the forced tier reads as the same color
-// it has in the split donut and the message pills.
-const TIER_COLORS: Record<JevTier, string> = {
-    haiku: "#22C55E",
-    sonnet: "#4A9EFF",
-    opus: "#A855F7",
-    fable: "#F97316",
-};
-const TIERS = Object.keys(TIER_COLORS) as JevTier[];
 const ON_COLOR = "#22C55E";
-const MONO = "ui-monospace, monospace";
+const OFF_COLOR = "#6B7280";
+const PINKS = [JEV_PINK, "#F472B6", "#EC4899", "#FBCFE8", "#DB2777", "#FF8AD8"];
+type Piece = { left: number; delay: number; dur: number; size: number; spin: number; drift: number; color: string };
+
+// Switching Jev on throws 5 s of pink confetti and flashes the page pink twice in the first 2 s.
+function makeParty(): Piece[] {
+    return Array.from({ length: 140 }, (_, i) => ({
+        left: Math.random() * 100, delay: Math.random() * 1.6, dur: 2.4 + Math.random() * 1.2,
+        size: 5 + Math.random() * 6, spin: Math.random() * 1080 - 540, drift: Math.random() * 160 - 80,
+        color: PINKS[i % PINKS.length],
+    }));
+}
 
 // The router's on/off switch. On = Jev picks a tier per prompt. Off = every
 // prompt is pinned to 1 tier and the session never delegates down. The hook
 // reads the state file on each prompt, so a flip lands on the next message.
 // bare = no card shell, for the page hero slot.
-export default function JevRouterSwitch({ initial, bare = false }: { initial: JevRouterState; bare?: boolean }) {
+export default function JevRouterSwitch({ initial, bare = false, offSince = null }: { initial: JevRouterState; bare?: boolean; offSince?: string | null }) {
     const { machine, apiBase } = useMachine();
     const qc = useQueryClient();
     const key = ["jev-router", machine];
     const [saving, setSaving] = useState(false);
     // Remembered so flipping off comes back to the tier you last forced.
     const [lastTier, setLastTier] = useState<JevTier>(initial.force ?? "fable");
+    const [party, setParty] = useState<Piece[] | null>(null);
 
     const { data } = useQuery<JevRouterState>({
         queryKey: key,
@@ -40,7 +45,7 @@ export default function JevRouterSwitch({ initial, bare = false }: { initial: Je
     });
     const state = data ?? initial;
     const on = state.force === null;
-    const accent = on ? ON_COLOR : TIER_COLORS[state.force ?? "fable"];
+    const accent = on ? ON_COLOR : OFF_COLOR;
 
     async function write(force: JevTier | null) {
         setSaving(true);
@@ -53,7 +58,10 @@ export default function JevRouterSwitch({ initial, bare = false }: { initial: Je
             if (res.ok) {
                 const next = (await res.json()) as JevRouterState;
                 qc.setQueryData(key, next);
+                // The flip is logged, so the page's on/off cards refresh straight away.
+                qc.invalidateQueries({ queryKey: ["jev", machine] });
                 if (next.force) setLastTier(next.force);
+                else { setParty(makeParty()); setTimeout(() => setParty(null), 5000); }
             }
         } finally {
             setSaving(false);
@@ -64,7 +72,22 @@ export default function JevRouterSwitch({ initial, bare = false }: { initial: Je
         <div style={bare
             ? { display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }
             : { ...cardShell, padding: "14px 20px", borderColor: `${accent}33`, display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap" }}>
-            <style>{`@keyframes jevSwitchGlow { 0%,100% { box-shadow: 0 0 0 0 ${accent}55 } 50% { box-shadow: 0 0 0 6px ${accent}00 } }`}</style>
+            <style>{`@keyframes jevSwitchGlow { 0%,100% { box-shadow: 0 0 0 0 ${accent}55 } 50% { box-shadow: 0 0 0 6px ${accent}00 } }
+@keyframes jevFlash { 0%,100% { opacity: 0 } 50% { opacity: 1 } }
+@keyframes jevFall { 0% { transform: translate(0,-5vh) rotate(0deg); opacity: 1 } 85% { opacity: 1 } 100% { transform: translate(var(--dx),105vh) rotate(var(--spin)); opacity: 0 } }`}</style>
+            {party && createPortal(
+                <div aria-hidden style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 2147483647, overflow: "hidden" }}>
+                    <div style={{ position: "absolute", inset: 0, background: `radial-gradient(circle at 50% 40%, ${JEV_PINK}55, ${JEV_PINK}22 70%)`, opacity: 0, animation: "jevFlash 1s ease-in-out 2" }} />
+                    {party.map((p, i) => (
+                        <span key={i} style={{
+                            position: "absolute", top: 0, left: `${p.left}%`, width: p.size, height: p.size * 0.6, borderRadius: 1, background: p.color,
+                            animation: `jevFall ${p.dur}s cubic-bezier(.25,.46,.45,.94) ${p.delay}s both`,
+                            "--dx": `${p.drift}px`, "--spin": `${p.spin}deg`,
+                        } as React.CSSProperties} />
+                    ))}
+                </div>,
+                document.body,
+            )}
 
             {/* Switch */}
             <button
@@ -88,58 +111,11 @@ export default function JevRouterSwitch({ initial, bare = false }: { initial: Je
                     animation: "jevSwitchGlow 2.4s ease-in-out infinite",
                 }} />
             </button>
-
-            {/* Label */}
-            <div style={{ minWidth: bare ? 0 : 150 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.55)" }}>
-                    Jev router
-                </div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: accent, marginTop: 2 }}>
-                    {on ? "Jev decides" : `Forced: ${state.force}`}
-                </div>
-            </div>
-
-            {/* Tier picker - only when forced */}
-            {!on && (
-                <div style={{ display: "inline-flex", gap: 2, padding: 3, borderRadius: 999, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                    {TIERS.map(t => {
-                        const active = state.force === t;
-                        return (
-                            <button
-                                key={t}
-                                type="button"
-                                disabled={saving}
-                                onClick={() => write(t)}
-                                style={{
-                                    padding: "4px 11px", borderRadius: 999, border: "none", cursor: "pointer",
-                                    fontSize: 10, fontWeight: 700, letterSpacing: 0.5,
-                                    background: active ? `${TIER_COLORS[t]}2E` : "transparent",
-                                    color: active ? TIER_COLORS[t] : "rgba(255,255,255,0.4)",
-                                    transition: "background 0.15s, color 0.15s",
-                                }}
-                            >
-                                {t}
-                            </button>
-                        );
-                    })}
-                </div>
-            )}
-
-            {/* What the session runs on */}
-            <div style={{ marginLeft: bare ? 0 : "auto", display: "flex", gap: bare ? 16 : 22, flexWrap: "wrap" }}>
-                <Readout label="Per prompt" value={on ? "haiku > sonnet > opus > fable" : state.force ?? ""} color={on ? undefined : accent} />
-                <Readout label="Main thread" value={state.mainModel} />
-                <Readout label="Subagents" value={on ? state.subagentModel : state.force ?? ""} color={on ? undefined : accent} />
-            </div>
-        </div>
-    );
-}
-
-function Readout({ label, value, color }: { label: string; value: string; color?: string }) {
-    return (
-        <div>
-            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.35)" }}>{label}</div>
-            <div style={{ fontSize: 11, fontFamily: MONO, color: color ?? "rgba(255,255,255,0.7)", marginTop: 2 }}>{value}</div>
+            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", whiteSpace: "nowrap" }}>
+                <b style={{ color: accent, fontWeight: 800, letterSpacing: "0.08em" }}>{on ? "ON" : "OFF"}</b>
+                {on ? " - Jev picks a tier per prompt"
+                    : <>{offSince && <> since <b style={{ color: "#fff" }}>{new Date(offSince).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</b> ({timeAgo(offSince)})</>}{state.force && <> - pinned to {state.force}</>}</>}
+            </span>
         </div>
     );
 }

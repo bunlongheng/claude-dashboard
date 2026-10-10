@@ -32,6 +32,8 @@ html::-webkit-scrollbar { display: none; }
 nextjs-portal { display: none !important; }
 
 /* Claude logo jump - 3 subtle bounces every 10s */
+@keyframes heroSnake { to { transform: rotate(360deg); } }
+
 @keyframes claudeJump {
   0%, 6%, 12%, 18%, 100% { transform: translateY(0); }
   3%  { transform: translateY(-6px); }

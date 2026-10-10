@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { DatabaseZap, Layers, Brain, FolderOpen } from "lucide-react";
 import { cardShell } from "@/lib/ui-tokens";
 import { ACCENT, type Stats, type RagTab } from "./types";
+import { Sparkline } from "../McpLogPanel";
 
 const RagCharts = dynamic(() => import("../RagCharts"), { ssr: false });
 
@@ -18,10 +19,12 @@ function OverviewTab({ stats, onNavigate }: { stats: Stats; onNavigate: (tab: Ra
         <div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3" style={{ marginBottom: 16 }}>
                 {[
-                    { label: "Documents", value: stats.documents, icon: DatabaseZap, color: "#FF3B30", tab: "documents" as RagTab },
-                    { label: "Chunks", value: stats.chunks, icon: Layers, color: "#FF6347", tab: "documents" as RagTab },
-                    { label: "Preferences", value: stats.preferences, icon: Brain, color: "#FF9500", tab: "preferences" as RagTab },
-                    { label: "Projects", value: stats.projects, icon: FolderOpen, color: "#f97316", tab: "documents" as RagTab },
+                    // Big number is what was added in the hero window, the small one is everything stored.
+                    { label: "Documents", value: stats.windowed?.docs, total: stats.documents, icon: DatabaseZap, color: "#FF3B30", tab: "documents" as RagTab, trend: "docs" as const },
+                    { label: "Chunks", value: stats.windowed?.chunks, total: stats.chunks, icon: Layers, color: "#FF6347", tab: "documents" as RagTab, trend: "chunks" as const },
+                    // Preferences are learned once and kept, so this card is all-time on every window.
+                    { label: "Preferences", value: stats.preferences, total: undefined, icon: Brain, color: "#FF9500", tab: "preferences" as RagTab, trend: "prefs" as const },
+                    { label: "Projects", value: stats.windowed?.projects, total: stats.projects, icon: FolderOpen, color: "#f97316", tab: "documents" as RagTab, trend: "projects" as const },
                 ].map(c => (
                     <div key={c.label} onClick={() => onNavigate(c.tab)}
                         className="cursor-pointer"
@@ -37,7 +40,11 @@ function OverviewTab({ stats, onNavigate }: { stats: Stats; onNavigate: (tab: Ra
                             <c.icon size={16} style={{ color: c.color }} />
                             <span style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.5)" }}>{c.label}</span>
                         </div>
-                        <div style={{ fontSize: 28, fontWeight: 800, color: c.color, lineHeight: 1 }}>{(c.value ?? 0).toLocaleString()}</div>
+                        <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+                            <span style={{ fontSize: 28, fontWeight: 800, color: c.color, lineHeight: 1 }}>{(c.value ?? 0).toLocaleString()}</span>
+                            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontVariantNumeric: "tabular-nums" }}>{c.total === undefined ? "all time" : `of ${c.total.toLocaleString()}`}</span>
+                        </div>
+                        {(stats.trend?.length ?? 0) > 1 && <Sparkline values={stats.trend!.map(t => t[c.trend])} color={c.color} />}
                     </div>
                 ))}
             </div>
@@ -142,27 +149,6 @@ function OverviewTab({ stats, onNavigate }: { stats: Stats; onNavigate: (tab: Ra
                     </div>
                 </div>
 
-                {/* FTS5 Benchmark */}
-                {stats.searchBenchmark && stats.searchBenchmark.length > 0 && (
-                    <div>
-                        <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.55)", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.1em" }}>FTS5 Coverage Benchmark</div>
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 50px 1fr", gap: "2px 8px", alignItems: "center" }}>
-                            {stats.searchBenchmark.map((b, i) => {
-                                const pct = (b.hits / 20) * 100;
-                                return [
-                                    <span key={`q${i}`} style={{ fontSize: 9, color: "rgba(255,255,255,0.52)", textAlign: "right" }}>{b.query}</span>,
-                                    <span key={`h${i}`} style={{ fontSize: 9, fontWeight: 700, color: b.hits >= 15 ? ACCENT : b.hits >= 5 ? "#f59e0b" : "#ef4444", textAlign: "center" }}>{b.hits}/20</span>,
-                                    <div key={`b${i}`} style={{ height: 12, background: "rgba(255,255,255,0.03)", borderRadius: 3, overflow: "hidden" }}>
-                                        <div style={{ width: `${pct}%`, height: "100%", background: b.hits >= 15 ? `${ACCENT}40` : b.hits >= 5 ? "rgba(245,158,11,0.3)" : "rgba(239,68,68,0.3)", borderRadius: 3, borderRight: b.hits > 0 ? `2px solid ${b.hits >= 15 ? ACCENT : b.hits >= 5 ? "#f59e0b" : "#ef4444"}` : "none" }} />
-                                    </div>,
-                                ];
-                            })}
-                        </div>
-                        <div style={{ fontSize: 8, color: "rgba(255,255,255,0.5)", marginTop: 8, textAlign: "center" }}>
-                            Avg coverage: {(stats.searchBenchmark.reduce((s, b) => s + b.hits, 0) / stats.searchBenchmark.length).toFixed(0)}/20 hits per query - vector DB adds marginal value at this corpus size ({stats.chunks} chunks)
-                        </div>
-                    </div>
-                )}
             </div>
 
             {/* Recent injections */}

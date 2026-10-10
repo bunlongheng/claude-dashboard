@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { SegmentedTabs, WINDOW_TABS, safeFetch, type Window4 } from "./shared";
-import { HeroSlot } from "./PageHero";
+import { HeroSlot, HeroLeftSlot } from "./PageHero";
 import { useMachine } from "./MachineContext";
 import JevCharts from "./JevCharts";
 import JevRouterSwitch from "./JevRouterSwitch";
@@ -29,9 +29,8 @@ export default function JevSection({ initial, router, tier, win: initialWin }: {
 
     return (
         <div>
+            <HeroLeftSlot><JevRouterSwitch initial={router} bare offSince={payload.windows?.[0]?.to === null ? payload.windows[0].from : null} /></HeroLeftSlot>
             <HeroSlot>
-                <JevRouterSwitch initial={router} bare />
-                <span aria-hidden style={{ width: 1, height: 28, background: "rgba(255,255,255,0.1)", margin: "0 4px" }} />
                 <SegmentedTabs<Window4> tabs={WINDOW_TABS} value={win} onChange={setWin} />
             </HeroSlot>
             <JevCharts data={payload} tier={tier} win={win} />

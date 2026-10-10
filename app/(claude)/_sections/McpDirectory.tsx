@@ -6,10 +6,10 @@ import { ChevronRight, Search, AlertTriangle } from "lucide-react";
 import { useMachine } from "./MachineContext";
 import { safeFetch, SegmentedTabs, fmtCompact, fmtCost, fmtTs, timeAgo } from "./shared";
 import { cardShell } from "@/lib/ui-tokens";
-import { VerdictChip, Spark, VERDICT, MONO, th, td, num, WIN_LABEL, UNIT_LABEL } from "./McpLogPanel";
+import { VerdictChip, Spark, Chips, VERDICT, MONO, th, td, num, WIN_LABEL, UNIT_LABEL } from "./McpLogPanel";
 import type { McpLogData, McpServerStat, Win } from "@/app/api/claude/mcp-log/route";
+import type { McpInfo } from "@/app/api/claude/skills/route";
 
-export type McpInfo = { name: string; type: string; url?: string; command?: string; path: string; createdAt?: string | null; source?: "user" | "plugin" };
 type Source = "user" | "plugin" | "connector" | "gone";
 type Filter = "all" | "user" | "plugin" | "connector" | "never" | "gone";
 type Sort = "calls" | "recent" | "name";
@@ -34,18 +34,6 @@ function removal(r: Row): string {
 
 function Tag({ label, color }: { label: string; color: string }) {
     return <span style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color, padding: "2px 7px", borderRadius: 999, background: `color-mix(in srgb, ${color} 14%, transparent)`, border: `1px solid color-mix(in srgb, ${color} 35%, transparent)` }}>{label}</span>;
-}
-
-function Chips({ title, items }: { title: string; items: string[] }) {
-    if (!items.length) return null;
-    return (
-        <div style={{ marginTop: 10 }}>
-            <div style={{ ...th, padding: "0 0 4px" }}>{title}</div>
-            <div className="flex flex-wrap" style={{ gap: 4 }}>
-                {items.map(i => <span key={i} style={{ fontSize: 10, fontFamily: MONO, padding: "2px 7px", borderRadius: 6, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.7)" }}>{i}</span>)}
-            </div>
-        </div>
-    );
 }
 
 // Every MCP server this machine knows about in 1 list: local config (mine +

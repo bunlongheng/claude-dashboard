@@ -1,6 +1,6 @@
 "use client";
 
-import { cardShell } from "@/lib/ui-tokens";
+import { cardShell, METRIC_COLORS } from "@/lib/ui-tokens";
 import { WindowBadge, type Window4 } from "../shared";
 import type { DayBucket } from "./types";
 
@@ -9,7 +9,7 @@ import type { DayBucket } from "./types";
 // rows for Today).
 export function BreakdownCard({ dailyData, breakdownInterval, win, byDayHour, exact }: {
     dailyData: DayBucket[];
-    breakdownInterval: "today" | "7d" | "30d" | "all";
+    breakdownInterval: Window4;
     win: Window4;
     byDayHour?: Record<string, number[]>;
     exact?: { turns: number; tokens: number; sessions: number }; // window totals from the tokens route; falls back to the daily sums
@@ -18,7 +18,7 @@ export function BreakdownCard({ dailyData, breakdownInterval, win, byDayHour, ex
     const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
     const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 
-    const intervalDays: Record<string, number> = { today: 1, "7d": 7, "30d": 30, all: Infinity };
+    const intervalDays: Record<string, number> = { today: 1, "7d": 7, "30d": 30 };
     const windowDays = intervalDays[breakdownInterval] ?? 7;
     const cutoffDate = new Date(now);
     cutoffDate.setDate(now.getDate() - (windowDays === Infinity ? 9999 : windowDays - 1));
@@ -50,7 +50,6 @@ export function BreakdownCard({ dailyData, breakdownInterval, win, byDayHour, ex
     type BarRow = { key: string; label: string; sub?: string; turns: number; current: boolean };
     const short = (d: string) => new Date(d + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
     const weekStart = (d: string) => { const dt = new Date(d + "T12:00:00"); dt.setDate(dt.getDate() - ((dt.getDay() + 6) % 7)); return ymd(dt); };
-    const monthName = (d: string) => new Date(d + "T12:00:00").toLocaleDateString("en-US", { month: "short", year: "numeric" });
     // 30d groups the days into Monday-start weeks, All into calendar months.
     const groupBy = (keyOf: (day: string) => string, labelOf: (key: string, first: string, i: number) => string): BarRow[] =>
         [...barRowsRaw.reduce((m, d) => {
@@ -61,7 +60,6 @@ export function BreakdownCard({ dailyData, breakdownInterval, win, byDayHour, ex
         }, new Map<string, { key: string; first: string; last: string; turns: number; current: boolean }>()).values()]
             .map((g, i) => ({ key: g.key, label: labelOf(g.key, g.first, i), sub: `${short(g.first)} - ${short(g.last)}`, turns: g.turns, current: g.current }));
     const barRows: BarRow[] = win === "30d" ? groupBy(weekStart, (_k, _f, i) => `Week ${i + 1}`)
-        : win === "all" ? groupBy(d => d.slice(0, 7), (_k, first) => monthName(first))
         : barRowsRaw.map(d => ({ key: d.day, label: new Date(d.day + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }), turns: d.turns, current: d.day === todayStr }));
     const barMax = Math.max(...barRows.map(d => d.turns), 1);
 
@@ -94,11 +92,11 @@ export function BreakdownCard({ dailyData, breakdownInterval, win, byDayHour, ex
                 </div>
                 <div>
                     <p style={{ fontSize: 9, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Tokens</p>
-                    <p style={{ fontSize: 28, fontWeight: 800, color: "#00d9ff", lineHeight: 1 }}>{ft(totalTok)}</p>
+                    <p style={{ fontSize: 28, fontWeight: 800, color: METRIC_COLORS.tokens, lineHeight: 1 }}>{ft(totalTok)}</p>
                 </div>
                 <div>
                     <p style={{ fontSize: 9, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Sessions</p>
-                    <p style={{ fontSize: 28, fontWeight: 800, color: "#a3e635", lineHeight: 1 }}>{totalSessions}</p>
+                    <p style={{ fontSize: 28, fontWeight: 800, color: METRIC_COLORS.sessions, lineHeight: 1 }}>{totalSessions}</p>
                 </div>
             </div>
 
