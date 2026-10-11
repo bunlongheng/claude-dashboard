@@ -10,6 +10,20 @@ export function safeRead(p: string): string {
     }
 }
 
+// Parse a file as JSON, returning null on any error (missing, unparsable, etc).
+// Shared by the claude/* routes that walk ~/.claude config files.
+export function safeJson<T = Record<string, unknown>>(p: string): T | null {
+    try { return JSON.parse(fs.readFileSync(p, "utf-8")) as T; } catch { return null; }
+}
+
+// Shared by the claude/* routes that walk ~/.claude and tolerate absent paths.
+export function dirExists(p: string): boolean {
+    try { return fs.statSync(p).isDirectory(); } catch { return false; }
+}
+export function fileExists(p: string): boolean {
+    try { return fs.statSync(p).isFile(); } catch { return false; }
+}
+
 // Read the last `maxBytes` of a file as UTF-8 (fd tail-read). For big append-only
 // logs (session .jsonl) where only the recent tail is needed. Returns "" on error.
 // Shared by the token-stats / tool-usage / turns-by-hour scan routes.

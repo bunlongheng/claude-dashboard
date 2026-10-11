@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
-import { safeRead } from "@/lib/safe-read";
+import { safeRead, safeJson, dirExists, fileExists } from "@/lib/safe-read";
 import { openMachinesDb, localMachineId as sharedLocalMachineId } from "@/lib/machines-db";
 import { withErrorHandler } from "@/lib/api-handler";
 import { requireSameSite } from "@/lib/route-guard";
@@ -13,6 +13,7 @@ const MARKETPLACE_DIR = path.join(CLAUDE_DIR, "plugins", "marketplaces", "claude
 const PLUGINS_DIR = path.join(MARKETPLACE_DIR, "plugins");
 const STANDALONE_SKILLS_DIR = path.join(CLAUDE_DIR, "skills");
 const STANDALONE_CMDS_DIR = path.join(CLAUDE_DIR, "commands");
+const AGENTS_DIR = path.join(CLAUDE_DIR, "agents");
 const EXTERNAL_DIR = path.join(MARKETPLACE_DIR, "external_plugins");
 
 // Local-scan response cache, keyed by slim flag. ~/.claude config rarely changes,
@@ -24,20 +25,10 @@ const scanCache = new Map<string, { at: number; data: unknown }>();
 function safeStatBirthtime(p: string): string | null {
     try { return fs.statSync(p).birthtime.toISOString(); } catch { return null; }
 }
-function safeJson<T = unknown>(p: string): T | null {
-    try { return JSON.parse(fs.readFileSync(p, "utf-8")) as T; } catch { return null; }
-}
-function dirExists(p: string): boolean {
-    try { return fs.statSync(p).isDirectory(); } catch { return false; }
-}
-function fileExists(p: string): boolean {
-    try { return fs.statSync(p).isFile(); } catch { return false; }
-}
-
 type PluginInfo = { name: string; description: string; path: string; type: "builtin" | "external" | "lsp" };
 type SkillInfo = { name: string; plugin: string; description: string; path: string; source: "builtin" | "external"; content: string; createdAt?: string | null };
 type CommandInfo = { name: string; plugin: string; description: string; path: string; content: string; source: "builtin" | "external" };
-type McpInfo = { name: string; type: string; url?: string; command?: string; path: string; createdAt?: string | null; source?: "user" | "plugin" };
+export type McpInfo = { name: string; type: string; url?: string; command?: string; path: string; createdAt?: string | null; source?: "user" | "plugin" };
 type HookInfo = { name: string; plugin: string; events: string[]; command?: string; path: string };
 type ClaudeMdInfo = { name: string; path: string; content: string; scope: "global" | "project" };
 
@@ -222,11 +213,14 @@ function scanMcp(): McpInfo[] {
         }
     }
 
-    // 3. Plugin .mcp.json files (shipped with installed plugins)
+    // 3. Plugin .mcp.json files. The marketplace cache holds every listed
+    // plugin, but only the ones enabled in settings.json actually load.
+    const enabled = safeJson<{ enabledPlugins?: Record<string, boolean> }>(path.join(CLAUDE_DIR, "settings.json"))?.enabledPlugins ?? {};
     const dirs = [PLUGINS_DIR, EXTERNAL_DIR];
     for (const base of dirs) {
         if (!dirExists(base)) continue;
         for (const plugin of fs.readdirSync(base)) {
+            if (!enabled[`${plugin}@claude-plugins-official`]) continue;
             const mcpPath = path.join(base, plugin, ".mcp.json");
             const data = safeJson(mcpPath);
             if (!data) continue;
@@ -302,15 +296,6 @@ function scanClaudeMd(): ClaudeMdInfo[] {
                 const projectPath = folder.replace(/-/g, "/");
                 files.push({ name: `Project: ${projectPath}`, path: projMd, content: safeRead(projMd), scope: "project" });
             }
-        }
-    }
-
-    // Also check cwd for CLAUDE.md
-    const cwdMd = path.join(process.cwd(), "CLAUDE.md");
-    if (fileExists(cwdMd)) {
-        const already = files.some(f => f.path === cwdMd);
-        if (!already) {
-            files.push({ name: "This Project CLAUDE.md", path: cwdMd, content: safeRead(cwdMd), scope: "project" });
         }
     }
 
@@ -441,6 +426,9 @@ export const GET = withErrorHandler(async (req: Request) => {
         return 1;
     };
     const settingsCount = (settings ? countLeaves(settings) : 0) + (localSettings ? countLeaves(localSettings) : 0);
+    // Agent definitions: 1 markdown file each under ~/.claude/agents.
+    let agentDefs = 0;
+    try { agentDefs = fs.readdirSync(AGENTS_DIR).filter(f => f.endsWith(".md")).length; } catch { /* no agents dir */ }
 
     // Slim mode: strip content to reduce payload (~600KB -> ~30KB)
     const strip = <T extends object>(items: T[]) =>
@@ -467,6 +455,7 @@ export const GET = withErrorHandler(async (req: Request) => {
             hooks: hooks.length,
             claudeMd: claudeMd.length,
             settings: settingsCount,
+            agents: agentDefs,
         },
     };
     scanCache.set(cacheKey, { at: nowMs, data: payload });

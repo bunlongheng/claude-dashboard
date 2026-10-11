@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { withErrorHandler } from "@/lib/api-handler";
 import { readJevLog, aggregateJev, JEV_LOG_PATH, JEV_HOOK_PATH, type JevPayload } from "@/lib/jev-log";
+import { listSubagentRuns } from "@/lib/subagent-runs";
 
 export const dynamic = "force-dynamic";
 
@@ -39,7 +40,7 @@ export const GET = withErrorHandler(async (req: Request) => {
     const projects = [...new Set(rows.map(r => r.project).filter((p): p is string => !!p))].sort();
 
     const data: JevPayload = {
-        ...aggregateJev(filtered, now),
+        ...aggregateJev(filtered, now, listSubagentRuns()),
         days,
         project,
         projects,

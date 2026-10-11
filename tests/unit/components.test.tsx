@@ -42,10 +42,6 @@ describe("AppIcon", () => {
 
     fireEvent.error(img);
     img = screen.getByAltText("claude") as HTMLImageElement;
-    expect(img.getAttribute("src")).toBe("/app-icons/claude.svg");
-
-    fireEvent.error(img);
-    img = screen.getByAltText("claude") as HTMLImageElement;
     expect(img.getAttribute("src")).toContain("/api/claude/project-icon");
 
     fireEvent.error(img);
@@ -152,6 +148,7 @@ import { JevCard } from "@/app/(claude)/_sections/overview/JevCard";
 import JevCharts from "@/app/(claude)/_sections/JevCharts";
 import ClaudeSidebarNav, { NAV_ITEMS } from "@/app/(claude)/_sections/ClaudeSidebarNav";
 import type { JevPayload } from "@/lib/jev-log";
+import { JEV_COST_PER_CALL } from "@/lib/jev-log";
 
 const API = "http://localhost:3003";
 const routerPush = vi.fn();
@@ -184,17 +181,21 @@ const today = new Date().toLocaleDateString("en-CA");
 const JEV_FIXTURE: JevPayload = {
   totals: { calls: 12, routed: 9, skipped: 2, errors: 1, routedPct: 75, avgLatencyMs: 412.4, p95LatencyMs: 900, inputTokens: 5000, outputTokens: 1200, estCostUsd: 0.0312, sessions: 2, lastCallTs: new Date().toISOString(), lastRoutedTs: new Date().toISOString() },
   health: "live",
+  windows: [],
+  decisions: [],
+  outcomes: { followed: 0, over: 0, under: 0, main: 0 },
+  agentChecks: { counts: { agree: 0, under: 0, over: 0 }, recent: [] },
+  tiersTotal: { haiku: 0, sonnet: 0, opus: 0, fable: 0 },
   daily: [
-    { day: today, routed: 5, skipped: 1, errors: 1, avgLatencyMs: 400, p95LatencyMs: 900, tokens: 3200 },
-    { day: "2026-09-20", routed: 4, skipped: 1, errors: 0, avgLatencyMs: 420, p95LatencyMs: 800, tokens: 3000 },
+    { day: today, routed: 5, skipped: 1, errors: 1, avgLatencyMs: 400, p95LatencyMs: 900, tokens: 3200, costUsd: 7 * JEV_COST_PER_CALL },
+    { day: "2026-09-20", routed: 4, skipped: 1, errors: 0, avgLatencyMs: 420, p95LatencyMs: 800, tokens: 3000, costUsd: 5 * JEV_COST_PER_CALL },
   ],
-  hourly: [{ hour: `${today}T14`, label: "14:00", routed: 5, skipped: 1, errors: 1, avgLatencyMs: 400, tokens: 3200 }],
+  hourly: [{ hour: `${today}T14`, label: "14:00", routed: 5, skipped: 1, errors: 1, avgLatencyMs: 400, tokens: 3200, costUsd: 7 * JEV_COST_PER_CALL }],
   tiers: { haiku: 4, sonnet: 3, opus: 2, fable: 0 },
   sessions: [
     { session_id: "sess-aaaa-1111", project: "claude", messages: 7, routed: 5, skipped: 1, errors: 1, topTier: "sonnet", firstTs: new Date().toISOString(), lastTs: new Date().toISOString(), avgConf: 0.91 },
     { session_id: "sess-bbbb-2222", project: "bheng", messages: 5, routed: 4, skipped: 1, errors: 0, topTier: "haiku", firstTs: new Date().toISOString(), lastTs: new Date().toISOString(), avgConf: 0.8 },
   ],
-  recent: [],
   days: 7, project: null, projects: ["bheng", "claude"], logPath: "/tmp/jev.jsonl", hookPath: "/tmp/jev-router.sh",
 };
 
@@ -204,37 +205,30 @@ function withQuery(ui: React.ReactElement) {
 }
 
 describe("JevCard", () => {
-  it("fetches /api/claude/jev?days=7 and shows the 3 headline stats", async () => {
+  it("fetches /api/claude/jev?days=7 and shows the routed header", async () => {
     let seenUrl = "";
     server.use(http.get(`${API}/api/claude/jev`, ({ request }) => { seenUrl = request.url; return HttpResponse.json(JEV_FIXTURE); }));
-    withQuery(<JevCard />);
-    expect(await screen.findByText("LIVE")).toBeInTheDocument();
+    withQuery(<JevCard win="7d" />);
+    expect(await screen.findByLabelText("LIVE")).toBeInTheDocument();
     expect(seenUrl).toBe(`${API}/api/claude/jev?days=7`);
-    expect(screen.getByText("75%")).toBeInTheDocument();
-    expect(screen.getByText("412")).toBeInTheDocument();
-    expect(screen.getByText("$0.03")).toBeInTheDocument();
-    expect(screen.getByText(/7d · 9/)).toBeInTheDocument();
-    expect(screen.getByText("LIVE").closest("a")).toHaveAttribute("href", "/jev");
-  });
-
-  it("keeps extra precision on a sub-cent cost", async () => {
-    server.use(http.get(`${API}/api/claude/jev`, () => HttpResponse.json({ ...JEV_FIXTURE, totals: { ...JEV_FIXTURE.totals, estCostUsd: 0.0042 } })));
-    withQuery(<JevCard />);
-    expect(await screen.findByText("$0.0042")).toBeInTheDocument();
+    // Header reads routed over the prompts the hook saw.
+    expect(screen.getByText("9/12")).toBeInTheDocument();
+    expect(screen.getByText("7d")).toBeInTheDocument();
+    expect(screen.getByLabelText("LIVE")).toHaveAttribute("href", "/jev");
   });
 
   it("shows the empty state with NEVER when the API fails", async () => {
     server.use(http.get(`${API}/api/claude/jev`, () => HttpResponse.json({ error: "boom" }, { status: 500 })));
-    withQuery(<JevCard />);
-    expect(await screen.findByText("No routed prompts in the last 7 days.")).toBeInTheDocument();
-    expect(screen.getByText("NEVER")).toBeInTheDocument();
-    expect(screen.queryByText("75%")).not.toBeInTheDocument();
+    withQuery(<JevCard win="7d" />);
+    expect(await screen.findByText("No routed prompts in this window.")).toBeInTheDocument();
+    expect(screen.getByLabelText("NEVER")).toBeInTheDocument();
+    expect(screen.queryByText("9/12")).not.toBeInTheDocument();
   });
 });
 
 describe("JevCharts", () => {
   it("renders the health strip numbers from the aggregate", () => {
-    render(<JevCharts data={JEV_FIXTURE} />);
+    render(<JevCharts data={JEV_FIXTURE} win="7d" />);
     expect(screen.getByText("LIVE")).toBeInTheDocument();
     // 5 routed + 1 skipped + 1 error today, 12 in the range
     const callsTile = screen.getByText("Calls today").closest("div")!.parentElement!;
@@ -248,23 +242,24 @@ describe("JevCharts", () => {
     expect(screen.getByText("check the log")).toBeInTheDocument();
   });
 
-  it("draws the 3 stacked call series and 2 latency lines", () => {
-    const { container } = render(<JevCharts data={JEV_FIXTURE} />);
-    expect(screen.getAllByTestId("chart").length).toBeGreaterThanOrEqual(3);
+  it("draws the 3 stacked call series with the latency lines in the same chart", () => {
+    const { container } = render(<JevCharts data={JEV_FIXTURE} win="7d" />);
+    expect(screen.getAllByTestId("chart").length).toBe(1);
     expect(container.querySelectorAll(".recharts-bar").length).toBe(3);
     expect(container.querySelectorAll(".recharts-line").length).toBeGreaterThanOrEqual(2);
-    expect(container.querySelectorAll(".recharts-pie").length).toBe(1);
+    // Tier split is the chart.js polar area the overview card uses, not a recharts pie.
+    expect(container.querySelector("#tier-split canvas")).toBeInTheDocument();
   });
 
   it("lists every session with its project", () => {
-    render(<JevCharts data={JEV_FIXTURE} />);
+    render(<JevCharts data={JEV_FIXTURE} win="7d" />);
     expect(screen.getByText("sess-aaa").closest("a")).toHaveAttribute("href", "/sess-aaaa-1111");
     expect(screen.getByText("sess-bbb").closest("a")).toHaveAttribute("href", "/sess-bbbb-2222");
     expect(screen.getByAltText("claude")).toBeInTheDocument();
   });
 
   it("shows the never-ran setup block instead of charts when there is no log", () => {
-    const { container } = render(<JevCharts data={{ ...JEV_FIXTURE, health: "never", totals: { ...JEV_FIXTURE.totals, calls: 0, lastCallTs: null } }} />);
+    const { container } = render(<JevCharts data={{ ...JEV_FIXTURE, health: "never", totals: { ...JEV_FIXTURE.totals, calls: 0, lastCallTs: null } }} win="7d" />);
     expect(screen.getByText("NEVER")).toBeInTheDocument();
     expect(screen.getByText(/jev\.jsonl/)).toBeInTheDocument();
     expect(container.querySelectorAll(".recharts-bar").length).toBe(0);
@@ -274,11 +269,10 @@ describe("JevCharts", () => {
 describe("ClaudeSidebarNav", () => {
   const badgeStubs = () => server.use(
     http.get(`${API}/api/claude/sessions`, () => HttpResponse.json({ projects: [{ sessions: [{}, {}] }, { sessions: [{}] }] })),
-    http.get(`${API}/api/claude/skills`, () => HttpResponse.json({ summary: { skills: 42, mcp: 6, claudeMd: 3, hooks: 1, commands: 2, plugins: 3, settings: 5 } })),
-    http.get(`${API}/api/claude/brain`, () => HttpResponse.json({ totalProjects: 11 })),
-    http.get(`${API}/api/claude/token-stats/daily`, () => HttpResponse.json({ daily: [{ input: 900_000, output: 300_000 }] })),
+    http.get(`${API}/api/claude/skills`, () => HttpResponse.json({ summary: { skills: 42, mcp: 6, claudeMd: 3, hooks: 1, commands: 2, plugins: 3, settings: 5, agents: 12 } })),
+    http.get(`${API}/api/claude/tokens`, () => HttpResponse.json({ totals: { input: 900_000, output: 300_000 } })),
     http.get(`${API}/api/rag/stats`, () => HttpResponse.json({ documents: 8 })),
-    http.get(`${API}/api/claude/jev`, () => HttpResponse.json({ daily: [{ day: today, routed: 3, skipped: 1, errors: 0 }] })),
+    http.get(`${API}/api/claude/jev`, () => HttpResponse.json({ totals: { routed: 4 } })),
   );
 
   it("renders every nav link with its href and marks the current one active", async () => {
@@ -296,7 +290,7 @@ describe("ClaudeSidebarNav", () => {
     await waitFor(() => expect(active).toHaveTextContent("3"));
   });
 
-  it("fills the badges from the 6 endpoints", async () => {
+  it("fills the badges from the 5 endpoints", async () => {
     pathname = "/dashboard";
     badgeStubs();
     withQuery(<ClaudeSidebarNav />);
@@ -305,7 +299,8 @@ describe("ClaudeSidebarNav", () => {
     expect(within(aside).getByRole("link", { name: /^Sessions/ })).toHaveTextContent("3");
     expect(within(aside).getByRole("link", { name: /^Extensions/ })).toHaveTextContent("6");
     expect(within(aside).getByRole("link", { name: /^Tokens/ })).toHaveTextContent("1.2M");
-    expect(within(aside).getByRole("link", { name: /^Overview/ })).toHaveTextContent("11");
+    expect(within(aside).getByRole("link", { name: /^Agents/ })).toHaveTextContent("12");
+    expect(within(aside).getByRole("link", { name: /^Overview/ })).toHaveTextContent(/^Overview$/);
     expect(within(aside).getByRole("link", { name: /^Jev/ })).toHaveTextContent("4");
   });
 

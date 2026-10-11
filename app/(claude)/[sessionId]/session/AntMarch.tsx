@@ -20,7 +20,7 @@ export const AntMarch = memo(function AntMarch({ thinking, antCount, containerRe
                         return (
                             <Image key={i} src="/claude-logo.png" alt="" width={20} height={20}
                                 style={{
-                                    imageRendering: "pixelated",
+                                    borderRadius: 5,
                                     opacity: 0.7,
                                     animation: `antStep 0.4s ease-in-out infinite`,
                                     animationDelay: `${i * 0.1}s`,

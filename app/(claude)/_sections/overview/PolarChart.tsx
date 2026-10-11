@@ -1,46 +1,65 @@
 "use client";
 
-// Polar area chart: every segment gets the same angle, the value drives the
-// radius. Reads differently from the config donut next to it, and a tier that
-// is 65x another still stays visible because of the minimum radius.
-export function PolarChart({ segments, size = 130, onSelect }: { segments: { value: number; color: string; label: string }[]; size?: number; onSelect?: (label: string) => void }) {
+import { useMemo } from "react";
+import { PolarArea } from "react-chartjs-2";
+import type { ChartOptions } from "chart.js";
+import { TOOLTIP } from "./chartjs";
+
+type Segment = { value: number; color: string; label: string; total?: number };
+
+// The white ring: how many prompts ran on that tier in total, routed ones plus
+// the ones a forced switch pinned there. Drawn as an outline behind the filled
+// wedge so the gap between the 2 is what Jev actually decided.
+const TOTAL_LINE = "rgba(255,255,255,0.85)";
+
+// Polar area chart (Chart.js): every segment gets the same angle, the value
+// drives the radius. Plotted on a square-root scale so a tier that is 65x
+// another still stays visible; the tooltip and legend show the real counts.
+export function PolarChart({ segments, size = 130, onSelect }: { segments: Segment[]; size?: number; onSelect?: (label: string) => void }) {
     const total = segments.reduce((s, seg) => s + seg.value, 0);
+    const hasTotals = segments.some(s => s.total != null && s.total > s.value);
+    const data = useMemo(() => ({
+        labels: segments.map(s => s.label),
+        datasets: [
+            // Drawn first so the filled wedges sit on top of the outline.
+            ...(hasTotals ? [{
+                data: segments.map(s => Math.sqrt(s.total ?? s.value)),
+                backgroundColor: "rgba(255,255,255,0.04)",
+                hoverBackgroundColor: "rgba(255,255,255,0.1)",
+                borderColor: TOTAL_LINE,
+                borderWidth: 1.5,
+            }] : []),
+            {
+                data: segments.map(s => Math.sqrt(s.value)),
+                backgroundColor: segments.map(s => `${s.color}B3`),
+                hoverBackgroundColor: segments.map(s => s.color),
+                borderColor: segments.map(s => s.color),
+                borderWidth: 1,
+            },
+        ],
+    }), [segments, hasTotals]);
+    const options = useMemo<ChartOptions<"polarArea">>(() => ({
+        responsive: false,
+        animation: { duration: 700, animateRotate: true, animateScale: true },
+        onClick: (_e, els) => { if (onSelect && els[0]) onSelect(segments[els[0].index].label); },
+        onHover: (e, els) => { const t = e.native?.target as HTMLElement | null; if (t) t.style.cursor = onSelect && els.length ? "pointer" : "default"; },
+        scales: { r: { grid: { color: "rgba(255,255,255,0.07)" }, angleLines: { display: false }, ticks: { display: false }, beginAtZero: true } },
+        plugins: {
+            legend: { display: false },
+            tooltip: { ...TOOLTIP, callbacks: { label: ctx => {
+                const seg = segments[ctx.dataIndex];
+                const isTotalRing = hasTotals && ctx.datasetIndex === 0;
+                return isTotalRing
+                    ? `${(seg.total ?? seg.value).toLocaleString()} total`
+                    : `${seg.value.toLocaleString()} routed`;
+            } } },
+        },
+    }), [segments, onSelect, hasTotals]);
     if (total === 0) return null;
-    const max = Math.max(...segments.map(s => s.value));
-    const R = (size - 8) / 2;
-    const cx = size / 2, cy = size / 2;
-    const step = (Math.PI * 2) / segments.length;
-    const rings = [0.25, 0.5, 0.75, 1];
 
     return (
         <div className="flex items-center justify-center gap-4 flex-wrap">
-            <svg width={size} height={size}>
-                {rings.map(k => (
-                    <circle key={k} cx={cx} cy={cy} r={R * k} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth={1} />
-                ))}
-                {segments.map((seg, i) => {
-                    const start = -Math.PI / 2 + i * step;
-                    const end = start + step;
-                    const r = seg.value > 0 ? Math.max(R * 0.12, R * Math.sqrt(seg.value / max)) : 0;
-                    if (r === 0) return null;
-                    const x1 = cx + r * Math.cos(start), y1 = cy + r * Math.sin(start);
-                    const x2 = cx + r * Math.cos(end), y2 = cy + r * Math.sin(end);
-                    const path = `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${step > Math.PI ? 1 : 0} 1 ${x2} ${y2} Z`;
-                    return (
-                        <path key={seg.label} d={path} fill={seg.color} fillOpacity={0.7} stroke={seg.color} strokeWidth={1} strokeLinejoin="round"
-                            role={onSelect ? "link" : undefined} tabIndex={onSelect ? 0 : undefined} aria-label={onSelect ? `${seg.label}: ${seg.value}, open in Jev` : undefined}
-                            onClick={onSelect ? () => onSelect(seg.label) : undefined}
-                            onKeyDown={onSelect ? e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelect(seg.label); } } : undefined}
-                            style={{ transformOrigin: `${cx}px ${cy}px`, cursor: onSelect ? "pointer" : undefined, transition: "fill-opacity 0.15s ease" }}
-                            onMouseEnter={onSelect ? e => e.currentTarget.setAttribute("fill-opacity", "1") : undefined}
-                            onMouseLeave={onSelect ? e => e.currentTarget.setAttribute("fill-opacity", "0.7") : undefined}>
-                            <title>{`${seg.label}: ${seg.value}`}</title>
-                            <animate attributeName="opacity" from="0" to="1" dur="0.5s" begin={`${i * 0.1}s`} fill="freeze" />
-                        </path>
-                    );
-                })}
-                <circle cx={cx} cy={cy} r={2} fill="rgba(255,255,255,0.6)" />
-            </svg>
+            <PolarArea data={data} options={options} width={size} height={size} aria-label="Tier split" />
             <div className="space-y-1">
                 {segments.map(s => {
                     const Row = onSelect ? "button" : "div";
@@ -50,9 +69,18 @@ export function PolarChart({ segments, size = 130, onSelect }: { segments: { val
                             <span style={{ width: 8, height: 8, borderRadius: 2, background: s.color, flexShrink: 0 }} />
                             <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>{s.label}</span>
                             <span style={{ fontSize: 10, fontWeight: 700, color: s.color, marginLeft: "auto" }}>{s.value}</span>
+                            {hasTotals && (
+                                <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.75)", marginLeft: -4 }}>/{(s.total ?? s.value).toLocaleString()}</span>
+                            )}
                         </Row>
                     );
                 })}
+                {hasTotals && (
+                    <div className="flex items-center gap-2" style={{ paddingTop: 4 }}>
+                        <span style={{ width: 8, height: 8, borderRadius: 2, border: `1.5px solid ${TOTAL_LINE}`, flexShrink: 0 }} />
+                        <span style={{ fontSize: 9, color: "rgba(255,255,255,0.45)" }}>total</span>
+                    </div>
+                )}
             </div>
         </div>
     );

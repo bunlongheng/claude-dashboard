@@ -10,8 +10,8 @@ import { NextRequest } from "next/server";
 //   3. brain/route.ts      - full config/memory dump gated behind requireBearerOrSameSite
 //   4. project-icon/route.ts - path traversal on ?project= is rejected / contained to SITES_DIR
 //
-// (lib/db/simple-auth.ts's timingSafePasswordEqual already has equal/unequal/no-throw
-// coverage via tests/unit/simple-auth.test.ts's signIn() cases - not duplicated here.)
+// (lib/route-guard.ts's requireSameSite is the guard under test here - this file is
+// its only coverage; there is no separate auth module to avoid duplicating.)
 
 // os is a Node ESM built-in - its namespace export isn't configurable, so
 // vi.spyOn can't patch it directly. Route through a mutable override hook
@@ -189,9 +189,10 @@ describe("GET /api/claude/project-icon", () => {
     const { GET } = await loadRoute();
     const res = await GET(new NextRequest("http://localhost/api/claude/project-icon?project=../x"));
     // Only the last path segment ("x") is used as the lookup name, so this
-    // can never escape SITES_DIR - it 404s (no such project) rather than
+    // can never escape SITES_DIR - it falls back to the default icon rather than
     // leaking the outside file, and is never a 200 with the secret bytes.
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(307);
+    expect(res.headers.get("location")).toBe("/app-icons/claude-code.png");
   });
 
   it("serves the favicon for a normal, existing project name", async () => {
@@ -208,10 +209,11 @@ describe("GET /api/claude/project-icon", () => {
     expect(buf.equals(bytes)).toBe(true);
   });
 
-  it("404s cleanly for a normal but absent project name", async () => {
+  it("redirects to the default icon for a normal but absent project name", async () => {
     fs.mkdirSync(path.join(tmpHome, "Sites"), { recursive: true });
     const { GET } = await loadRoute();
     const res = await GET(new NextRequest("http://localhost/api/claude/project-icon?project=doesnotexist"));
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(307);
+    expect(res.headers.get("location")).toBe("/app-icons/claude-code.png");
   });
 });

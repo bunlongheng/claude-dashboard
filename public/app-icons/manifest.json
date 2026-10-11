@@ -538,5 +538,17 @@
     "version": "1789670746000",
     "hash": "d726a328",
     "synced": "2026-09-24"
+  },
+  "rebytes": {
+    "path": "/app-icons/rebytes.svg",
+    "version": "1791720300967",
+    "hash": "1dcb17e1",
+    "synced": "2026-10-11"
+  },
+  "bedrock-website": {
+    "path": "/app-icons/bedrock-website.png",
+    "version": "1791720300967",
+    "hash": "7c2acfb7",
+    "synced": "2026-10-11"
   }
 }

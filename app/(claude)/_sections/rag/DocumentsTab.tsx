@@ -126,7 +126,8 @@ function DocumentsTab({ docs, apiBase }: { docs: DocInfo[]; apiBase: (path: stri
             </div>
 
             {/* File list */}
-            <details open style={{ marginTop: 8 }}>
+            {/* Closed by default so the 1-page RAG view stays short on 30d (500+ docs). */}
+            <details style={{ marginTop: 8 }}>
                 <summary style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.5)", cursor: "pointer", padding: "8px 0", userSelect: "none" }}>
                     Browse all {docs.length} documents
                 </summary>

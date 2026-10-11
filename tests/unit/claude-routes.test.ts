@@ -227,6 +227,26 @@ describe("GET /api/claude/turns-by-hour", () => {
     expect(body.totalSessions).toBe(1);
     expect(body.sessionEntries["session1"][0].preview).toContain("hello there");
   });
+
+  it("counts folders without the username, dedupes a streamed message id and folds subagents into the parent session", async () => {
+    const now = new Date();
+    const date = localYMD(now);
+    const hour = now.getHours();
+    const ts = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hour, 5, 0).toISOString();
+    const turn = (id: string, out: number) => ({ type: "assistant", timestamp: ts, message: { id, role: "assistant", model: "m", content: "x", usage: { input_tokens: 1, output_tokens: out } } });
+
+    const project = "-Volumes-4TB-Sites-demoapp";
+    // msg_1 is written twice while streaming; only the finished copy (most output) counts.
+    writeFixture(tmpHome, project, "s2.jsonl", [turn("msg_1", 1), turn("msg_1", 9), turn("msg_2", 2)]);
+    writeFixture(tmpHome, `${project}/s2/subagents`, "agent-a.jsonl", [turn("msg_3", 4)]);
+
+    const { status, body } = await get(`http://localhost/api/claude/turns-by-hour?date=${date}&hour=${hour}`);
+    expect(status).toBe(200);
+    expect(body.sessionTurns["s2"]).toBe(3);
+    expect(body.totalTurns).toBe(3);
+    expect(body.totalSessions).toBe(1);
+    expect(body.sessionEntries["s2"].map((e: { outTokens?: number }) => e.outTokens).sort()).toEqual([2, 4, 9]);
+  });
 });
 
 // ─── /api/claude/agents ───────────────────────────────────────────────────────

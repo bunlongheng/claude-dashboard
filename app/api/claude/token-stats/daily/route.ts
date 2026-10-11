@@ -3,6 +3,7 @@ import { readLastBytes } from "@/lib/safe-read";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
+import { localYMD } from "@/lib/format";
 import { withErrorHandler } from "@/lib/api-handler";
 
 export const dynamic = "force-dynamic";
@@ -15,12 +16,6 @@ const MAX_BYTES = 100 * 1024; // 100KB tail for older files
 const RECENT_MAX_BYTES = 4 * 1024 * 1024;
 const CACHE_TTL_MS = 5_000; // matches the max-age=5 sync window below
 const DAY_MS = 86400_000;
-
-// Local-time YYYY-MM-DD (not toISOString which is UTC). Keeps day buckets and the
-// per-day hour grid in the same wall-clock frame so "Thursday 8pm" means local 8pm.
-function localYMD(d: Date): string {
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
 
 interface DayBucket {
     day: string;
@@ -80,6 +75,7 @@ function parseFile(filePath: string, isRecent: boolean): FileAgg {
     const lines = content.split("\n");
     // Drop first line if we started mid-line (offset > 0)
     if (lines.length > 1) lines.shift();
+    const seenIds = new Set<string>(); // the same assistant message is written once per content block
 
     for (const line of lines) {
         if (!line) continue;
@@ -105,6 +101,9 @@ function parseFile(filePath: string, isRecent: boolean): FileAgg {
                 usage = d.summary.usage;
                 model = d.summary.model;
             } else if (d.type === "assistant" && d.message?.usage) {
+                const id = d.message.id as string | undefined;
+                if (id && seenIds.has(id)) continue;
+                if (id) seenIds.add(id);
                 usage = d.message.usage;
                 model = d.message.model;
             }
@@ -161,14 +160,10 @@ export const GET = withErrorHandler(async () => {
 
     const recentCutoff = now - 7 * DAY_MS;
     const cutoffDay = localYMD(new Date(recentCutoff)); // day-granularity window for the punchcard grid
-    const currentUser = os.userInfo().username;
     const seen = new Set<string>();
 
     // Refresh the per-file cache: only (re)parse files whose size/mtime changed.
     for (const folder of fs.readdirSync(CLAUDE_DIR)) {
-        const hasUser = folder.includes(`-${currentUser}-`) || folder.endsWith(`-${currentUser}`);
-        if (!hasUser) continue;
-
         const folderPath = path.join(CLAUDE_DIR, folder);
         try { if (!fs.statSync(folderPath).isDirectory()) continue; } catch { continue; }
 

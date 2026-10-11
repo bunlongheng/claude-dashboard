@@ -49,8 +49,6 @@ describe("GET /api/rag/stats and /api/rag/health", () => {
     const data = await res.json();
     expect(res.status).toBe(200);
     expect(data).toMatchObject({ documents: 0, chunks: 0, preferences: 0, searches: 0, projects: 0 });
-    expect(Array.isArray(data.searchBenchmark)).toBe(true);
-    expect(data.searchBenchmark.length).toBe(10);
   });
 
   it("rag/stats reflects a seeded document in its counts", async () => {

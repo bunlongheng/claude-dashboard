@@ -207,7 +207,7 @@ export async function generateMetadata({
     const title = meta?.customTitle || meta?.firstMessage?.slice(0, 30) || shortId;
     return {
         title: `${title} · Claude Progress`,
-        icons: { icon: "/favicon.ico" },
+        icons: { icon: "/icon-192.png" },
     };
 }
 

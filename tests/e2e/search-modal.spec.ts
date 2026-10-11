@@ -23,8 +23,12 @@ test("opens from the sidebar Search button and shows the empty hint", async ({ p
 
 test("opens with the Cmd+K shortcut", async ({ page }) => {
   await page.goto("/dashboard");
-  await page.keyboard.press("Meta+k");
-  await expect(page.getByPlaceholder(placeholder)).toBeVisible();
+  // The keydown listener only exists after hydration, so retry the press
+  // until the modal opens instead of racing the first paint.
+  await expect(async () => {
+    await page.keyboard.press("Meta+k");
+    await expect(page.getByPlaceholder(placeholder)).toBeVisible({ timeout: 1000 });
+  }).toPass();
 });
 
 test("typing shows results and selecting one navigates then closes", async ({ page }) => {

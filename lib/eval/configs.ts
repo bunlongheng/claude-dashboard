@@ -2,7 +2,7 @@ import { type EvalConfig } from "../rag-db";
 import { ftsSearch, type SearchResult } from "../rag-search";
 import { vectorSearch } from "./vectors";
 
-export type Assembled = {
+type Assembled = {
   context: string;
   size: number;
   chunks: number;

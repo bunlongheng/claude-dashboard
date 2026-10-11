@@ -32,15 +32,11 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ["lucide-react", "@heroicons/react", "recharts"],
   },
-  // The 12 agent avatars and machine icons never change - cache hard.
+  // The 12 agent avatars never change - cache hard.
   async headers() {
     return [
       {
         source: "/agents/:img",
-        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
-      },
-      {
-        source: "/machine-icons/:img",
         headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
       },
     ];

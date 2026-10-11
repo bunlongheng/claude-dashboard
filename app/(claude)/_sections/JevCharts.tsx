@@ -2,17 +2,24 @@
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import Link from "next/link";
-import { Activity, MessageSquare, Route, Timer, Coins, DollarSign, AlertTriangle, type LucideIcon } from "lucide-react";
+import Image from "next/image";
+import { Activity, MessageSquare, Route, Timer, Coins, DollarSign, AlertTriangle, Power, BarChart3, type LucideIcon } from "lucide-react";
 import {
     ComposedChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-    PieChart, Pie, Cell, LineChart, Line, Legend, LabelList,
-    type PieLabelRenderProps,
+    Line, LabelList,
 } from "recharts";
+import { Line as CostLine } from "react-chartjs-2";
+import type { Chart as ChartJsChart, ChartOptions } from "chart.js";
+import "./overview/chartjs";
+import { TOOLTIP as CHARTJS_TOOLTIP } from "./overview/chartjs";
+import { PolarChart } from "./overview/PolarChart";
+import { BigStat } from "./McpLogPanel";
 import { cardShell } from "@/lib/ui-tokens";
-import { fmtNum, timeAgo } from "./shared";
+import { fmtNum, timeAgo, WindowBadge, type Window4 } from "./shared";
 import AppIcon from "./AppIcon";
-import type { JevAggregate, JevRow, JevSession } from "@/lib/jev-log";
-import { TIER_ORDER, TIER_COLORS, HEALTH_STYLE } from "@/lib/jev-palette";
+import { AGENT_CHARS } from "./agents/lib";
+import type { JevAggregate, JevDecision, JevOutcome, JevSession } from "@/lib/jev-log";
+import { TIER_ORDER, TIER_COLORS, HEALTH_STYLE, JEV_DAYS } from "@/lib/jev-palette";
 import { formatUsd } from "@/lib/format";
 
 const STATUS_COLORS = {
@@ -109,57 +116,176 @@ function TierMark({ tier, color }: { tier: string; color: string }) {
     );
 }
 
-function statusOf(row: JevRow): "routed" | "skipped" | "error" {
-    if (row.status === "routed") return "routed";
-    if (row.status === "error") return "error";
-    return "skipped";
+// Empty card body: when the switch is off it says since when, otherwise just no data.
+function EmptyChart({ offSince, note }: { offSince: string | null; note: string }) {
+    const Icon = offSince ? Power : BarChart3;
+    return (
+        <div style={{ flex: 1, minHeight: 200, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, textAlign: "center",
+            borderRadius: 12, background: "repeating-linear-gradient(135deg, rgba(255,255,255,0.015) 0 8px, transparent 8px 16px)", border: "1px dashed rgba(255,255,255,0.08)" }}>
+            <span style={{ width: 44, height: 44, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)" }}>
+                <Icon size={20} style={{ color: "rgba(255,255,255,0.55)" }} />
+            </span>
+            <span style={{ fontSize: 13, fontWeight: 800, letterSpacing: "0.12em", color: "rgba(255,255,255,0.85)" }}>{offSince ? "ROUTER OFF" : "NO DATA"}</span>
+            {offSince && <span style={{ fontSize: 11, color: "rgba(255,255,255,0.6)" }}>since <b style={{ color: "#fff" }}>{fmtTime(offSince)}</b> - {timeAgo(offSince)}</span>}
+            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.35)" }}>{note}</span>
+        </div>
+    );
 }
 
 // ── 1. Health strip ──────────────────────────────────────────────────────────
 // The proof block. Everything else on the page is detail; this answers "is the
 // hook running" in one glance, so it gets the size and the only moving part.
-function HealthStrip({ data }: { data: JevAggregate }) {
+function HealthStrip({ data, win }: { data: JevAggregate; win: Window4 }) {
     const { totals, health, daily } = data;
+    // Tile trends: last 24 hours on Today, per day otherwise.
+    const rows: (JevAggregate["hourly"][number] | JevAggregate["daily"][number])[] = win === "today" ? data.hourly : daily;
+    const calls = rows.map(r => r.routed + r.skipped + r.errors);
     const h = HEALTH_STYLE[health] ?? HEALTH_STYLE.never;
     const todayRow = daily.find(d => d.day === todayKey());
     const callsToday = todayRow ? todayRow.routed + todayRow.skipped + todayRow.errors : 0;
 
     // Same tile as the RAG overview: icon + label, 1 big number, 1 line under.
-    const tiles: { label: string; value: string; sub: string; icon: LucideIcon; color: string; pulse?: boolean }[] = [
-        { label: "Status", value: h.label, sub: totals.lastCallTs ? `${timeAgo(totals.lastCallTs)} - ${h.note}` : h.note, icon: Activity, color: h.color, pulse: health === "live" },
-        { label: "Calls today", value: String(callsToday), sub: `${totals.calls} in range`, icon: MessageSquare, color: "#4A9EFF" },
-        { label: "Routed", value: `${totals.routedPct}%`, sub: `${totals.routed} of ${totals.calls}`, icon: Route, color: STATUS_COLORS.routed },
-        { label: "Avg latency", value: `${totals.avgLatencyMs}ms`, sub: `p95 ${totals.p95LatencyMs}ms`, icon: Timer, color: "#E8A23B" },
-        { label: "Tokens today", value: fmtNum(todayRow?.tokens ?? 0), sub: `${fmtNum(totals.inputTokens + totals.outputTokens)} in range`, icon: Coins, color: "#A855F7" },
-        { label: "Est. cost", value: formatUsd(totals.estCostUsd), sub: `${totals.sessions} sessions`, icon: DollarSign, color: "#F97316" },
-        { label: "Errors", value: String(totals.errors), sub: totals.errors > 0 ? "check the log" : "clean", icon: AlertTriangle, color: totals.errors > 0 ? STATUS_COLORS.error : STATUS_COLORS.skipped },
+    const tiles: { label: string; value: string; sub: string; icon: LucideIcon; color: string; pulse?: boolean; trend?: number[] }[] = [
+        { label: "Status", value: h.label, sub: health === "off" ? (data.windows[0] ? `since ${timeAgo(data.windows[0].from)}` : h.note) : totals.lastCallTs ? `${timeAgo(totals.lastCallTs)} - ${h.note}` : h.note, icon: Activity, color: h.color, pulse: health === "live" },
+        { label: "Calls today", value: String(callsToday), sub: `${totals.calls} in range`, icon: MessageSquare, color: "#4A9EFF", trend: calls },
+        { label: "Routed", value: `${totals.routedPct}%`, sub: `${totals.routed} of ${totals.calls}`, icon: Route, color: STATUS_COLORS.routed, trend: rows.map(r => r.routed) },
+        { label: "Avg latency", value: `${totals.avgLatencyMs}ms`, sub: `p95 ${totals.p95LatencyMs}ms`, icon: Timer, color: "#E8A23B", trend: rows.map(r => r.avgLatencyMs) },
+        { label: "Tokens today", value: fmtNum(todayRow?.tokens ?? 0), sub: `${fmtNum(totals.inputTokens + totals.outputTokens)} in range`, icon: Coins, color: "#A855F7", trend: rows.map(r => r.tokens) },
+        { label: "Est. cost", value: formatUsd(totals.estCostUsd), sub: `${totals.sessions} sessions`, icon: DollarSign, color: "#F97316", trend: rows.map(r => r.costUsd) },
+        { label: "Errors", value: String(totals.errors), sub: totals.errors > 0 ? "check the log" : "clean", icon: AlertTriangle, color: totals.errors > 0 ? STATUS_COLORS.error : STATUS_COLORS.skipped, trend: rows.map(r => r.errors) },
     ];
 
     return (
         <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-7 gap-3">
             <style>{`@keyframes jevPulse { 0%,100% { opacity:1; transform:scale(1) } 50% { opacity:.35; transform:scale(.72) } }`}</style>
             {tiles.map(t => (
-                <div key={t.label} style={{
-                    padding: "16px 18px", borderRadius: 12, minWidth: 0,
-                    background: `linear-gradient(135deg, ${t.color}08 0%, rgba(255,255,255,0.02) 100%)`,
-                    border: `1px solid ${t.color}20`,
-                }}>
-                    <div className="flex items-center gap-2 mb-2">
-                        <t.icon size={16} style={{ color: t.color, flexShrink: 0, animation: t.pulse ? "jevPulse 1.8s ease-in-out infinite" : "none" }} />
-                        <span style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.5)" }}>{t.label}</span>
-                    </div>
-                    <div style={{ fontSize: 24, fontWeight: 800, color: t.color, lineHeight: 1, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>{t.value}</div>
-                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", marginTop: 6, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.sub}</div>
-                </div>
+                <BigStat key={t.label} label={t.label} value={t.value} sub={t.sub} icon={t.icon} color={t.color} trend={t.trend}
+                    iconStyle={{ animation: t.pulse ? "jevPulse 1.8s ease-in-out infinite" : "none" }} />
             ))}
         </div>
     );
 }
 
-// ── 2. Calls per day / per hour ──────────────────────────────────────────────
+// ── 2. Cost over time ────────────────────────────────────────────────────────
+// Zero-filled across the whole window (not just the days with rows) so a quiet
+// stretch reads as flat, not missing.
+function buildDayRange(startDay: string, endDay: string): string[] {
+    const days: string[] = [];
+    const cursor = new Date(`${startDay}T00:00:00`);
+    const end = new Date(`${endDay}T00:00:00`);
+    while (cursor.getTime() <= end.getTime()) {
+        days.push(cursor.toLocaleDateString("en-CA"));
+        cursor.setDate(cursor.getDate() + 1);
+    }
+    return days;
+}
+
+const usd = (v: number) => (v >= 0.01 ? formatUsd(v) : "$" + v.toFixed(4));
+
+function CostChart({ daily, hourly, win, offSince }: { daily: JevAggregate["daily"]; hourly: JevAggregate["hourly"]; win: Window4; offSince: string | null }) {
+    const series = useMemo(() => {
+        const today = todayKey();
+        if (win === "today") {
+            // Calendar day since local midnight, same as the Calls today tile and the Overview.
+            return hourly.filter(h => h.hour.slice(0, 10) === today).map(h => ({ label: h.label, value: h.costUsd }));
+        }
+        const byDay = new Map(daily.map(d => [d.day, d.costUsd]));
+        const start = new Date(`${today}T00:00:00`);
+        start.setDate(start.getDate() - (JEV_DAYS[win] - 1));
+        const startDay = start.toLocaleDateString("en-CA");
+        return buildDayRange(startDay, today).map(day => ({ label: day.slice(5), value: byDay.get(day) ?? 0 }));
+    }, [daily, hourly, win]);
+    const totalUsd = series.reduce((sum, r) => sum + r.value, 0);
+
+    const data = useMemo(() => ({
+        labels: series.map(r => r.label),
+        datasets: [{
+            data: series.map(r => r.value),
+            borderColor: "#F97316",
+            backgroundColor: "rgba(249,115,22,0.18)",
+            fill: true,
+            tension: 0.35,
+            pointRadius: 0,
+            pointHoverRadius: 4,
+            borderWidth: 2,
+        }],
+    }), [series]);
+
+    // Peak labels: a point taller than both its neighbours gets its cost drawn
+    // above it, so the spikes read without hovering. Bumps under a quarter of the
+    // tallest stay bare, and the tallest one is drawn in the line's own orange.
+    const peakLabels = useMemo(() => ({
+        id: "jevCostPeaks",
+        afterDatasetsDraw(chart: ChartJsChart) {
+            const vals = series.map(r => r.value);
+            const max = Math.max(...vals, 0);
+            if (max <= 0) return;
+            const meta = chart.getDatasetMeta(0);
+            const { ctx } = chart;
+            ctx.save();
+            ctx.font = "700 9px ui-sans-serif, system-ui, -apple-system, sans-serif";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "bottom";
+            vals.forEach((v, i) => {
+                const prev = i > 0 ? vals[i - 1] : -1;
+                const next = i < vals.length - 1 ? vals[i + 1] : -1;
+                if (v <= prev || v < next || v < max * 0.25) return;
+                const pt = meta.data[i];
+                if (!pt) return;
+                ctx.fillStyle = v === max ? "#F97316" : "rgba(255,255,255,0.6)";
+                ctx.fillText(usd(v), pt.x, pt.y - 5);
+            });
+            ctx.restore();
+        },
+    }), [series]);
+
+    const options = useMemo<ChartOptions<"line">>(() => ({
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 700 },
+        interaction: { mode: "index", intersect: false },
+        // Headroom so the label over the tallest peak is never clipped.
+        layout: { padding: { top: 16 } },
+        plugins: {
+            legend: { display: false },
+            tooltip: { ...CHARTJS_TOOLTIP, callbacks: { label: ctx => usd(ctx.parsed.y ?? 0) } },
+        },
+        scales: {
+            x: { grid: { display: false }, ticks: { color: "rgba(255,255,255,0.4)", font: { size: 9 }, maxTicksLimit: 8 } },
+            y: { beginAtZero: true, grid: { color: "rgba(255,255,255,0.06)" }, ticks: { color: "rgba(255,255,255,0.4)", font: { size: 9 }, maxTicksLimit: 4, callback: v => usd(Number(v)) } },
+        },
+    }), []);
+
+    const hasCalls = series.some(r => r.value > 0);
+
+    return (
+        <div style={{ ...cardShell, display: "flex", flexDirection: "column" }}>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+                <div>
+                    <CardLabel title="Cost" sub={win === "today" ? "USD at the flat router rate, per hour" : "USD at the flat router rate, per day"} />
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 18, fontWeight: 800, color: "#F97316", fontVariantNumeric: "tabular-nums" }}>{formatUsd(totalUsd)}</span>
+                    <WindowBadge win={win} />
+                </div>
+            </div>
+            {hasCalls ? (
+                <div style={{ flex: 1, minHeight: 200, position: "relative" }}>
+                    <CostLine data={data} options={options} plugins={[peakLabels]} aria-label="Cost over time" />
+                </div>
+            ) : (
+                <EmptyChart offSince={offSince} note="No router calls in this window" />
+            )}
+        </div>
+    );
+}
+
+// ── 3. Calls per day / per hour ──────────────────────────────────────────────
 // One bar per day is a single bar until the log spans a week, so the card opens
 // on the 24 hour view - the shape of a working day is readable from the first
 // session, and the daily view takes over once there is a week to compare.
+const LAT_AVG = "#4A9EFF";
+const LAT_P95 = "#E8A23B";
 function CallsChart({ daily, hourly }: { daily: JevAggregate["daily"]; hourly: JevAggregate["hourly"] }) {
     const [mode, setMode] = useState<"hour" | "day">(daily.length > 1 ? "day" : "hour");
     const byHour = mode === "hour";
@@ -168,8 +294,8 @@ function CallsChart({ daily, hourly }: { daily: JevAggregate["daily"]; hourly: J
     // is the short tick, tip is the long label the tooltip shows.
     const data = useMemo(() => (
         byHour
-            ? hourly.map(h => ({ axis: h.label, tip: fmtHourLabel(h.hour), routed: h.routed, skipped: h.skipped, errors: h.errors, total: h.routed + h.skipped + h.errors }))
-            : daily.map(d => ({ axis: d.day.slice(5), tip: d.day, routed: d.routed, skipped: d.skipped, errors: d.errors, total: d.routed + d.skipped + d.errors }))
+            ? hourly.map(h => ({ axis: h.label, tip: fmtHourLabel(h.hour), routed: h.routed, skipped: h.skipped, errors: h.errors, total: h.routed + h.skipped + h.errors, avg: h.avgLatencyMs || null, p95: null }))
+            : daily.map(d => ({ axis: d.day.slice(5), tip: d.day, routed: d.routed, skipped: d.skipped, errors: d.errors, total: d.routed + d.skipped + d.errors, avg: d.avgLatencyMs || null, p95: d.p95LatencyMs || null }))
     ), [byHour, hourly, daily]);
 
     const tips = useMemo(() => new Map(data.map(d => [d.axis, d.tip])), [data]);
@@ -180,7 +306,7 @@ function CallsChart({ daily, hourly }: { daily: JevAggregate["daily"]; hourly: J
                 <div>
                     <CardLabel
                         title={byHour ? "Calls per hour" : "Calls per day"}
-                        sub={byHour ? "Last 24 hours, by outcome" : "Every prompt the hook saw, by outcome"}
+                        sub={byHour ? "Last 24 hours, by outcome - line is router latency" : "Every prompt the hook saw, by outcome - lines are router latency"}
                     />
                 </div>
                 <div style={{ display: "flex", gap: 6 }}>
@@ -203,23 +329,27 @@ function CallsChart({ daily, hourly }: { daily: JevAggregate["daily"]; hourly: J
                 </div>
             </div>
             <ResponsiveContainer width="100%" height={200}>
-                <ComposedChart data={data} barCategoryGap={byHour ? "14%" : "22%"} maxBarSize={byHour ? 26 : 44}>
+                <ComposedChart data={data} margin={{ top: 16, right: 4, left: 0, bottom: 0 }} barCategoryGap={byHour ? "14%" : "22%"} maxBarSize={byHour ? 26 : 44}>
                     <CartesianGrid stroke="rgba(255,255,255,0.04)" vertical={false} />
                     <XAxis dataKey="axis" tick={AXIS_TICK} interval={byHour ? 1 : 0} axisLine={false} tickLine={false} />
-                    <YAxis tick={AXIS_TICK} width={28} axisLine={false} tickLine={false} allowDecimals={false} />
+                    <YAxis yAxisId="calls" tick={AXIS_TICK} width={28} axisLine={false} tickLine={false} allowDecimals={false} />
+                    {/* Latency rides its own right axis over the bars - empty hours are null so the line skips them. */}
+                    <YAxis yAxisId="ms" orientation="right" tick={AXIS_TICK} width={40} axisLine={false} tickLine={false} unit="ms" />
                     <Tooltip
                         {...TOOLTIP}
                         cursor={{ fill: "rgba(255,255,255,0.03)" }}
                         labelFormatter={label => tips.get(String(label)) ?? String(label)}
                     />
-                    <Bar dataKey="routed" stackId="a" fill={STATUS_COLORS.routed} name="routed" />
-                    <Bar dataKey="skipped" stackId="a" fill={STATUS_COLORS.skipped} name="skipped" />
-                    <Bar dataKey="errors" stackId="a" fill={STATUS_COLORS.error} name="error" radius={[3, 3, 0, 0]} />
+                    <Bar yAxisId="calls" dataKey="routed" stackId="a" fill={STATUS_COLORS.routed} name="routed" />
+                    <Bar yAxisId="calls" dataKey="skipped" stackId="a" fill={STATUS_COLORS.skipped} name="skipped" />
+                    <Bar yAxisId="calls" dataKey="errors" stackId="a" fill={STATUS_COLORS.error} name="error" radius={[3, 3, 0, 0]} />
                     {/* Invisible line at the stack height carries the total, so every bar
                         gets its number even when its top segment is 0 and has no box to label. */}
-                    <Line dataKey="total" stroke="none" dot={false} activeDot={false} legendType="none" tooltipType="none" isAnimationActive={false}>
+                    <Line yAxisId="calls" dataKey="total" stroke="none" dot={false} activeDot={false} legendType="none" tooltipType="none" isAnimationActive={false}>
                         <LabelList dataKey="total" position="top" offset={4} fill="rgba(255,255,255,0.55)" fontSize={9} formatter={(v: unknown) => (Number(v) > 0 ? String(v) : "")} />
                     </Line>
+                    <Line yAxisId="ms" type="monotone" dataKey="avg" name="avg ms" stroke={LAT_AVG} strokeWidth={2} dot={{ r: 2.5, fill: LAT_AVG }} connectNulls={!byHour} isAnimationActive={false} />
+                    {!byHour && <Line yAxisId="ms" type="monotone" dataKey="p95" name="p95 ms" stroke={LAT_P95} strokeWidth={2} strokeDasharray="4 3" dot={{ r: 2.5, fill: LAT_P95 }} connectNulls isAnimationActive={false} />}
                 </ComposedChart>
             </ResponsiveContainer>
             <div style={{ display: "flex", gap: 14, justifyContent: "center", marginTop: 6 }}>
@@ -229,65 +359,10 @@ function CallsChart({ daily, hourly }: { daily: JevAggregate["daily"]; hourly: J
                         <span style={{ fontSize: 9, color: "rgba(255,255,255,0.45)", textTransform: "capitalize" }}>{k}</span>
                     </div>
                 ))}
-            </div>
-        </div>
-    );
-}
-
-// ── 3. Tier split ────────────────────────────────────────────────────────────
-// Count drawn inside the ring at the slice's mid-angle. Slices under 6% are
-// too thin for a 2-digit number, so they stay unlabeled and the legend covers them.
-function sliceLabel(p: PieLabelRenderProps) {
-    if ((p.percent ?? 0) < 0.06) return null;
-    // The ring's middle radius, which recharts already hands over.
-    const r = p.middleRadius ?? (Number(p.innerRadius) + Number(p.outerRadius)) / 2;
-    const a = (-(p.midAngle ?? 0) * Math.PI) / 180;
-    return (
-        <text x={Number(p.cx) + r * Math.cos(a)} y={Number(p.cy) + r * Math.sin(a)} fill="#0b0c10" fontSize={10} fontWeight={800} textAnchor="middle" dominantBaseline="central">
-            {p.value}
-        </text>
-    );
-}
-
-// `focus` is the tier the overview card was clicked on: the card scrolls into
-// view, that slice stays lit and the others step back.
-function TierSplit({ tiers, focus }: { tiers: JevAggregate["tiers"]; focus?: string }) {
-    const ref = useRef<HTMLDivElement>(null);
-    useEffect(() => {
-        if (focus) ref.current?.scrollIntoView({ block: "start", behavior: "smooth" });
-    }, [focus]);
-    const data = TIER_ORDER
-        .map(t => ({ name: t, value: tiers[t], fill: TIER_COLORS[t] }))
-        .filter(d => d.value > 0);
-    const total = TIER_ORDER.reduce((s, t) => s + tiers[t], 0);
-
-    return (
-        <div id="tier-split" ref={ref} style={{ ...cardShell, scrollMarginTop: 16, outline: focus ? `1px solid ${TIER_COLORS[focus] ?? "transparent"}66` : undefined }}>
-            <CardLabel title="Tier split" sub="Which rung of the ladder the router picked" />
-            <div style={{ position: "relative" }}>
-                <ResponsiveContainer width="100%" height={200}>
-                    <PieChart>
-                        <Pie data={data} cx="50%" cy="50%" innerRadius={54} outerRadius={82} paddingAngle={3} dataKey="value" strokeWidth={0} labelLine={false} label={sliceLabel}>
-                            {data.map(d => <Cell key={d.name} fill={d.fill} fillOpacity={focus && d.name !== focus ? 0.3 : 1} />)}
-                        </Pie>
-                        <Tooltip {...TOOLTIP} />
-                    </PieChart>
-                </ResponsiveContainer>
-                <div style={{
-                    position: "absolute", inset: 0, display: "flex", flexDirection: "column",
-                    alignItems: "center", justifyContent: "center", pointerEvents: "none",
-                }}>
-                    <span style={{ fontSize: 26, fontWeight: 800, color: "#fff", lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>{total}</span>
-                    <span style={{ fontSize: 9, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,0.35)", marginTop: 3 }}>routed</span>
-                </div>
-            </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 10, justifyContent: "center", marginTop: 6 }}>
-                {TIER_ORDER.map(t => (
-                    <div key={t} style={{ display: "flex", alignItems: "center", gap: 5, opacity: tiers[t] > 0 && (!focus || focus === t) ? 1 : 0.35, padding: "2px 6px", borderRadius: 6, background: focus === t ? `${TIER_COLORS[t]}1F` : "transparent" }}>
-                        <span style={{ width: 8, height: 8, borderRadius: 999, background: TIER_COLORS[t] }} />
-                        <span style={{ fontSize: 9, color: "rgba(255,255,255,0.45)" }}>{t}</span>
-                        <span style={{ fontSize: 9, fontWeight: 700, color: TIER_COLORS[t] }}>{tiers[t]}</span>
-                        {total > 0 && tiers[t] > 0 && <span style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>{Math.round((tiers[t] / total) * 100)}%</span>}
+                {[["avg ms", LAT_AVG, false], ...(byHour ? [] : [["p95 ms", LAT_P95, true]])].map(([k, c, dash]) => (
+                    <div key={String(k)} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                        <span style={{ width: 12, height: 0, borderTop: `2px ${dash ? "dashed" : "solid"} ${c}` }} />
+                        <span style={{ fontSize: 9, color: "rgba(255,255,255,0.45)" }}>{String(k)}</span>
                     </div>
                 ))}
             </div>
@@ -295,22 +370,36 @@ function TierSplit({ tiers, focus }: { tiers: JevAggregate["tiers"]; focus?: str
     );
 }
 
-// ── 4. Latency per day ───────────────────────────────────────────────────────
-function LatencyPerDay({ daily }: { daily: JevAggregate["daily"] }) {
+// ── 4. Tier split ────────────────────────────────────────────────────────────
+// `focus` is the tier the overview card was clicked on: the card scrolls into
+// view and that slice stays lit. `jump` is the URL rung only, so the page
+// scrolls here on a deep link but not when a slice is clicked.
+// Same polar area the overview card uses: the filled wedge is what Jev routed,
+// the white outline behind it is every prompt that ran on the tier.
+function TierSplit({ tiers, tiersTotal, focus, jump, onPick, offSince }: { tiers: JevAggregate["tiers"]; tiersTotal: JevAggregate["tiersTotal"]; focus?: string; jump?: string; onPick: (t: string) => void; offSince: string | null }) {
+    const ref = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        if (jump) ref.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+    }, [jump]);
+    const segments = TIER_ORDER
+        .map(t => ({ label: t, color: TIER_COLORS[t], value: tiers[t], total: tiersTotal?.[t] ?? 0 }))
+        .filter(s => s.value > 0 || s.total > 0);
+    const total = segments.reduce((s, seg) => s + seg.value, 0);
+    const allTotal = segments.reduce((s, seg) => s + seg.total, 0);
+    const showAll = allTotal > total;
+
     return (
-        <div style={cardShell}>
-            <CardLabel title="Latency per day" sub="How long the router took to answer, in milliseconds" />
-            <ResponsiveContainer width="100%" height={200}>
-                <LineChart data={daily}>
-                    <CartesianGrid stroke="rgba(255,255,255,0.04)" vertical={false} />
-                    <XAxis dataKey="day" tick={AXIS_TICK} tickFormatter={(v: string) => v.slice(5)} axisLine={false} tickLine={false} />
-                    <YAxis tick={AXIS_TICK} width={40} axisLine={false} tickLine={false} unit="ms" />
-                    <Tooltip {...TOOLTIP} />
-                    <Legend wrapperStyle={{ fontSize: 9, color: "rgba(255,255,255,0.45)" }} iconSize={8} />
-                    <Line type="monotone" dataKey="avgLatencyMs" name="avg" stroke="#4A9EFF" strokeWidth={2} dot={{ r: 2.5, fill: "#4A9EFF" }} />
-                    <Line type="monotone" dataKey="p95LatencyMs" name="p95" stroke="#E8A23B" strokeWidth={2} strokeDasharray="4 3" dot={{ r: 2.5, fill: "#E8A23B" }} />
-                </LineChart>
-            </ResponsiveContainer>
+        <div id="tier-split" ref={ref} style={{ ...cardShell, scrollMarginTop: 16, outline: focus ? `1px solid ${TIER_COLORS[focus] ?? "transparent"}66` : undefined }}>
+            <CardLabel title="Tier split" sub={showAll
+                ? "Filled wedge is what Jev picked, white outline is every prompt that ran on the tier"
+                : "Which rung of the ladder the router picked"} />
+            <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 6 }}>
+                <span style={{ fontSize: 22, fontWeight: 800, color: "#fff", lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>{total.toLocaleString()}</span>
+                <span style={{ fontSize: 9, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,0.35)" }}>routed</span>
+                {showAll && <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", fontVariantNumeric: "tabular-nums" }}>of {allTotal.toLocaleString()}</span>}
+            </div>
+            {total > 0 ? <PolarChart segments={segments} size={190} onSelect={onPick} />
+                : <EmptyChart offSince={offSince} note={allTotal > 0 ? `${allTotal.toLocaleString()} prompts ran on the pinned tier` : "Nothing routed in this window"} />}
         </div>
     );
 }
@@ -337,7 +426,7 @@ function ProjectCell({ project }: { project?: string }) {
 }
 const NUM: React.CSSProperties = { ...TD, textAlign: "right", fontVariantNumeric: "tabular-nums" };
 
-// ── 5. Per session ───────────────────────────────────────────────────────────
+// ── 6. Per session ───────────────────────────────────────────────────────────
 const SESSION_PAGE = 25;
 
 function SessionTable({ sessions }: { sessions: JevSession[] }) {
@@ -351,8 +440,8 @@ function SessionTable({ sessions }: { sessions: JevSession[] }) {
                 <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 720 }}>
                     <thead>
                         <tr>
-                            <th style={TH}>Session</th>
                             <th style={TH}>Project</th>
+                            <th style={TH}>Session</th>
                             <th style={{ ...TH, textAlign: "right" }}>Msgs</th>
                             <th style={{ ...TH, textAlign: "right" }}>Routed</th>
                             <th style={{ ...TH, textAlign: "right" }}>Errors</th>
@@ -365,12 +454,12 @@ function SessionTable({ sessions }: { sessions: JevSession[] }) {
                     <tbody>
                         {shown.map(s => (
                             <tr key={s.session_id}>
+                                <td style={TD}><ProjectCell project={s.project} /></td>
                                 <td style={TD}>
                                     <Link href={`/${s.session_id}`} style={{ color: "#4A9EFF", fontFamily: "ui-monospace, monospace", textDecoration: "none" }}>
                                         {s.session_id.slice(0, 8)}
                                     </Link>
                                 </td>
-                                <td style={TD}><ProjectCell project={s.project} /></td>
                                 <td style={NUM}>{s.messages}</td>
                                 <td style={{ ...NUM, color: STATUS_COLORS.routed }}>{s.routed}</td>
                                 <td style={{ ...NUM, color: s.errors > 0 ? STATUS_COLORS.error : "rgba(255,255,255,0.25)" }}>{s.errors}</td>
@@ -396,116 +485,147 @@ function SessionTable({ sessions }: { sessions: JevSession[] }) {
     );
 }
 
-// ── 6. Per message ───────────────────────────────────────────────────────────
-const MESSAGE_LIMIT = 100;
-const SNIPPET = 60;
+// Confidence shade, matching the hook gates: under 0.7 the main model picks
+// (haiku and sonnet bumped 1 rung as a floor), 0.7 and up the tier is followed.
+function confColor(c: number) {
+    return c < 0.5 ? "#FF453A" : c < 0.7 ? "#FFB020" : "#30D158";
+}
 
-function MessageTable({ recent, tier }: { recent: JevRow[]; tier?: string }) {
-    const [filter, setFilter] = useState<"all" | "routed" | "skipped" | "error">("all");
-    // Tier comes from the URL (?tier=), so the deep link lands on just that rung.
-    // The parent keys this table on the tier, so a new link remounts it.
-    const [tierFilter, setTierFilter] = useState<string | undefined>(tier);
-
-    const counts = useMemo(() => {
-        const c = { all: recent.length, routed: 0, skipped: 0, error: 0 };
-        for (const r of recent) c[statusOf(r)]++;
-        return c;
-    }, [recent]);
-
-    const rows = useMemo(
-        () => (filter === "all" ? recent : recent.filter(r => statusOf(r) === filter))
-            .filter(r => !tierFilter || r.tier === tierFilter)
-            .slice(0, MESSAGE_LIMIT),
-        [recent, filter, tierFilter],
+function ConfCell({ value }: { value: number }) {
+    const color = confColor(value);
+    return (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "flex-end" }}>
+            <div style={{ width: 54, height: 5, borderRadius: 3, background: "rgba(255,255,255,0.08)", overflow: "hidden" }}>
+                <div style={{ width: `${Math.round(value * 100)}%`, height: "100%", background: color }} />
+            </div>
+            <span style={{ color, fontFamily: "ui-monospace, monospace", minWidth: 30, textAlign: "right" }}>{value.toFixed(2)}</span>
+        </div>
     );
+}
 
-    const chips: ("all" | "routed" | "skipped" | "error")[] = ["all", "routed", "skipped", "error"];
+const OUTCOME: Record<JevOutcome, { label: string; color: string }> = {
+    followed: { label: "Followed", color: "#30D158" },
+    over: { label: "Ran stronger", color: "#4A9EFF" },
+    under: { label: "Ran weaker", color: "#FF453A" },
+    main: { label: "Main model", color: "rgba(255,255,255,0.4)" },
+};
+
+function DecisionTable({ decisions, outcomes }: { decisions: JevDecision[]; outcomes?: Record<JevOutcome, number> }) {
+    const [expanded, setExpanded] = useState(false);
+    const shown = expanded ? decisions : decisions.slice(0, SESSION_PAGE);
+    const low = decisions.filter(d => d.conf < 0.7).length;
 
     return (
         <div style={cardShell}>
-            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-                <div>
-                    <CardLabel title="Per message" sub="Every prompt the hook logged, newest first" />
+            <CardLabel title="Per decision" sub={`Last ${decisions.length} routed prompts, newest first. ${low} under 0.7, where the main model picks with a 1-rung floor`} />
+            {outcomes && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, margin: "4px 0 10px" }}>
+                    {(Object.keys(OUTCOME) as JevOutcome[]).map(k => (
+                        <Pill key={k} text={`${OUTCOME[k].label} ${outcomes[k]}`} color={OUTCOME[k].color} dim={k === "main"} />
+                    ))}
                 </div>
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                    {TIER_ORDER.map(t => {
-                        const active = tierFilter === t;
-                        const color = TIER_COLORS[t];
-                        return (
-                            <button key={t} onClick={() => setTierFilter(active ? undefined : t)} title={active ? "Show every tier" : `Only ${t}`}
-                                style={{
-                                    cursor: "pointer", fontSize: 9, fontWeight: 700, letterSpacing: "0.06em",
-                                    textTransform: "uppercase", padding: "4px 9px", borderRadius: 7,
-                                    background: active ? `${color}1F` : "rgba(255,255,255,0.03)",
-                                    color: active ? color : "rgba(255,255,255,0.4)",
-                                    border: `1px solid ${active ? `${color}44` : "rgba(255,255,255,0.06)"}`,
-                                    transition: "all 0.15s ease",
-                                }}>
-                                {t}
-                            </button>
-                        );
-                    })}
-                    <span style={{ width: 1, background: "rgba(255,255,255,0.08)", margin: "2px 2px" }} />
-                    {chips.map(c => {
-                        const active = filter === c;
-                        const color = c === "all" ? "#FFFFFF" : STATUS_COLORS[c];
-                        return (
-                            <button key={c} onClick={() => setFilter(c)}
-                                style={{
-                                    cursor: "pointer", fontSize: 9, fontWeight: 700, letterSpacing: "0.06em",
-                                    textTransform: "uppercase", padding: "4px 9px", borderRadius: 7,
-                                    background: active ? `${color}1F` : "rgba(255,255,255,0.03)",
-                                    color: active ? color : "rgba(255,255,255,0.4)",
-                                    border: `1px solid ${active ? `${color}44` : "rgba(255,255,255,0.06)"}`,
-                                    transition: "all 0.15s ease",
-                                }}>
-                                {c} {counts[c]}
-                            </button>
-                        );
-                    })}
-                </div>
-            </div>
+            )}
             <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 860 }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 820 }}>
                     <thead>
                         <tr>
                             <th style={TH}>Time</th>
                             <th style={TH}>Project</th>
-                            <th style={TH}>Session</th>
-                            <th style={TH}>Status</th>
+                            <th style={TH}>Prompt</th>
                             <th style={TH}>Tier</th>
-                            <th style={{ ...TH, textAlign: "right" }}>Conf</th>
-                            <th style={{ ...TH, textAlign: "right" }}>Latency</th>
-                            <th style={{ ...TH, textAlign: "right" }}>In / out</th>
-                            <th style={{ ...TH, width: "100%" }}>Prompt</th>
+                            <th style={{ ...TH, textAlign: "right" }}>Tier conf</th>
+                            <th style={TH}>Agent</th>
+                            <th style={{ ...TH, textAlign: "right" }}>Agent conf</th>
+                            <th style={TH}>What ran</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {rows.map((r, i) => {
-                            const status = statusOf(r);
-                            const prompt = (r.prompt ?? "").replace(/\s+/g, " ").trim();
-                            return (
-                                <tr key={`${r.ts}-${i}`}>
-                                    <td style={{ ...TD, color: "rgba(255,255,255,0.45)" }}>{fmtTime(r.ts)}</td>
-                                    <td style={TD}><ProjectCell project={r.project} /></td>
-                                    <td style={{ ...TD, fontFamily: "ui-monospace, monospace", color: "rgba(255,255,255,0.4)" }}>{(r.session_id ?? "").slice(0, 8) || "-"}</td>
-                                    <td style={TD}><Pill text={status === "skipped" && r.reason ? `${status} ${r.reason}` : status} color={STATUS_COLORS[status]} dim={status === "skipped"} /></td>
-                                    <td style={TD}>{r.tier ? <TierPill tier={r.tier} /> : <span style={{ color: "rgba(255,255,255,0.2)" }}>-</span>}</td>
-                                    <td style={NUM}>{typeof r.conf === "number" ? r.conf.toFixed(2) : "-"}</td>
-                                    <td style={NUM}>{typeof r.latency_ms === "number" ? `${r.latency_ms}ms` : "-"}</td>
-                                    <td style={NUM}>{(r.input_tokens ?? 0) || (r.output_tokens ?? 0) ? `${fmtNum(r.input_tokens ?? 0)} / ${fmtNum(r.output_tokens ?? 0)}` : "-"}</td>
-                                    <td style={{ ...TD, whiteSpace: "normal", color: "rgba(255,255,255,0.5)" }} title={prompt}>
-                                        {prompt.length > SNIPPET ? `${prompt.slice(0, SNIPPET)}...` : prompt || "-"}
-                                    </td>
-                                </tr>
-                            );
-                        })}
-                        {rows.length === 0 && (
-                            <tr><td style={{ ...TD, color: "rgba(255,255,255,0.3)" }} colSpan={9}>No {filter}{tierFilter ? ` ${tierFilter}` : ""} messages in this range.</td></tr>
-                        )}
+                        {shown.map((d, i) => (
+                            <tr key={d.ts + i}>
+                                <td style={{ ...TD, color: "rgba(255,255,255,0.4)", whiteSpace: "nowrap" }}>{fmtTime(d.ts)}</td>
+                                <td style={TD}><ProjectCell project={d.project} /></td>
+                                <td style={{ ...TD, maxWidth: 360, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "rgba(255,255,255,0.7)" }} title={d.prompt}>
+                                    {d.session_id ? <Link href={`/${d.session_id}`} style={{ color: "inherit", textDecoration: "none" }}>{d.prompt}</Link> : d.prompt}
+                                </td>
+                                <td style={TD}><TierPill tier={d.tier} /></td>
+                                <td style={TD}><ConfCell value={d.conf} /></td>
+                                <td style={{ ...TD, color: d.agent === "none" ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.75)" }}>
+                                    <span className="inline-flex items-center gap-1.5">
+                                        {(() => { const ch = AGENT_CHARS.find(c => c.name.toLowerCase() === d.agent.toLowerCase()); return ch ? <Image src={ch.img} alt={ch.name} width={18} height={18} className="rounded" style={{ border: `1px solid ${ch.color}40` }} /> : null; })()}
+                                        {d.agent}
+                                    </span>
+                                </td>
+                                <td style={TD}><ConfCell value={d.agentConf} /></td>
+                                <td style={{ ...TD, whiteSpace: "nowrap", color: d.outcome ? OUTCOME[d.outcome].color : "rgba(255,255,255,0.2)" }}>{d.outcome ? OUTCOME[d.outcome].label : "-"}</td>
+                            </tr>
+                        ))}
                     </tbody>
                 </table>
             </div>
+            {decisions.length > SESSION_PAGE && (
+                <button onClick={() => setExpanded(!expanded)}
+                    style={{
+                        marginTop: 10, background: "none", border: "none", cursor: "pointer",
+                        fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "#4A9EFF",
+                    }}>
+                    {expanded ? "Show less" : `Show all ${decisions.length}`}
+                </button>
+            )}
+        </div>
+    );
+}
+
+const VERDICT: Record<string, { label: string; color: string }> = {
+    agree: { label: "Agree", color: "#30D158" },
+    under: { label: "Too weak", color: "#FF453A" },
+    over: { label: "Too strong", color: "#4A9EFF" },
+    unknown: { label: "Inherits", color: "rgba(255,255,255,0.4)" },
+};
+
+// Shadow mode: every subagent launch, the model it got against the cheapest
+// tier Jev says its task needs. Nothing is blocked yet - this is the data that
+// decides whether to enforce.
+function AgentChecks({ checks }: { checks: JevAggregate["agentChecks"] }) {
+    const [expanded, setExpanded] = useState(false);
+    const shown = expanded ? checks.recent : checks.recent.slice(0, SESSION_PAGE);
+    return (
+        <div style={cardShell}>
+            <CardLabel title="Subagent launches (shadow)" sub="Model each agent ran on vs the cheapest tier Jev says its task needs. Logged only, nothing blocked" />
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, margin: "4px 0 10px" }}>
+                {(["agree", "under", "over"] as const).map(k => (
+                    <Pill key={k} text={`${VERDICT[k].label} ${checks.counts[k]}`} color={VERDICT[k].color} />
+                ))}
+            </div>
+            {checks.recent.length === 0 ? (
+                <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>No subagent launches checked yet. The next Agent call logs 1 row here.</p>
+            ) : (
+                <div style={{ overflowX: "auto" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 720 }}>
+                        <thead><tr>
+                            <th style={TH}>Time</th><th style={TH}>Project</th><th style={TH}>Agent</th><th style={TH}>Task</th>
+                            <th style={TH}>Ran on</th><th style={TH}>Jev floor</th><th style={TH}>Verdict</th>
+                        </tr></thead>
+                        <tbody>
+                            {shown.map((c, i) => (
+                                <tr key={c.ts + i}>
+                                    <td style={{ ...TD, color: "rgba(255,255,255,0.4)", whiteSpace: "nowrap" }}>{fmtTime(c.ts)}</td>
+                                    <td style={TD}><ProjectCell project={c.project} /></td>
+                                    <td style={{ ...TD, color: "rgba(255,255,255,0.75)" }}>{c.agent}</td>
+                                    <td style={{ ...TD, maxWidth: 360, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "rgba(255,255,255,0.7)" }} title={c.task}>{c.task}</td>
+                                    <td style={TD}>{c.requested ? <TierPill tier={c.requested} /> : "-"}</td>
+                                    <td style={TD}>{c.floor ? <TierPill tier={c.floor} /> : "-"}</td>
+                                    <td style={{ ...TD, whiteSpace: "nowrap", color: (VERDICT[c.verdict] ?? VERDICT.unknown).color }}>{(VERDICT[c.verdict] ?? VERDICT.unknown).label}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+            {checks.recent.length > SESSION_PAGE && (
+                <button onClick={() => setExpanded(!expanded)} style={{ marginTop: 10, background: "none", border: "none", cursor: "pointer", fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "#4A9EFF" }}>
+                    {expanded ? "Show less" : `Show all ${checks.recent.length}`}
+                </button>
+            )}
         </div>
     );
 }
@@ -525,24 +645,32 @@ function NeverRan({ logPath, hookPath }: { logPath: string; hookPath: string }) 
 }
 
 // ── Page body ────────────────────────────────────────────────────────────────
-export default function JevCharts({ data, tier }: { data: JevAggregate & { logPath: string; hookPath: string }; tier?: string }) {
+export default function JevCharts({ data, tier, win }: { data: JevAggregate & { logPath: string; hookPath: string }; tier?: string; win: Window4 }) {
     const mounted = useSyncExternalStore(subscribeMounted, getMounted, getMountedServer);
+    // A slice click overrides the URL rung; clicking the lit rung again clears it.
+    const [pick, setPick] = useState<string | null | undefined>(undefined);
+    const focus = pick === undefined ? tier : pick ?? undefined;
+    function onPick(t: string) {
+        setPick(focus === t ? null : t);
+    }
     if (!mounted) return null;
+    const offSince = data.health === "off" ? data.windows[0]?.from ?? null : null;
 
     return (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <HealthStrip data={data} />
+            <HealthStrip data={data} win={win} />
             {data.health === "never" ? (
                 <NeverRan logPath={data.logPath} hookPath={data.hookPath} />
             ) : (
                 <>
-                    <div className="grid gap-3 grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-                        <CallsChart daily={data.daily} hourly={data.hourly} />
-                        <TierSplit tiers={data.tiers} focus={tier} />
+                    <div className="grid gap-3 grid-cols-1 lg:grid-cols-3">
+                        <CostChart daily={data.daily} hourly={data.hourly} win={win} offSince={offSince} />
+                        <CallsChart key={win} daily={data.daily} hourly={data.hourly} />
+                        <TierSplit tiers={data.tiers} tiersTotal={data.tiersTotal} focus={focus} jump={tier} onPick={onPick} offSince={offSince} />
                     </div>
-                    <LatencyPerDay daily={data.daily} />
+                    <DecisionTable decisions={data.decisions ?? []} outcomes={data.outcomes} />
+                    {data.agentChecks && <AgentChecks checks={data.agentChecks} />}
                     <SessionTable sessions={data.sessions} />
-                    <MessageTable key={tier ?? "all"} recent={data.recent} tier={tier} />
                 </>
             )}
         </div>

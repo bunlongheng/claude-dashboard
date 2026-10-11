@@ -2,7 +2,7 @@
 // All sections/routes import from here so rates can never drift.
 type ModelTier = "opus" | "sonnet" | "haiku";
 
-export interface ModelRates {
+interface ModelRates {
     input: number;
     output: number;
     cache_read: number;

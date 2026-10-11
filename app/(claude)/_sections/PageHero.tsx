@@ -15,25 +15,26 @@ const PAGE_SUBTITLES: Record<string, string> = {
     "/skills":   "Skills & capabilities",
     "/commands": "Slash commands",
     "/hooks":    "Event hooks & automation",
-    "/extensions": "Hooks, commands & plugins",
+    "/extensions": "Hooks, commands, plugins & mods",
     "/sessions": "Active & past sessions",
     "/agents":   "Background agents, peers, tool logs",
     "/tokens":   "Who used what today - sessions, models, subagents",
-    "/usage":    "Per-model spend breakdown in exact USD",
-    "/jev":      "Router hook activity - per message, per session, per day",
+    "/jev":      "Router hook activity - per day and per session",
     "/rag":              "Personal knowledge base & retrieval",
     "/rag/documents":    "All indexed documents",
     "/rag/search":       "Search your knowledge base",
-    "/rag/preferences":  "Extracted preferences & patterns",
-    "/monitor":  "App process monitor",
-    "/monitor/crons": "24-hour automation schedule",
-    "/monitor/gallery": "App screenshots & GIFs",
 };
 
 // Renders page-specific controls (a window picker, a mode toggle) on the
 // right of the hero so a page never needs its own row for them.
 export function HeroSlot({ children }: { children: ReactNode }) {
     const el = useSyncExternalStore(() => () => {}, () => document.getElementById("page-hero-slot"), () => null);
+    return el ? createPortal(children, el) : null;
+}
+
+// Same, for the slot that sits immediately next to the page title.
+export function HeroLeftSlot({ children }: { children: ReactNode }) {
+    const el = useSyncExternalStore(() => () => {}, () => document.getElementById("page-hero-left-slot"), () => null);
     return el ? createPortal(children, el) : null;
 }
 
@@ -86,6 +87,8 @@ export default function PageHero() {
                         <p style={{ fontSize: 13, color: "rgba(255,255,255,0.52)", margin: 0, marginTop: 4, fontWeight: 500 }}>{displaySubtitle}</p>
                     )}
                 </div>
+                {/* Left slot - sits right next to the title (e.g. the Jev router switch) */}
+                <div id="page-hero-left-slot" style={{ display: "flex", alignItems: "center", gap: 10 }} />
                 {/* Right-side slot - pages portal page-specific controls here (e.g. Context mode picker) */}
                 <div id="page-hero-slot" style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }} />
             </div>

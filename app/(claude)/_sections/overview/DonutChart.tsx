@@ -1,43 +1,52 @@
 "use client";
 
-export function DonutChart({ segments, size = 120 }: { segments: { value: number; color: string; label: string }[]; size?: number }) {
-    const total = segments.reduce((s, seg) => s + seg.value, 0);
-    if (total === 0) return null;
-    const r = (size - 20) / 2;
-    const cx = size / 2, cy = size / 2;
+import { useMemo } from "react";
+import { Doughnut } from "react-chartjs-2";
+import type { ChartOptions } from "chart.js";
+import { TOOLTIP } from "./chartjs";
 
-    // Precompute each segment's [start, end) angle via a running-sum reduce
-    // (no render-time reassignment of a shared variable across the .map below).
-    const angles = segments.reduce<{ start: number; end: number }[]>((acc, seg) => {
-        const prevEnd = acc.length > 0 ? acc[acc.length - 1].end : -Math.PI / 2;
-        const angle = (seg.value / total) * Math.PI * 2;
-        return [...acc, { start: prevEnd, end: prevEnd + angle }];
-    }, []);
+type Segment = { value: number; color: string; label: string };
+
+// Doughnut (Chart.js): grows in on mount and tweens the arcs when the data
+// changes. The total sits in the hole as plain HTML over the canvas.
+export function DonutChart({ segments, size = 120, centerLabel = "TOTAL" }: { segments: Segment[]; size?: number; centerLabel?: string }) {
+    const total = segments.reduce((s, seg) => s + seg.value, 0);
+    const data = useMemo(() => ({
+        labels: segments.map(s => s.label),
+        datasets: [{
+            data: segments.map(s => s.value),
+            backgroundColor: segments.map(s => `${s.color}BF`),
+            hoverBackgroundColor: segments.map(s => s.color),
+            borderColor: "#08090d",
+            borderWidth: 2,
+        }],
+    }), [segments]);
+    const options = useMemo<ChartOptions<"doughnut">>(() => ({
+        responsive: false,
+        cutout: "58%",
+        animation: { duration: 700, animateRotate: true, animateScale: false },
+        plugins: {
+            legend: { display: false },
+            tooltip: { ...TOOLTIP, callbacks: { label: ctx => `${segments[ctx.dataIndex].value.toLocaleString()}` } },
+        },
+    }), [segments]);
+    if (total === 0) return null;
 
     return (
         <div className="flex items-center justify-center gap-4 flex-wrap">
-            <svg width={size} height={size}>
-                {segments.map((seg, i) => {
-                    const { start: startAngle, end: endAngle } = angles[i];
-                    const angle = endAngle - startAngle;
-                    const largeArc = angle > Math.PI ? 1 : 0;
-                    const x1 = cx + r * Math.cos(startAngle), y1 = cy + r * Math.sin(startAngle);
-                    const x2 = cx + r * Math.cos(endAngle), y2 = cy + r * Math.sin(endAngle);
-                    const path = `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2} Z`;
-                    return <path key={i} d={path} fill={seg.color} opacity={0.7} style={{ transition: "d 0.5s" }}>
-                        <animate attributeName="opacity" from="0" to="0.7" dur="0.5s" begin={`${i * 0.1}s`} fill="freeze" />
-                    </path>;
-                })}
-                <circle cx={cx} cy={cy} r={r * 0.55} fill="#08090d" />
-                <text x={cx} y={cy - 4} textAnchor="middle" fill="white" fontSize="16" fontWeight="800">{total}</text>
-                <text x={cx} y={cy + 10} textAnchor="middle" fill="rgba(255,255,255,0.5)" fontSize="8" fontWeight="600">TOTAL</text>
-            </svg>
+            <div style={{ position: "relative", width: size, height: size }}>
+                <Doughnut data={data} options={options} width={size} height={size} aria-label={`${centerLabel} ${total}`} />
+                <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+                    <span style={{ fontSize: 16, fontWeight: 800, color: "#fff", lineHeight: 1 }}>{total.toLocaleString()}</span>
+                    <span style={{ fontSize: 8, fontWeight: 600, color: "rgba(255,255,255,0.5)", marginTop: 4 }}>{centerLabel}</span>
+                </div>
+            </div>
             <div className="space-y-1">
                 {segments.filter(s => s.value > 0).map(s => (
                     <div key={s.label} className="flex items-center gap-2">
                         <span style={{ width: 8, height: 8, borderRadius: 2, background: s.color, flexShrink: 0 }} />
                         <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>{s.label}</span>
-                        <span style={{ fontSize: 10, fontWeight: 700, color: s.color, marginLeft: "auto" }}>{s.value}</span>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: s.color, marginLeft: "auto" }}>{s.value.toLocaleString()}</span>
                     </div>
                 ))}
             </div>

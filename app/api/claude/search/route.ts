@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
-import { safeRead } from "@/lib/safe-read";
+import { safeRead, safeJson, dirExists, fileExists } from "@/lib/safe-read";
 import { requireSameSite } from "@/lib/route-guard";
 import { withErrorHandler } from "@/lib/api-handler";
 
@@ -22,16 +22,6 @@ interface HooksFile {
     description?: string;
     hooks?: Record<string, unknown>;
     [key: string]: unknown;
-}
-
-function safeJson<T = Record<string, unknown>>(p: string): T | null {
-    try { return JSON.parse(fs.readFileSync(p, "utf-8")) as T; } catch { return null; }
-}
-function dirExists(p: string): boolean {
-    try { return fs.statSync(p).isDirectory(); } catch { return false; }
-}
-function fileExists(p: string): boolean {
-    try { return fs.statSync(p).isFile(); } catch { return false; }
 }
 
 // Content cache for the search corpus. This route fires per debounced keystroke;

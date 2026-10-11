@@ -4,8 +4,6 @@ import { assembleContext } from "./configs";
 import { answer, judge, type Usage } from "./llm";
 import { indexChunks } from "./vectors";
 
-export type RunProgress = { batchId: string; total: number; done: number };
-
 function sumUsage(parts: Usage[]): { tokensIn: number; tokensOut: number; costUsd: number; latencyMs: number } {
   return parts.reduce(
     (acc, u) => ({

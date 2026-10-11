@@ -4,16 +4,17 @@ import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { RAG_ENABLED } from "@/lib/features";
 import { useMachine } from "./MachineContext";
-import { safeFetch, type Token, type ProjectSessions } from "./shared";
+import { safeFetch, SegmentedTabs, WINDOW_TABS, type Token, type ProjectSessions, type Window4 } from "./shared";
+import { HeroSlot } from "./PageHero";
 import { MascotLoader } from "./MascotLoader";
 import SkillUsagePanel from "./SkillUsagePanel";
 import { HeroCardsGrid } from "./overview/HeroCardsGrid";
-import { ConfigDonutCard } from "./overview/ConfigDonutCard";
+import { UsageMixCard } from "./overview/UsageMixCard";
 import { TopSessionsCard } from "./overview/TopSessionsCard";
 import { JevCard } from "./overview/JevCard";
 import { ActivityHeatmapCard } from "./overview/ActivityHeatmapCard";
 import { BreakdownCard } from "./overview/BreakdownCard";
-import { localYMD } from "./overview/utils";
+import { localYMD } from "@/lib/format";
 import type { Stats, RagStats, DayBucket } from "./overview/types";
 
 // Small local clock for the recent-activity cutoff below - re-derived every
@@ -42,14 +43,15 @@ export default function OverviewSection() {
     // failed load are not mistaken for real zero activity.
     const [dataError, setDataError] = useState(false);
     // Shared interval used by Breakdown, Activity stats, and Top Sessions tabs.
-    const [intervalTab, setIntervalTab] = useState<"24h" | "7d" | "30d" | "all">("7d");
+    const [intervalTab, setIntervalTab] = useState<Window4>("today");
     const breakdownInterval = intervalTab;
     const setBreakdownInterval = setIntervalTab;
 
     // Days-in-window for the current interval. Used by all three sections.
-    const windowDays = intervalTab === "24h" ? 1 : intervalTab === "7d" ? 7 : intervalTab === "30d" ? 30 : 999999;
+    const windowDays = intervalTab === "today" ? 1 : intervalTab === "7d" ? 7 : 30;
     const now = useNow(30_000);
-    const windowCutoff = now - windowDays * 86400_000;
+    // "today" means since local midnight, not the last 24 hours.
+    const windowCutoff = intervalTab === "today" ? new Date(now).setHours(0, 0, 0, 0) : now - windowDays * 86400_000;
 
     // Daily data - loaded once per machine (slow endpoint, ~3s)
     interface DailyModelBucket { model: string; input: number; output: number; cache_read: number; cache_creation: number; turns: number }
@@ -60,14 +62,37 @@ export default function OverviewSection() {
         queryFn: () => safeFetch<DailyStatsResponse>(dailyUrl, { daily: [], byModel: [], tools: [] }, () => setDataError(true)),
     });
     const dailyData = useMemo(() => dailyQuery.data?.daily ?? [], [dailyQuery.data]);
+    // Token totals come from the tokens route (full transcripts, deduped by
+    // message id, subagents included) so the Overview matches the Tokens page.
+    // The daily route tails big files and skips subagents, so its sums run low.
+    type TokenTotals = {
+        totals?: { input: number; output: number; turns: number; sessions: number };
+        hourly?: { input: number; output: number }[];
+        sessions?: { sessionId: string; project: string; input: number; output: number; cacheRead: number; cacheCreate: number; turns: number; models: string[] }[];
+        daily?: { day: string; input: number; output: number; cacheRead: number; cacheCreate: number; turns: number; sessions: number }[] } | null;
+    const tokensWinUrl = apiBase(`/api/claude/tokens?since=${intervalTab}`);
+    const tokensWinQuery = useQuery<TokenTotals>({ queryKey: ["tokens", tokensWinUrl], queryFn: () => safeFetch<TokenTotals>(tokensWinUrl, null), refetchInterval: 60_000, refetchOnWindowFocus: false, placeholderData: prev => prev });
+    const winTotals = tokensWinQuery.data?.totals;
+    const winExact = winTotals ? { turns: winTotals.turns, tokens: winTotals.input + winTotals.output, sessions: winTotals.sessions } : undefined;
+    // Breakdown day bars use the same source as its numbers, so the bars sum to the stats.
+    const breakdownDays = useMemo<DayBucket[]>(() => {
+        const rows = tokensWinQuery.data?.daily;
+        if (!rows) return dailyData;
+        return rows.map(r => ({ day: r.day, input: r.input, output: r.output, cache_read: r.cacheRead, cache_creation: r.cacheCreate, turns: r.turns, sessions: r.sessions }));
+    }, [tokensWinQuery.data, dailyData]);
     const byDayHour = dailyQuery.data?.byDayHour && typeof dailyQuery.data.byDayHour === "object" ? dailyQuery.data.byDayHour : {};
-    const favoriteModel = useMemo(() => {
-        const models = dailyQuery.data?.byModel ?? [];
-        if (models.length === 0) return "";
-        const top = [...models].sort((a, b) => b.turns - a.turns)[0];
-        const name = (top.model || "").replace("claude-", "").replace(/-\d+$/, "").replace(/-/g, " ");
-        return name.charAt(0).toUpperCase() + name.slice(1);
-    }, [dailyQuery.data]);
+    // Token use over the window for the Activity area chart: hourly on Today, daily otherwise.
+    const tokenSeries = useMemo(() => {
+        const d = tokensWinQuery.data;
+        const at = new Date(tokensWinQuery.dataUpdatedAt || 0);
+        if (intervalTab === "today") return (d?.hourly ?? []).slice(0, at.getHours() + 1).map((r, h) => ({ label: `${h % 12 || 12}${h < 12 ? "a" : "p"}`, tokens: r.input + r.output }));
+        const byDay = new Map((d?.daily ?? []).map(r => [r.day, r]));
+        return Array.from({ length: windowDays }, (_, i) => {
+            const day = new Date(at); day.setDate(day.getDate() - (windowDays - 1 - i));
+            const ymd = localYMD(day);
+            return { label: day.toLocaleDateString("en-US", { month: "short", day: "numeric" }), tokens: (byDay.get(ymd)?.input ?? 0) + (byDay.get(ymd)?.output ?? 0) };
+        });
+    }, [tokensWinQuery.data, tokensWinQuery.dataUpdatedAt, intervalTab, windowDays]);
 
     // RAG stats - documents / chunks / preferences (replaces the Cost card).
     // Per-machine: each machine has its own RAG DB, so route through apiBase.
@@ -82,17 +107,6 @@ export default function OverviewSection() {
         ? { documents: ragQuery.data.documents ?? 0, chunks: ragQuery.data.chunks ?? 0, preferences: ragQuery.data.preferences ?? 0 }
         : null;
 
-    // Tool usage stats (last 24h) - kept warm for the dynamic cards. Re-fetches
-    // when the selected machine changes so it reflects the current machine's activity.
-    interface ToolUsageStat { name: string; count: number; lastUsed: number; server?: string; tool?: string }
-    interface ToolUsageResponse { mcp: ToolUsageStat[]; cli: ToolUsageStat[]; total: number }
-    const toolUsageUrl = apiBase("/api/claude/tool-usage?hours=24");
-    const toolUsageQuery = useQuery<ToolUsageResponse | null>({
-        queryKey: ["overview-tool-usage", toolUsageUrl],
-        queryFn: () => safeFetch<ToolUsageResponse | null>(toolUsageUrl, null, () => setDataError(true)),
-        refetchInterval: 30_000,
-    });
-
     // Headline stats: sessions, skills, brain, token totals - fetched together and
     // keyed by the resolved URLs so local vs. a given remote machine dedupe for free
     // (apiBase already collapses "no machine selected" and "the local machine" to
@@ -105,7 +119,7 @@ export default function OverviewSection() {
     interface BrainResponse { memoryFiles?: unknown[]; categoryCounts?: Record<string, number>; totalFiles?: number; globalRules?: BrainGlobalRule[]; globalRulesCount?: number }
     interface TokenStatsTotals { input_tokens?: number; output_tokens?: number; cache_read_tokens?: number; total_cost?: number }
     interface TokenStatsResponse { tokens?: Token[]; byProject?: unknown[]; byModel?: unknown[]; totals?: TokenStatsTotals }
-    interface MainData { stats: Stats; allTokens: Token[]; allSessionProjects: ProjectSessions[] }
+    interface MainData { stats: Stats; allSessionProjects: ProjectSessions[] }
     const EMPTY_STATS: Stats = {
         sessions: 0, activeSessions: 0, skills: 0, commands: 0, hooks: 0, mcp: 0, mcpMine: 0,
         mcpShipped: 0, plugins: 0, claudeMd: 0, memory: 0, settings: 0, rules: 0,
@@ -155,15 +169,14 @@ export default function OverviewSection() {
                         cost: tokenData?.totals?.total_cost ?? 0,
                     },
                 };
-                return { stats, allTokens: tokenData?.tokens ?? [], allSessionProjects: sessions.projects ?? [] };
+                return { stats, allSessionProjects: sessions.projects ?? [] };
             } catch {
                 // prevent crash - fall back to a zeroed-but-shaped result
-                return { stats: EMPTY_STATS, allTokens: [], allSessionProjects: [] };
+                return { stats: EMPTY_STATS, allSessionProjects: [] };
             }
         },
     });
     const stats = mainQuery.data?.stats ?? null;
-    const allTokens = useMemo(() => mainQuery.data?.allTokens ?? [], [mainQuery.data]);
     const allSessionProjects = mainQuery.data?.allSessionProjects ?? [];
     const loading = mainQuery.isPending;
 
@@ -171,27 +184,20 @@ export default function OverviewSection() {
         setDataError(false);
         dailyQuery.refetch();
         if (RAG_ENABLED) ragQuery.refetch();
-        toolUsageQuery.refetch();
         mainQuery.refetch();
     };
 
-    // Top sessions by token usage - sort all sessions; windowing happens below.
-    const tokensBySession = useMemo(() => {
-        return [...allTokens]
-            .sort((a, b) => (b.input_tokens + b.output_tokens) - (a.input_tokens + a.output_tokens));
-    }, [allTokens]);
-
     // Memoized heatmap computation - lookback follows the interval tab.
+    // Heatmap days come from the same rows as the Breakdown card, so the 2 cards agree.
     const heatmapData = useMemo(() => {
-        if (dailyData.length === 0) return null;
+        if (breakdownDays.length === 0) return null;
         const today = new Date();
-        const dayMap = new Map(dailyData.map(d => [d.day, d.turns]));
+        const dayMap = new Map(breakdownDays.map(d => [d.day, d.turns]));
         const cells: { date: string; turns: number; weekIndex: number; dayOfWeek: number }[] = [];
         const lookbackDays =
-            intervalTab === "24h" ? 1 :
+            intervalTab === "today" ? 1 :
             intervalTab === "7d"  ? 7 :
-            intervalTab === "30d" ? 30 :
-            13 * 7; // "all" caps at 13 weeks for visual sanity
+            30;
         const startDate = new Date(today);
         startDate.setDate(startDate.getDate() - lookbackDays + 1);
         startDate.setDate(startDate.getDate() - startDate.getDay()); // align to Sunday
@@ -202,31 +208,7 @@ export default function OverviewSection() {
             const iso = localYMD(d);
             cells.push({ date: iso, turns: dayMap.get(iso) ?? 0, weekIndex: Math.floor(i / 7), dayOfWeek: d.getDay() });
         }
-        const allCells = dailyData.map(d => ({ date: d.day, turns: d.turns }));
-        const activeDays = allCells.filter(c => c.turns > 0).length;
-        const totalDays = allCells.length;
         const maxTurns = Math.max(...cells.map(c => c.turns), 1);
-        const mostActive = allCells.reduce((best, c) => c.turns > best.turns ? c : best, allCells[0] ?? { date: "", turns: 0 });
-        const mostActiveLabel = mostActive?.date ? new Date(mostActive.date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "-";
-        let longestStreak = 0, currentStreak = 0, tempStreak = 0;
-        const sortedDays = allCells.filter(c => c.turns > 0).map(c => c.date).sort();
-        for (let i = 0; i < sortedDays.length; i++) {
-            if (i === 0) tempStreak = 1;
-            else {
-                const diff = (new Date(sortedDays[i]).getTime() - new Date(sortedDays[i - 1]).getTime()) / 86400000;
-                tempStreak = diff === 1 ? tempStreak + 1 : 1;
-            }
-            longestStreak = Math.max(longestStreak, tempStreak);
-        }
-        const todayStr = localYMD(today);
-        const yesterdayDate = new Date(today); yesterdayDate.setDate(yesterdayDate.getDate() - 1);
-        const yesterdayStr = localYMD(yesterdayDate);
-        const streakStart = dayMap.has(todayStr) ? todayStr : dayMap.has(yesterdayStr) ? yesterdayStr : null;
-        if (streakStart) {
-            currentStreak = 1;
-            const d = new Date(streakStart);
-            while (true) { d.setDate(d.getDate() - 1); if (dayMap.has(localYMD(d))) currentStreak++; else break; }
-        }
         // Build cell lookup map for O(1) access in render
         const cellMap = new Map<string, typeof cells[0]>();
         for (const c of cells) cellMap.set(`${c.weekIndex}-${c.dayOfWeek}`, c);
@@ -245,59 +227,25 @@ export default function OverviewSection() {
                 }
             }
         }
-        return { cells, cellMap, weeksCount, months, maxTurns, activeDays, totalDays, mostActiveLabel, longestStreak, currentStreak, dayMap };
-    }, [dailyData, intervalTab]);
+        return { cells, cellMap, weeksCount, months, maxTurns, dayMap };
+    }, [breakdownDays, intervalTab]);
 
     if (loading || !stats) return <MascotLoader label="Loading dashboard" />;
 
-    // Colors mirror the left-nav palette (greens for skills/commands/hooks,
-    // MCP yellow, plugins indigo).
-    const configSegments = [
-        { value: stats.skills, color: "#8AC249", label: "Skills" },
-        { value: stats.commands, color: "#34C759", label: "Commands" },
-        { value: stats.hooks, color: "#30D158", label: "Hooks" },
-        { value: stats.mcp, color: "#FFCC00", label: "MCP" },
-        { value: stats.plugins, color: "#5856D6", label: "Plugins" },
-    ];
-
-    // Reusable tab control - same UX in Breakdown / Activity / Top Sessions.
-    const intervalTabsEl = (
-        <div style={{ display: "inline-flex", background: "rgba(255,255,255,0.04)", borderRadius: 6, padding: 2 }}>
-            {([["7d","7d"],["30d","30d"],["all","ALL"]] as const).map(([k, l]) => {
-                const active = intervalTab === k;
-                return (
-                    <button key={k} onClick={() => setIntervalTab(k)} style={{
-                        fontSize: 9, fontWeight: 700, padding: "4px 9px", borderRadius: 4,
-                        background: active ? "rgba(255,255,255,0.14)" : "transparent",
-                        color: active ? "#fff" : "rgba(255,255,255,0.52)",
-                        border: "none", cursor: "pointer", letterSpacing: 0.5,
-                    }}>{l}</button>
-                );
-            })}
-        </div>
+    // 1 window control in the page hero drives every windowed card below.
+    const heroTabs = (
+        <HeroSlot>
+            <SegmentedTabs<Window4> tabs={WINDOW_TABS} value={intervalTab} onChange={setIntervalTab} />
+        </HeroSlot>
     );
 
-    // Windowed stats for the Activity section
-    const winDays = dailyData.filter(d => new Date(d.day + "T12:00:00").getTime() >= windowCutoff);
-    const winActiveDays = winDays.filter(d => d.turns > 0).length;
-    const winTotalDays = intervalTab === "all" ? (heatmapData?.totalDays ?? winDays.length) : windowDays;
-    const winMostActive = winDays.reduce((best, d) => d.turns > best.turns ? d : best, winDays[0] || { day: "", turns: 0 });
-    const winMostActiveLabel = winMostActive?.day ? new Date(winMostActive.day + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "-";
-    const winTotalTokens = winDays.reduce((s, d) => s + d.input + d.output, 0);
-
-    // Windowed top sessions by joining tokens with each session's updatedAt.
-    const sessionDateMap = new Map<string, number>();
-    for (const p of allSessionProjects) for (const s of (p.sessions ?? [])) sessionDateMap.set(s.id, new Date(s.updatedAt).getTime());
-    // Filter to window THEN take top. Dedupe by project (the displayed name) so
-    // two sessions from the same project don't render as duplicate rows - keep
-    // the highest-token session per project (list is already sorted desc).
+    // Top sessions by tokens spent inside the window (tokens route, same source as
+    // the Tokens page). Dedupe by project (the displayed name) so 2 sessions from the
+    // same project don't render as duplicate rows - keep the highest-token one.
     const tokensBySessionWindowed = (() => {
-        const windowed = intervalTab === "all"
-            ? tokensBySession
-            : tokensBySession.filter((t) => {
-                const ts = sessionDateMap.get(t.session_id);
-                return ts == null ? false : ts >= windowCutoff;
-            });
+        const windowed: Token[] = (tokensWinQuery.data?.sessions ?? [])
+            .map(t => ({ session_id: t.sessionId, project: t.project, model: t.models[0], input_tokens: t.input, output_tokens: t.output, cache_read_tokens: t.cacheRead, cache_creation_tokens: t.cacheCreate, prompt_count: t.turns }))
+            .sort((a, b) => (b.input_tokens + b.output_tokens) - (a.input_tokens + a.output_tokens));
         const seenProject = new Set<string>();
         const out: Token[] = [];
         for (const t of windowed) {
@@ -311,7 +259,11 @@ export default function OverviewSection() {
 
 
     const liveSessions = allSessionProjects.flatMap((p) => (p.sessions || []).filter((s) => s.live)).length;
-    const totalTokens = dailyData.reduce((s, d) => s + (d.input ?? 0) + (d.output ?? 0), 0);
+    // Sessions touched in the window, counted off the same list the sidebar badge uses.
+    const winSessions = allSessionProjects.flatMap(p => p.sessions ?? []).filter(s => new Date(s.updatedAt).getTime() >= windowCutoff).length;
+    // Windowed tokens from the tokens route - the same source as the Breakdown card.
+    const winTokensIn = winTotals?.input ?? 0;
+    const winTokensOut = winTotals?.output ?? 0;
 
     return (
         <div className="space-y-6">
@@ -330,15 +282,16 @@ export default function OverviewSection() {
             )}
             {/* Hero metrics - 10 boxes, 5 per row. Each: headline + 2-stat breakdown.
                 Order + colors mirror the left nav gradient (red -> indigo, no white). */}
-            <HeroCardsGrid stats={stats} ragStats={ragStats} liveSessions={liveSessions} totalTokens={totalTokens} />
+            {heroTabs}
+            <HeroCardsGrid stats={stats} liveSessions={liveSessions} win={intervalTab} winSessions={winSessions} winTokensIn={winTokensIn} winTokensOut={winTokensOut} />
 
             {/* Row 4 - 4 columns: config, top sessions, Jev router, skill usage */}
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-                <ConfigDonutCard segments={configSegments} />
-                <TopSessionsCard tokensBySessionWindowed={tokensBySessionWindowed} intervalTabsEl={intervalTabsEl} />
-                <JevCard />
+                <UsageMixCard win={intervalTab} />
+                <TopSessionsCard tokensBySessionWindowed={tokensBySessionWindowed} win={intervalTab} />
+                <JevCard win={intervalTab} />
                 {/* Skill usage - compact col next to the Jev card */}
-                <SkillUsagePanel />
+                <SkillUsagePanel win={intervalTab} />
             </div>
 
             {/* Activity Heatmap + Stats */}
@@ -349,14 +302,9 @@ export default function OverviewSection() {
                         byDayHour={byDayHour}
                         intervalTab={intervalTab}
                         drillMachine={drillMachine}
-                        winActiveDays={winActiveDays}
-                        winTotalDays={winTotalDays}
-                        winMostActiveLabel={winMostActiveLabel}
-                        winTotalTokens={winTotalTokens}
-                        favoriteModel={favoriteModel}
-                        intervalTabsEl={intervalTabsEl}
+                        tokenSeries={tokenSeries}
                     />
-                    <BreakdownCard dailyData={dailyData} breakdownInterval={breakdownInterval} intervalTabsEl={intervalTabsEl} />
+                    <BreakdownCard dailyData={breakdownDays} breakdownInterval={breakdownInterval} win={intervalTab} byDayHour={byDayHour} exact={winExact && { ...winExact, sessions: winSessions }} />
                 </div>
             )}
 

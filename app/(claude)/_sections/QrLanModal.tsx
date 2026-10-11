@@ -121,7 +121,7 @@ export default function QrLanModal({ iconOnly }: { iconOnly?: boolean } = {}) {
             background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: 12,
             border: "1px solid rgba(255,255,255,0.06)",
           }}>
-            <canvas ref={canvasRef} style={{ display: "block", borderRadius: 6 }} />
+            <canvas ref={canvasRef} aria-label="LAN QR code" style={{ display: "block", borderRadius: 6 }} />
           </div>
 
           {/* URL + Copy */}

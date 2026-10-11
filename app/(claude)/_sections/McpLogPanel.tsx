@@ -17,8 +17,8 @@ const PAGE = 40;
 // The same panel serves the MCP page and the CLI page; only the words and the
 // accent change.
 const KIND = {
-    mcp: { title: "MCP Log", calls: "MCP calls", noun: "servers", route: "mcp-log", accent: "#FFCC00", sep: "." },
-    cli: { title: "CLI Log", calls: "Tool calls", noun: "tools", route: "cli-log", accent: "#34C759", sep: " " },
+    mcp: { calls: "MCP calls", noun: "servers", route: "mcp-log", accent: "#FFCC00", sep: "." },
+    cli: { calls: "Tool calls", noun: "tools", route: "cli-log", accent: "#34C759", sep: " " },
 } as const;
 
 // One colour per decision so the table reads top to bottom as a verdict list.
@@ -35,13 +35,25 @@ export const th: React.CSSProperties = { fontSize: 9, fontWeight: 700, textTrans
 export const td: React.CSSProperties = { fontSize: 11, color: "rgba(255,255,255,0.7)", padding: "7px 8px", whiteSpace: "nowrap", verticalAlign: "top" };
 export const num: React.CSSProperties = { ...td, textAlign: "right", fontFamily: MONO, fontVariantNumeric: "tabular-nums" };
 
-const shortModel = (m: string) => m.replace(/^claude-/, "").replace(/-\d{8}$/, "");
+export const shortModel = (m: string) => m.replace(/^claude-/, "").replace(/-\d{8}$/, "");
 
 export function VerdictChip({ v, label }: { v: Verdict; label?: string }) {
     const { color } = VERDICT[v];
     label ??= VERDICT[v].label;
     return (
         <span style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color, padding: "2px 7px", borderRadius: 999, background: `color-mix(in srgb, ${color} 14%, transparent)`, border: `1px solid color-mix(in srgb, ${color} 35%, transparent)` }}>{label}</span>
+    );
+}
+
+export function Chips({ title, items }: { title: string; items: string[] }) {
+    if (!items.length) return null;
+    return (
+        <div style={{ marginTop: 10 }}>
+            <div style={{ ...th, padding: "0 0 4px" }}>{title}</div>
+            <div className="flex flex-wrap" style={{ gap: 4 }}>
+                {items.map(i => <span key={i} style={{ fontSize: 10, fontFamily: MONO, padding: "2px 7px", borderRadius: 6, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.7)" }}>{i}</span>)}
+            </div>
+        </div>
     );
 }
 
@@ -63,15 +75,46 @@ export function Spark({ series, labels, color }: { series: number[]; labels: str
 }
 
 // Same card as the RAG overview stat row so the 2 pages read as 1 dashboard.
-export function BigStat({ label, value, sub, icon: Icon, color }: { label: string; value: string; sub?: string; icon: React.ElementType; color: string }) {
+// Tiny area chart pinned to the bottom of a stat box; viewBox units, stretched to fit.
+export function Sparkline({ values, color }: { values: number[]; color: string }) {
+    const max = Math.max(...values) || 1;
+    const pts = values.map((v, i) => `${(i / (values.length - 1)) * 100},${30 - (v / max) * 26}`);
+    const id = `spark-${color.replace(/[^a-z0-9]/gi, "")}`;
     return (
-        <div style={{ padding: "16px 18px", borderRadius: 12, background: `linear-gradient(135deg, ${color}08 0%, rgba(255,255,255,0.02) 100%)`, border: `1px solid ${color}20` }}>
-            <div className="flex items-center gap-2 mb-2">
-                <Icon size={16} style={{ color }} />
-                <span style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.5)" }}>{label}</span>
+        <svg viewBox="0 0 100 30" preserveAspectRatio="none" aria-hidden style={{ display: "block", width: "100%", height: 32, marginTop: 10, pointerEvents: "none" }}>
+            <defs>
+                <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={color} stopOpacity={0.35} />
+                    <stop offset="100%" stopColor={color} stopOpacity={0} />
+                </linearGradient>
+            </defs>
+            <polygon points={`0,30 ${pts.join(" ")} 100,30`} fill={`url(#${id})`} />
+            <polyline points={pts.join(" ")} fill="none" stroke={color} strokeWidth={1.5} strokeOpacity={0.8} vectorEffect="non-scaling-stroke" />
+        </svg>
+    );
+}
+
+// Same look as the Overview hero cards: colored 1px border with a snake that
+// runs around it on hover, dark tint, and a faint big icon in the corner.
+export function BigStat({ label, value, sub, icon: Icon, color, trend, iconStyle }: { label: string; value: string; sub?: string; icon: React.ElementType; color: string; trend?: number[]; iconStyle?: React.CSSProperties }) {
+    return (
+        <div className="group" style={{ position: "relative", overflow: "hidden", borderRadius: 12, padding: 1, background: `${color}40`, minWidth: 0 }}>
+            <div className="opacity-0 group-hover:opacity-100 [animation-play-state:paused] group-hover:[animation-play-state:running]"
+                style={{
+                    position: "absolute", inset: "-150%", pointerEvents: "none", transition: "opacity 0.3s",
+                    background: `conic-gradient(transparent 0deg, ${color} 40deg, transparent 80deg)`,
+                    animation: "heroSnake 2s linear infinite",
+                }} />
+            <div style={{ position: "relative", overflow: "hidden", height: "100%", padding: "15px 17px", borderRadius: 11, background: `linear-gradient(135deg, ${color}20 0%, ${color}08 100%), #08090d` }}>
+                <Icon size={64} style={{ position: "absolute", right: -7, bottom: -7, color, opacity: 0.05, mixBlendMode: "screen", pointerEvents: "none" }} />
+                <div className="flex items-center gap-2 mb-2" style={{ position: "relative" }}>
+                    <Icon size={16} style={{ color, flexShrink: 0, ...iconStyle }} />
+                    <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "rgba(255,255,255,0.75)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label}</span>
+                </div>
+                <div style={{ position: "relative", fontSize: 28, fontWeight: 800, color, lineHeight: 1.1, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{value}</div>
+                {sub && <div style={{ position: "relative", fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 6, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{sub}</div>}
+                {trend && trend.length > 1 && <div style={{ position: "relative" }}><Sparkline values={trend} color={color} /></div>}
             </div>
-            <div style={{ fontSize: 28, fontWeight: 800, color, lineHeight: 1 }}>{value}</div>
-            {sub && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 6 }}>{sub}</div>}
         </div>
     );
 }
@@ -82,39 +125,40 @@ export function BigStat({ label, value, sub, icon: Icon, color }: { label: strin
 // running an audit.
 const WIN_TABS = [{ key: "today", label: "Today" }, { key: "7d", label: "7d" }, { key: "30d", label: "30d" }, { key: "90d", label: "90d" }] as const;
 
-// The window selector is portaled into the page hero (next to the icon and
-// title) so the page has no extra row; the parent owns the value.
-export default function McpLogPanel({ win, onWin, kind = "mcp" }: { win: Win; onWin?: (w: Win) => void; kind?: Kind }) {
+// Both the default export and McpRecentCalls read the same window/kind, so
+// the query is factored into 1 hook - react-query dedupes the request by
+// queryKey, meaning only 1 fetch actually happens on the page.
+function useLogData(win: Win, kind: Kind) {
     const { apiBase } = useMachine();
-    const [limit, setLimit] = useState(PAGE);
     const k = KIND[kind];
     const url = apiBase(`/api/claude/${k.route}?win=${win}`);
-    const { data, isFetching } = useQuery<McpLogData | null>({
+    return useQuery<McpLogData | null>({
         queryKey: [k.route, url],
         queryFn: () => safeFetch<McpLogData | null>(url, null),
         refetchInterval: 300_000,
         refetchOnWindowFocus: false,
         placeholderData: prev => prev,
     });
+}
+
+// The window selector is portaled into the page hero (next to the icon and
+// title) so the page has no extra row; the parent owns the value.
+export default function McpLogPanel({ win, onWin, kind = "mcp" }: { win: Win; onWin?: (w: Win) => void; kind?: Kind }) {
+    const k = KIND[kind];
+    const { data } = useLogData(win, kind);
 
     const servers: McpServerStat[] = data?.servers ?? [];
-    const calls: McpCall[] = data?.recent ?? [];
     const t = data?.totals;
 
+    // Hero cards sit straight on the page like /jev, not inside a panel; the
+    // window filter lives in the page hero.
     return (
-        <div style={{ ...cardShell, marginBottom: 20 }}>
-            <div className="flex items-center justify-between flex-wrap" style={{ gap: 12, marginBottom: 14 }}>
-                <div>
-                    <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.55)", margin: 0 }}>{k.title} <span style={{ color: k.accent }}>{WIN_LABEL[win]}</span></p>
-                    <p style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", margin: "2px 0 0" }}>what was called, when, from where, why, by which model, and what it cost{isFetching && !data ? " - scanning transcripts..." : ""}</p>
-                </div>
-                {onWin && (
-                    <HeroSlot>
-                        <SegmentedTabs<Win> tabs={[...WIN_TABS]} value={win} onChange={onWin} accent={k.accent} />
-                    </HeroSlot>
-                )}
-            </div>
-
+        <>
+            {onWin && (
+                <HeroSlot>
+                    <SegmentedTabs<Win> tabs={[...WIN_TABS]} value={win} onChange={onWin} accent={k.accent} />
+                </HeroSlot>
+            )}
             {t && (
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3" style={{ marginBottom: 20 }}>
                     <BigStat label={k.calls} value={t.calls.toLocaleString()} sub={`${t.sessions} sessions`} icon={Activity} color={k.accent} />
@@ -123,7 +167,20 @@ export default function McpLogPanel({ win, onWin, kind = "mcp" }: { win: Win; on
                     <BigStat label="Errors" value={String(t.errors)} sub={`${t.servers} of ${servers.length} ${k.noun} used`} icon={t.errors ? AlertTriangle : Radio} color={t.errors ? "#ef4444" : "#8AC249"} />
                 </div>
             )}
+        </>
+    );
+}
 
+// Rendered separately, below the server/tool directory, so the directory
+// reads first and the raw call log reads last.
+export function McpRecentCalls({ win, kind = "mcp" }: { win: Win; kind?: Kind }) {
+    const [limit, setLimit] = useState(PAGE);
+    const k = KIND[kind];
+    const { data } = useLogData(win, kind);
+    const calls: McpCall[] = data?.recent ?? [];
+
+    return (
+        <div style={{ ...cardShell, marginTop: 20 }}>
             <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.55)", margin: "4px 0 8px" }}>
                 Recent calls <span style={{ color: "rgba(255,255,255,0.3)", fontWeight: 400 }}>{calls.length}</span>
             </p>

@@ -3,27 +3,14 @@
 import { useEffect, useRef } from "react";
 import { getModelRates } from "@/lib/pricing";
 import { SECTION_COLORS } from "./sectionColors";
-import {
-    CpuChipIcon,
-    DocumentTextIcon,
-    FireIcon,
-    CursorArrowRaysIcon,
-    SwatchIcon,
-    BoltIcon,
-    ChartBarIcon,
-    ShieldCheckIcon,
-    SparklesIcon,
-    CircleStackIcon,
-    LockClosedIcon,
-    Squares2X2Icon,
-} from "@heroicons/react/24/outline";
 
 export const ACCENT = SECTION_COLORS.claude;
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 export type HistoryEntry = { display: string; timestamp: number; project?: string; sessionId?: string };
 export type Token = { session_id: string; project?: string; model?: string; machine?: string; input_tokens: number; output_tokens: number; cache_read_tokens: number; cache_creation_tokens: number; prompt_count: number };
-export type Interval = "today" | "7d" | "1m" | "all";
+// Not the same union as Window4 below - this one has "1m" instead of "30d".
+type Interval = "today" | "7d" | "1m" | "all";
 
 export type SessionEntry = { id: string; filePath: string; sizeBytes: number; sizeLabel: string; lines: number; customTitle: string | null; title: string; createdAt: string; updatedAt: string; stale: boolean; live?: boolean };
 export type ProjectSessions = { project: string; path: string; sessions: SessionEntry[] };
@@ -35,159 +22,6 @@ export function tabColor(sessionId: string): string {
     for (let i = 0; i < sessionId.length; i++) h = Math.imul(31, h) + sessionId.charCodeAt(i) | 0;
     return TAB_PALETTE[Math.abs(h) % TAB_PALETTE.length];
 }
-
-// ─── Agents ──────────────────────────────────────────────────────────────────
-export const AGENTS = [
-    { id: 1,  name: "Snow",   role: "Orchestrator",  color: "#ffffff", status: "online",  Icon: DocumentTextIcon      },
-    { id: 2,  name: "Blaze",  role: "Architecture",  color: "#ff3333", status: "online",  Icon: FireIcon              },
-    { id: 3,  name: "Arrow",  role: "UX / QA",       color: "#ff66cc", status: "online",  Icon: CursorArrowRaysIcon   },
-    { id: 4,  name: "Venus",  role: "UI / Branding", color: "#ff8800", status: "online",  Icon: SwatchIcon            },
-    { id: 5,  name: "Zap",    role: "Performance",   color: "#ffdd00", status: "online",  Icon: BoltIcon              },
-    { id: 6,  name: "Frost",  role: "Metrics",       color: "#00ffff", status: "online",  Icon: ChartBarIcon          },
-    { id: 7,  name: "Blitz",  role: "Code Quality",  color: "#0099ff", status: "online",  Icon: ShieldCheckIcon       },
-    { id: 8,  name: "Earth",  role: "Cleanup",       color: "#00ff00", status: "standby", Icon: SparklesIcon          },
-    { id: 9,  name: "Pulse",  role: "Automation",    color: "#9933ff", status: "standby", Icon: CpuChipIcon           },
-    { id: 10, name: "Sand",   role: "Storage",       color: "#cc6633", status: "standby", Icon: CircleStackIcon       },
-    { id: 11, name: "Shadow", role: "Security",      color: "#999999", status: "online",  Icon: LockClosedIcon        },
-    { id: 12, name: "Rock",   role: "Dashboard",     color: "#7a7a7a", status: "standby", Icon: Squares2X2Icon        },
-] as const;
-
-// ─── Agent Details ────────────────────────────────────────────────────────────
-export type AgentDetail = { description: string; responsibilities: string[]; iconPrompt: string };
-export const AGENT_DETAILS: Record<string, AgentDetail> = {
-    "Snow": {
-        description: "The master orchestrator of Snow Prime. Snow receives high-level goals, decomposes them into tasks, and delegates work across all 12 specialist agents. Every major decision passes through Snow.",
-        responsibilities: [
-            "Receive goals from the user and decompose into sub-tasks",
-            "Assign work to the right specialist agents",
-            "Track in-progress work and resolve blockers",
-            "Synthesize outputs from all agents into coherent results",
-            "Final review before any deployment or delivery",
-        ],
-        iconPrompt: `Create a minimal AI agent avatar icon for "Snow" - Orchestrator.\n• Color: Pure white #ffffff glow on jet-black\n• Symbol: Geometric snowflake with 12 radiating spokes, each tip a node representing a sub-agent\n• Style: Flat vector, clean hub-and-spoke pattern, ultra-futuristic\n• Mood: Calm authority, all-seeing command center\n• Size: 512×512 PNG, black bg, no text`,
-    },
-    "Blaze": {
-        description: "Blaze owns the technical architecture of every system. It designs data models, defines API contracts, enforces service boundaries, and ensures the codebase scales long-term.",
-        responsibilities: [
-            "Design system architecture and component structure",
-            "Define API contracts and data schemas",
-            "Review PRs for architectural violations",
-            "Enforce separation of concerns and SOLID principles",
-            "Document architectural decisions (ADRs)",
-        ],
-        iconPrompt: `Create a minimal AI agent avatar icon for "Blaze" - Architecture.\n• Color: Fire red #ff3333, ember glow on dark background\n• Symbol: A flame morphing into a structured hexagonal architecture diagram\n• Style: Sharp geometric edges, red-to-orange gradient, clean vector\n• Mood: Intense, structured, foundational power\n• Size: 512×512 PNG, black bg, no text`,
-    },
-    "Arrow": {
-        description: "Arrow is the user's advocate. It runs accessibility audits, writes E2E and unit tests, validates user flows, and ensures every interaction is intuitive and bug-free before it ships.",
-        responsibilities: [
-            "Write and maintain unit, integration, and E2E tests",
-            "Run accessibility (a11y) audits with axe / Lighthouse",
-            "Identify UX friction points and propose fixes",
-            "Validate responsive layouts on all breakpoints",
-            "File detailed bug reports with reproduction steps",
-        ],
-        iconPrompt: `Create a minimal AI agent avatar icon for "Arrow" - UX / QA.\n• Color: Hot pink #ff66cc on dark background\n• Symbol: A sleek cursor arrow intersecting a target crosshair\n• Style: Minimal, sharp, motion-forward - arrow should feel precise and fast\n• Mood: Focused, user-centered, meticulous\n• Size: 512×512 PNG, dark bg, no text`,
-    },
-    "Venus": {
-        description: "Venus defines how everything looks and feels. It owns the design system, color tokens, typography, component styling, and brand voice - ensuring every pixel is intentional.",
-        responsibilities: [
-            "Maintain the design system (colors, typography, spacing)",
-            "Craft component UI with Tailwind and CSS",
-            "Define brand identity and visual language",
-            "Review UI for consistency across all pages",
-            "Generate mockups and design explorations",
-        ],
-        iconPrompt: `Create a minimal AI agent avatar icon for "Venus" - UI / Branding.\n• Color: Warm orange #ff8800, rich sunset tones\n• Symbol: Artist's palette transforming into a color-wheel constellation\n• Style: Soft gradients, flowing curves, vibrant but refined\n• Mood: Creative, aesthetic-forward, sensual beauty\n• Size: 512×512 PNG, dark bg, no text`,
-    },
-    "Zap": {
-        description: "Zap obsesses over speed. It measures Core Web Vitals, optimizes bundle sizes, eliminates render-blocking resources, and ensures the site scores 100 on every Lighthouse metric.",
-        responsibilities: [
-            "Audit bundle sizes and eliminate dead code",
-            "Optimize images, fonts, and static assets",
-            "Profile runtime performance and fix bottlenecks",
-            "Enforce Core Web Vitals: LCP, FID, CLS",
-            "Configure caching strategies and CDN rules",
-        ],
-        iconPrompt: `Create a minimal AI agent avatar icon for "Zap" - Performance.\n• Color: Electric yellow #ffdd00, lightning energy\n• Symbol: Lightning bolt composed of speed lines and circuit traces\n• Style: Sharp, kinetic, high-contrast yellow on black\n• Mood: Fast, electric, unstoppable kinetic force\n• Size: 512×512 PNG, black bg, no text`,
-    },
-    "Frost": {
-        description: "Frost tracks everything that matters. It instruments analytics, builds dashboards, monitors uptime, and surfaces the insights that drive all product decisions.",
-        responsibilities: [
-            "Instrument analytics events (pageviews, clicks, conversions)",
-            "Build real-time dashboards and charts",
-            "Monitor error rates, uptime, and performance metrics",
-            "Alert on anomalies and threshold breaches",
-            "Produce weekly / monthly insight reports",
-        ],
-        iconPrompt: `Create a minimal AI agent avatar icon for "Frost" - Metrics.\n• Color: Cyan #00ffff, icy data streams\n• Symbol: Bar chart composed of crystalline ice shards, data rising upward\n• Style: Cold, precise, glassy - crystalline geometric patterns\n• Mood: Analytical, cool intelligence, data-driven clarity\n• Size: 512×512 PNG, deep dark bg, no text`,
-    },
-    "Blitz": {
-        description: "Blitz is the code quality guardian. It enforces linting rules, runs static analysis, reviews logic for edge cases, and ensures every PR meets the quality bar before merge.",
-        responsibilities: [
-            "Run ESLint, TypeScript strict checks, and Prettier",
-            "Review code for logic bugs, edge cases, anti-patterns",
-            "Enforce test coverage thresholds",
-            "Flag security issues like XSS, injection, exposed secrets",
-            "Provide actionable PR review comments",
-        ],
-        iconPrompt: `Create a minimal AI agent avatar icon for "Blitz" - Code Quality.\n• Color: Electric blue #0099ff on dark background\n• Symbol: Shield with a checkmark inside, overlaid with code brackets\n• Style: Solid, protective, technical - angular shield with circuit details\n• Mood: Vigilant, trustworthy, zero-tolerance for bugs\n• Size: 512×512 PNG, dark bg, no text`,
-    },
-    "Earth": {
-        description: "Earth keeps the codebase clean and healthy. It removes dead code, refactors legacy patterns, updates dependencies, and eliminates technical debt before it compounds.",
-        responsibilities: [
-            "Identify and remove unused files, imports, and variables",
-            "Refactor legacy code to modern patterns",
-            "Run npm audit and update outdated dependencies",
-            "Simplify over-engineered abstractions",
-            "Maintain consistent code formatting across the repo",
-        ],
-        iconPrompt: `Create a minimal AI agent avatar icon for "Earth" - Cleanup.\n• Color: Fresh green #00ff00 on dark background\n• Symbol: A leaf sprouting from a circuit board, clean and growing\n• Style: Organic meets technical, rounded shapes, nature-inspired\n• Mood: Renewal, growth, sustainable maintenance\n• Size: 512×512 PNG, dark bg, no text`,
-    },
-    "Pulse": {
-        description: "Pulse automates the tedious. It writes GitHub Actions workflows, creates scripts, manages CI/CD pipelines, and ensures the development loop is fast, repeatable, and hands-free.",
-        responsibilities: [
-            "Write and maintain GitHub Actions CI/CD pipelines",
-            "Create npm scripts and shell automation",
-            "Manage deployment workflows for Vercel and other platforms",
-            "Schedule automated tasks (cron jobs, syncs)",
-            "Generate changelogs and release notes automatically",
-        ],
-        iconPrompt: `Create a minimal AI agent avatar icon for "Pulse" - Automation.\n• Color: Purple #9933ff, electric rhythm\n• Symbol: Pulsing heartbeat/waveform line transforming into a gear or cog\n• Style: Dynamic curves transitioning into mechanical precision, purple glow\n• Mood: Rhythmic, relentless, always running in the background\n• Size: 512×512 PNG, dark bg, no text`,
-    },
-    "Sand": {
-        description: "Sand manages all data persistence. It designs database schemas, writes migration files, optimizes queries, configures caching layers, and ensures data integrity across the stack.",
-        responsibilities: [
-            "Design and migrate SQLite / PostgreSQL schemas",
-            "Write optimized queries and add proper indexes",
-            "Configure Redis / edge caching strategies",
-            "Manage file storage (local, S3)",
-            "Ensure data backups and disaster recovery plans",
-        ],
-        iconPrompt: `Create a minimal AI agent avatar icon for "Sand" - Storage.\n• Color: Warm terracotta #cc6633 on dark background\n• Symbol: Database cylinder built from layered sand strata, like geological cross-section\n• Style: Earthy, structured, stacked circles suggesting depth and data layers\n• Mood: Solid, ancient reliability, foundational strength\n• Size: 512×512 PNG, dark bg, no text`,
-    },
-    "Shadow": {
-        description: "Shadow is always watching. It audits authentication flows, scans for vulnerabilities, enforces CSP headers, reviews permissions, and ensures nothing sensitive leaks to the client.",
-        responsibilities: [
-            "Audit auth flows (JWT, sessions, OAuth, passkeys)",
-            "Scan for OWASP Top 10 vulnerabilities",
-            "Enforce Content Security Policy and security headers",
-            "Review env vars for accidental exposure",
-            "Monitor for suspicious activity patterns",
-        ],
-        iconPrompt: `Create a minimal AI agent avatar icon for "Shadow" - Security.\n• Color: Stealth gray #999999, shadow and light contrast\n• Symbol: A lock with a ghost/shadow silhouette - half visible, half hidden in darkness\n• Style: Dark, enigmatic, high contrast - suggests invisibility and silent protection\n• Mood: Silent guardian, always present but unseen\n• Size: 512×512 PNG, near-black bg, no text`,
-    },
-    "Rock": {
-        description: "Rock builds the internal command center. It creates admin dashboards, internal tools, reporting interfaces, and the monitoring infrastructure that keeps the whole system observable.",
-        responsibilities: [
-            "Build admin dashboards and internal management UIs",
-            "Create reporting interfaces and data export tools",
-            "Develop monitoring and observability views",
-            "Manage user roles and permission interfaces",
-            "Build developer tools and debug panels",
-        ],
-        iconPrompt: `Create a minimal AI agent avatar icon for "Rock" - Dashboard.\n• Color: Neutral stone gray #7a7a7a, solid and unmoving\n• Symbol: Grid of dashboard tiles arranged to form a monolith/rock shape\n• Style: Solid, geometric, structural - squares as a stable foundation\n• Mood: Dependable, permanent, the bedrock of the entire system\n• Size: 512×512 PNG, dark bg, no text`,
-    },
-};
 
 // ─── Machines ────────────────────────────────────────────────────────────────
 // Static fallback - overridden by dynamic machine list from /api/claude/machines
@@ -380,6 +214,18 @@ export function SectionHeader({ icon: Icon, title }: { icon: React.ElementType; 
 // Segmented pill tabs - matches the [24h | 7d | 30d | ALL] control style.
 // Used wherever the user toggles between mutually-exclusive views.
 const SEGMENT_ACTIVE = "#f97316";
+// The 3 standard time windows every usage card offers, in this order. No "All":
+// Claude Code purges transcripts after 30 days (cleanupPeriodDays), so 30d is all there is.
+export type Window4 = "today" | "7d" | "30d";
+export const WINDOW_TABS: { key: Window4; label: string }[] = [{ key: "today", label: "Today" }, { key: "7d", label: "7d" }, { key: "30d", label: "30d" }];
+
+// White window badge at the top right of every windowed Overview card.
+export function WindowBadge({ win }: { win: Window4 }) {
+    const label = WINDOW_TABS.find(t => t.key === win)?.label ?? win;
+    return (
+        <span style={{ display: "inline-flex", alignItems: "center", padding: "2px 8px", borderRadius: 999, background: "#fff", color: "#0b0b0d", fontSize: 9, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", lineHeight: "14px", whiteSpace: "nowrap" }}>{label}</span>
+    );
+}
 export function SegmentedTabs<K extends string>({ tabs, value, onChange, accent = SEGMENT_ACTIVE }: {
     tabs: { key: K; label: string; count?: number }[];
     value: K;

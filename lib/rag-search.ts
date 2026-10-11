@@ -57,7 +57,7 @@ export type SearchResult = {
   score: number;
 };
 
-export type SearchResultCompact = {
+type SearchResultCompact = {
   chunk_id: number;
   doc_id: number;
   title: string;
@@ -134,43 +134,6 @@ export function ftsSearchCompact(query: string, limit = 20): SearchResultCompact
   }));
 }
 
-// Get full content for specific chunk IDs (progressive disclosure layer 2)
-export function getChunksByIds(ids: number[]): SearchResult[] {
-  if (!ids.length) return [];
-  const db = getDb();
-  const placeholders = ids.map(() => "?").join(",");
-  return db.prepare(`
-    SELECT c.id as chunk_id, c.doc_id, c.content,
-      d.project, d.source_type, d.title, 0 as score
-    FROM chunks c JOIN documents d ON d.id = c.doc_id
-    WHERE c.id IN (${placeholders})
-  `).all(...ids) as SearchResult[];
-}
-
-// Entity-boosted search (3rd signal)
-export function entitySearch(query: string, limit = 10): SearchResult[] {
-  const db = getDb();
-  // split(/\s+/) never yields an empty array, so no empty-guard is needed
-  const words = query.toLowerCase().split(/\s+/);
-  const conditions = words.map(() => "e.name LIKE ?").join(" OR ");
-  const params = words.map(w => `%${w}%`);
-
-  try {
-    return db.prepare(`
-      SELECT DISTINCT c.id as chunk_id, c.doc_id, c.content,
-        d.project, d.source_type, d.title, -10 as score
-      FROM entities e
-      JOIN entity_links el ON el.source_id = e.id OR el.target_id = e.id
-      JOIN documents d ON d.id = el.doc_id
-      JOIN chunks c ON c.doc_id = d.id
-      WHERE ${conditions}
-      LIMIT ?
-    `).all(...params, limit) as SearchResult[];
-  } catch {
-    return [];
-  }
-}
-
 // ── Health Checks ────────────────────────────────────────────────────────────
 
 export function runHealthChecks(): { check_type: string; severity: string; message: string }[] {
@@ -226,8 +189,30 @@ export function runHealthChecks(): { check_type: string; severity: string; messa
 
 // ── Stats ────────────────────────────────────────────────────────────────────
 
-export function getStats() {
+export function getStats(days = 0) {
   const db = getDb();
+  // Windowed slice for the Overview hero row: what the RAG actually did in the
+  // selected range, not what it holds. days <= 0 means the whole log.
+  // created_at is SQLite datetime() text ("YYYY-MM-DD HH:MM:SS", UTC), so the cutoff
+  // is built in SQL too - an ISO "T" string sorts after every same-day row.
+  // Calendar days in local time like the Jev page: days=1 is since local midnight.
+  const since = days > 0 ? `-${days - 1} days` : "";
+  const windowCount = (table: string, expr = "COUNT(*)") => {
+    try {
+      const sql = since
+        ? `SELECT ${expr} as count FROM ${table} WHERE created_at >= datetime('now', 'localtime', 'start of day', ?, 'utc')`
+        : `SELECT ${expr} as count FROM ${table}`;
+      const row = since ? db.prepare(sql).get(since) : db.prepare(sql).get();
+      return (row as { count: number }).count;
+    } catch { return 0; }
+  };
+  // Same cutoff for the Overview sections below the hero row, so they follow the filter too.
+  const where = since ? "WHERE created_at >= datetime('now', 'localtime', 'start of day', ?, 'utc')" : "";
+  const args = since ? [since] : [];
+  const windowed = {
+    days, loaded: windowCount("context_log"), searches: windowCount("search_log"), docs: windowCount("documents"),
+    chunks: windowCount("chunks"), projects: windowCount("documents", "COUNT(DISTINCT project)"),
+  };
   const docs = db.prepare("SELECT COUNT(*) as count FROM documents").get() as { count: number };
   const chunks = db.prepare("SELECT COUNT(*) as count FROM chunks").get() as { count: number };
   const prefs = db.prepare("SELECT COUNT(*) as count FROM preferences").get() as { count: number };
@@ -236,32 +221,32 @@ export function getStats() {
   const lastIngest = db.prepare("SELECT MAX(updated_at) as t FROM documents").get() as { t: string | null };
   const entities = db.prepare("SELECT COUNT(*) as count FROM entities").get() as { count: number };
   const turns = db.prepare("SELECT COUNT(*) as count FROM turns").get() as { count: number };
-  const recentSearches = db.prepare("SELECT query, results_count, created_at FROM search_log ORDER BY created_at DESC LIMIT 10").all();
+  const recentSearches = db.prepare(`SELECT query, results_count, created_at FROM search_log ${where} ORDER BY created_at DESC LIMIT 10`).all(...args);
 
   // Context injection stats
   let contextInjections = 0, totalContextSize = 0, recentContexts: { project: string; prefs_count: number; chunks_count: number; context_size: number; created_at: string; times: number }[] = [];
   try {
-    const ci = db.prepare("SELECT COUNT(*) as count FROM context_log").get() as { count: number };
-    const cs = db.prepare("SELECT SUM(context_size) as total FROM context_log").get() as { total: number | null };
+    const ci = db.prepare(`SELECT COUNT(*) as count FROM context_log ${where}`).get(...args) as { count: number };
+    const cs = db.prepare(`SELECT SUM(context_size) as total FROM context_log ${where}`).get(...args) as { total: number | null };
     contextInjections = ci.count;
     totalContextSize = cs.total || 0;
     recentContexts = db.prepare(`
       SELECT project, prefs_count, chunks_count, context_size, MAX(created_at) as created_at, COUNT(*) as times
-      FROM context_log
+      FROM context_log ${where}
       GROUP BY project
       ORDER BY MAX(created_at) DESC
       LIMIT 10
-    `).all() as { project: string; prefs_count: number; chunks_count: number; context_size: number; created_at: string; times: number }[];
+    `).all(...args) as { project: string; prefs_count: number; chunks_count: number; context_size: number; created_at: string; times: number }[];
   } catch { /* table might not exist yet */ }
 
   // Type breakdown for charts
-  const typeCounts = db.prepare("SELECT source_type, COUNT(*) as count FROM documents GROUP BY source_type ORDER BY count DESC").all() as { source_type: string; count: number }[];
+  const typeCounts = db.prepare(`SELECT source_type, COUNT(*) as count FROM documents ${where} GROUP BY source_type ORDER BY count DESC`).all(...args) as { source_type: string; count: number }[];
 
   // Project breakdown for charts
-  const projectCounts = db.prepare("SELECT project, COUNT(*) as count FROM documents GROUP BY project ORDER BY count DESC LIMIT 10").all() as { project: string; count: number }[];
+  const projectCounts = db.prepare(`SELECT project, COUNT(*) as count FROM documents ${where} GROUP BY project ORDER BY count DESC LIMIT 10`).all(...args) as { project: string; count: number }[];
 
   // Preference categories for radar chart
-  const prefCategories = db.prepare("SELECT category, COUNT(*) as count FROM preferences GROUP BY category ORDER BY count DESC").all() as { category: string; count: number }[];
+  const prefCategories = db.prepare(`SELECT category, COUNT(*) as count FROM preferences GROUP BY category ORDER BY count DESC`).all() as { category: string; count: number }[];
 
   // Ingestion timeline (docs created per day)
   const timeline = db.prepare(`
@@ -269,47 +254,41 @@ export function getStats() {
       SUM(CASE WHEN source_type='conversation' THEN 1 ELSE 0 END) as conversations,
       SUM(CASE WHEN source_type='insight' THEN 1 ELSE 0 END) as insights,
       SUM(CASE WHEN source_type='memory' THEN 1 ELSE 0 END) as memory
-    FROM documents GROUP BY DATE(created_at) ORDER BY day
-  `).all() as { day: string; count: number; conversations: number; insights: number; memory: number }[];
+    FROM documents ${where} GROUP BY DATE(created_at) ORDER BY day
+  `).all(...args) as { day: string; count: number; conversations: number; insights: number; memory: number }[];
+
+  // Hero card trends in local time: per hour up to now on Today, per day otherwise.
+  const trend: { key: string; docs: number; chunks: number; projects: number; prefs: number }[] = [];
+  if (since) {
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    if (days === 1) for (let h = 0; h <= now.getHours(); h++) trend.push({ key: pad(h), docs: 0, chunks: 0, projects: 0, prefs: 0 });
+    else for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(now); d.setDate(d.getDate() - i);
+      trend.push({ key: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`, docs: 0, chunks: 0, projects: 0, prefs: 0 });
+    }
+    const bucket = days === 1 ? "strftime('%H', created_at, 'localtime')" : "DATE(created_at, 'localtime')";
+    const byKey = new Map(trend.map(t => [t.key, t]));
+    const fill = (table: string, expr: string, field: "docs" | "chunks" | "projects" | "prefs") => {
+      try {
+        const rows = db.prepare(`SELECT ${bucket} as b, ${expr} as c FROM ${table} ${where} GROUP BY b`).all(...args) as { b: string; c: number }[];
+        for (const r of rows) { const t = byKey.get(r.b); if (t) t[field] = r.c; }
+      } catch { /* table might not exist yet */ }
+    };
+    fill("documents", "COUNT(*)", "docs");
+    fill("chunks", "COUNT(*)", "chunks");
+    fill("documents", "COUNT(DISTINCT project)", "projects");
+    fill("preferences", "COUNT(*)", "prefs");
+  }
 
   // Context injection timeline
   let injectionTimeline: { day: string; count: number; avg_size: number }[] = [];
   try {
     injectionTimeline = db.prepare(`
       SELECT DATE(created_at) as day, COUNT(*) as count, ROUND(AVG(context_size)) as avg_size
-      FROM context_log GROUP BY DATE(created_at) ORDER BY day
-    `).all() as { day: string; count: number; avg_size: number }[];
+      FROM context_log ${where} GROUP BY DATE(created_at) ORDER BY day
+    `).all(...args) as { day: string; count: number; avg_size: number }[];
   } catch {}
-
-  // Search benchmark - test FTS5 coverage across sample queries
-  const benchmarkQueries = [
-    "auth login redirect", "supabase database migration", "deploy vercel production",
-    "tailwind dark mode", "git commit push workflow", "api route authentication jwt",
-    "react component state", "ssh server setup", "rag memory search", "docker kubernetes",
-  ];
-  const searchBenchmark = benchmarkQueries.map(q => {
-    const words = q.split(/\s+/);
-    const expanded = new Set(words);
-    for (const w of words) {
-      const exp: Record<string, string[]> = {
-        k8s: ["kubernetes"], db: ["database", "postgres", "supabase", "sqlite"],
-        auth: ["authentication", "oauth", "cognito", "auth0"], ts: ["typescript"],
-        fe: ["frontend", "react", "next"], be: ["backend", "api", "server"],
-      };
-      if (exp[w]) exp[w].forEach(e => expanded.add(e));
-    }
-    const ftsQuery = [...expanded].join(" OR ");
-    let hits = 0;
-    let topScore = 0;
-    try {
-      const rows = db.prepare(`
-        SELECT rank as score FROM chunks_fts WHERE chunks_fts MATCH ? ORDER BY rank LIMIT 20
-      `).all(ftsQuery) as { score: number }[];
-      hits = rows.length;
-      topScore = rows[0]?.score ?? 0;
-    } catch { /* fts error */ }
-    return { query: q, hits, topScore: Math.abs(topScore) };
-  });
 
   return {
     documents: docs.count,
@@ -329,6 +308,7 @@ export function getStats() {
     prefCategories,
     timeline,
     injectionTimeline,
-    searchBenchmark,
+    windowed,
+    trend,
   };
 }

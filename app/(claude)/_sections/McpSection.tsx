@@ -11,11 +11,11 @@ import {
 import { useMachine } from "./MachineContext";
 import { SegmentedTabs, fetchJson, FetchError, useDialog } from "./shared";
 import AppIcon from "./AppIcon";
-import McpLogPanel from "./McpLogPanel";
+import McpLogPanel, { McpRecentCalls } from "./McpLogPanel";
 import type { Win } from "@/app/api/claude/mcp-log/route";
+import type { McpInfo } from "@/app/api/claude/skills/route";
 import McpDirectory from "./McpDirectory";
 
-type McpInfo = { name: string; type: string; url?: string; command?: string; path: string; createdAt?: string | null; source?: "user" | "plugin" };
 type McpFilter = "all" | "mine" | "shipped";
 
 const TYPE_COLORS: Record<string, string> = { http: "#3b82f6", sse: "#f59e0b", command: "#f97316" };
@@ -350,6 +350,8 @@ export default function McpSection() {
                     onClose={() => setSelected(null)}
                 />
             )}
+
+            <McpRecentCalls win={win} />
 
         </div>
     );
