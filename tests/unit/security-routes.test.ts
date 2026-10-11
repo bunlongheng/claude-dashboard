@@ -189,9 +189,10 @@ describe("GET /api/claude/project-icon", () => {
     const { GET } = await loadRoute();
     const res = await GET(new NextRequest("http://localhost/api/claude/project-icon?project=../x"));
     // Only the last path segment ("x") is used as the lookup name, so this
-    // can never escape SITES_DIR - it 404s (no such project) rather than
+    // can never escape SITES_DIR - it falls back to the default icon rather than
     // leaking the outside file, and is never a 200 with the secret bytes.
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(307);
+    expect(res.headers.get("location")).toBe("/app-icons/claude-code.png");
   });
 
   it("serves the favicon for a normal, existing project name", async () => {
@@ -208,10 +209,11 @@ describe("GET /api/claude/project-icon", () => {
     expect(buf.equals(bytes)).toBe(true);
   });
 
-  it("404s cleanly for a normal but absent project name", async () => {
+  it("redirects to the default icon for a normal but absent project name", async () => {
     fs.mkdirSync(path.join(tmpHome, "Sites"), { recursive: true });
     const { GET } = await loadRoute();
     const res = await GET(new NextRequest("http://localhost/api/claude/project-icon?project=doesnotexist"));
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(307);
+    expect(res.headers.get("location")).toBe("/app-icons/claude-code.png");
   });
 });

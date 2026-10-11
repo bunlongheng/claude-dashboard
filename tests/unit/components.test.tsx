@@ -42,10 +42,6 @@ describe("AppIcon", () => {
 
     fireEvent.error(img);
     img = screen.getByAltText("claude") as HTMLImageElement;
-    expect(img.getAttribute("src")).toBe("/app-icons/claude.svg");
-
-    fireEvent.error(img);
-    img = screen.getByAltText("claude") as HTMLImageElement;
     expect(img.getAttribute("src")).toContain("/api/claude/project-icon");
 
     fireEvent.error(img);
