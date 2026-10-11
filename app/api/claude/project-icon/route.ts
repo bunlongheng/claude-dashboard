@@ -85,5 +85,6 @@ export const GET = withErrorHandler(async (req: NextRequest) => {
         } catch {}
     }
 
-    return new NextResponse(null, { status: 404 });
+    // No icon found: send the default logo instead of a 404 so the browser logs no error.
+    return new NextResponse(null, { status: 307, headers: { Location: "/app-icons/claude-code.png" } });
 }) as (req: NextRequest) => Promise<Response>;

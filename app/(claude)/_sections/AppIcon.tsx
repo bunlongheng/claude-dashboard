@@ -35,7 +35,6 @@ export default function AppIcon({ project, size = 16 }: { project: string; size?
         const add = (u: string) => { if (!seen.has(u)) { seen.add(u); out.push(u); } };
         const known = resolved.get(project) ?? basenames.map(b => KNOWN[b]?.path).find(Boolean);
         if (known) add(known);
-        for (const ext of ["png", "svg"]) for (const b of basenames) add(`/app-icons/${b}.${ext}`);
         // Real favicon from the project-icon API - it returns a proper icon when the
         // project has one (e.g. worldcup26 -> FIFA) and 404s cleanly when it does not.
         add(`/api/claude/project-icon?project=${encodeURIComponent(project)}`);
